@@ -78,6 +78,7 @@ export default function AdminDashboard() {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFileSelect(file);
@@ -85,10 +86,13 @@ export default function AdminDashboard() {
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setDragging(false);
   }, []);
 
@@ -218,7 +222,7 @@ export default function AdminDashboard() {
                 Nuovo evento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
               <DialogHeader>
                 <DialogTitle className="font-headline">
                   {editingId ? "Modifica evento" : "Nuovo evento"}
