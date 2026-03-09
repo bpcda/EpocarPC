@@ -109,7 +109,14 @@ export default function EventiPage() {
                     {event.location && (
                       <li className="text-sm text-foreground/70 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 bg-accent rounded-full flex-shrink-0" />
-                        {event.location}
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline underline-offset-2 hover:text-foreground transition-colors"
+                        >
+                          {event.location}
+                        </a>
                       </li>
                     )}
                     {event.category && event.category !== "event" && (
