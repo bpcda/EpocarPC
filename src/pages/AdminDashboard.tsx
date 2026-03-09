@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, LogOut } from "lucide-react";
+import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface Event {
@@ -53,6 +53,9 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const fetchEvents = async () => {
     const { data } = await supabase
@@ -66,14 +69,70 @@ export default function AdminDashboard() {
     fetchEvents();
   }, []);
 
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setImageFile(file);
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragging(false);
+  }, []);
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setForm({ ...form, image_url: "" });
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const ext = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage
+      .from("event-images")
+      .upload(fileName, file, { contentType: file.type });
+
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("event-images")
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  };
+
   const handleSave = async () => {
     setLoading(true);
+
+    let imageUrl = form.image_url || null;
+
+    if (imageFile) {
+      const uploaded = await uploadImage(imageFile);
+      if (uploaded) imageUrl = uploaded;
+    }
+
     const payload = {
       title: form.title,
       description: form.description || null,
       date: form.date || null,
       location: form.location || null,
-      image_url: form.image_url || null,
+      image_url: imageUrl,
       category: form.category || "event",
       published: form.published,
     };
@@ -86,6 +145,8 @@ export default function AdminDashboard() {
 
     setForm(emptyForm);
     setEditingId(null);
+    setImageFile(null);
+    setImagePreview(null);
     setDialogOpen(false);
     setLoading(false);
     fetchEvents();
@@ -101,6 +162,8 @@ export default function AdminDashboard() {
       category: event.category || "event",
       published: event.published ?? false,
     });
+    setImageFile(null);
+    setImagePreview(event.image_url || null);
     setEditingId(event.id);
     setDialogOpen(true);
   };
@@ -118,7 +181,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-headline font-semibold text-foreground">
@@ -137,7 +199,6 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Events section */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-headline font-medium text-foreground">
             Eventi
@@ -147,6 +208,8 @@ export default function AdminDashboard() {
             if (!open) {
               setForm(emptyForm);
               setEditingId(null);
+              setImageFile(null);
+              setImagePreview(null);
             }
           }}>
             <DialogTrigger asChild>
@@ -185,11 +248,60 @@ export default function AdminDashboard() {
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
                   />
                 </div>
-                <Input
-                  placeholder="URL immagine"
-                  value={form.image_url}
-                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                />
+
+                {/* Drag & Drop Image Upload */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Immagine</label>
+                  {imagePreview ? (
+                    <div className="relative rounded-md overflow-hidden border border-border">
+                      <img
+                        src={imagePreview}
+                        alt="Anteprima"
+                        className="w-full h-40 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 bg-foreground/70 text-background rounded-full p-1 hover:bg-foreground transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "image/*";
+                        input.onchange = (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) handleFileSelect(file);
+                        };
+                        input.click();
+                      }}
+                      className={`border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition-colors ${
+                        dragging
+                          ? "border-accent bg-accent/5"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        {dragging ? (
+                          <Upload className="h-8 w-8 text-accent" />
+                        ) : (
+                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          {dragging ? "Rilascia qui" : "Trascina un'immagine o clicca per selezionare"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Input
                   placeholder="Categoria"
                   value={form.category}
