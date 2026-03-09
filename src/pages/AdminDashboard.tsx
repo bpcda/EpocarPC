@@ -222,7 +222,7 @@ export default function AdminDashboard() {
                 Nuovo evento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
               <DialogHeader>
                 <DialogTitle className="font-headline">
                   {editingId ? "Modifica evento" : "Nuovo evento"}
