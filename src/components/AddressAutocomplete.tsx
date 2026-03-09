@@ -27,17 +27,20 @@ export default function AddressAutocomplete({ value, onChange, placeholder = "Lu
     setLoading(true);
     try {
       const res = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=it`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1&accept-language=it`,
+        {
+          headers: { 'Accept': 'application/json' },
+        }
       );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const results: Suggestion[] = (data.features || []).map((f: any) => {
-        const p = f.properties;
-        const parts = [p.name, p.street, p.housenumber, p.city, p.state, p.country].filter(Boolean);
-        return { display_name: parts.join(", ") };
-      });
+      const results: Suggestion[] = (data || []).map((item: any) => ({
+        display_name: item.display_name,
+      }));
       setSuggestions(results);
       setOpen(results.length > 0);
-    } catch {
+    } catch (err) {
+      console.error("Address autocomplete error:", err);
       setSuggestions([]);
     } finally {
       setLoading(false);
@@ -47,7 +50,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder = "Lu
   const handleChange = (val: string) => {
     onChange(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 400);
   };
 
   const handleSelect = (suggestion: Suggestion) => {
