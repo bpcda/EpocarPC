@@ -19,15 +19,15 @@ export default function GallerySection() {
   const ref = useScrollReveal();
 
   return (
-    <section className="py-24 lg:py-32 bg-secondary" ref={ref}>
+    <section id="gallery" className="py-24 lg:py-32" ref={ref}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="section-reveal mb-16">
-          <p className="text-sm font-medium tracking-widest text-muted-foreground uppercase mb-4">Gallery</p>
-          <h2 className="font-headline text-3xl md:text-4xl lg:text-5xl text-foreground">
-            Momenti Epocar
+        <div className="section-reveal mb-12">
+          <h2 className="font-headline text-5xl md:text-7xl lg:text-8xl text-foreground tracking-wider">
+            GALLERY
           </h2>
+          <div className="w-24 h-0.5 bg-foreground/30 mt-2" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 section-reveal" style={{ transitionDelay: "0.2s" }}>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 section-reveal" style={{ transitionDelay: "0.2s" }}>
           {images.map((img, i) => (
             <div key={i} className="group relative overflow-hidden aspect-square cursor-pointer">
               <img
