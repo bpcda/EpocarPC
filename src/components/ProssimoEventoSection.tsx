@@ -55,32 +55,32 @@ export default function ProssimoEventoSection() {
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
-      <div className="absolute inset-0 bg-foreground/60" />
+      <div className="absolute inset-0 bg-foreground/70" />
       <div className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8 section-reveal">
-        <p className="text-sm font-medium tracking-widest text-background/60 uppercase mb-6">
-          Prossimo Evento
+        <p className="font-headline text-sm tracking-[0.2em] text-primary-foreground/50 mb-6">
+          PROSSIMO EVENTO
         </p>
-        <h2 className="font-headline text-4xl md:text-5xl lg:text-6xl text-background leading-tight mb-6">
-          {event.title}
+        <h2 className="font-headline text-4xl md:text-6xl lg:text-7xl text-primary-foreground leading-none tracking-wider mb-6">
+          {event.title.toUpperCase()}
         </h2>
         <div className="flex flex-wrap gap-6 mb-6">
           {event.location && (
-            <span className="flex items-center gap-2 text-background/80 text-sm">
+            <span className="flex items-center gap-2 text-primary-foreground/80 text-sm">
               <MapPin className="w-4 h-4" />
               {event.location}
             </span>
           )}
           {event.date && (
-            <span className="flex items-center gap-2 text-background/80 text-sm">
+            <span className="flex items-center gap-2 text-primary-foreground/80 text-sm">
               <CalendarDays className="w-4 h-4" />
               {formatDate(event.date)}
             </span>
           )}
         </div>
-        <p className="text-base md:text-lg text-background/70 max-w-xl mb-10">
+        <p className="text-base md:text-lg text-primary-foreground/70 max-w-xl mb-10">
           {event.description}
         </p>
-        <Button variant="accent" size="lg" asChild>
+        <Button variant="hero-primary" asChild>
           <Link to="/eventi">Partecipa All'Evento</Link>
         </Button>
       </div>

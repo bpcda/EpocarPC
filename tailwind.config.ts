@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        headline: ['Taviraj', 'serif'],
-        body: ['Public Sans', 'sans-serif'],
+        headline: ['Bebas Neue', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

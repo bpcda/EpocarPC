@@ -16,10 +16,10 @@ export default function CommunityNumbersSection() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 section-reveal">
           {stats.map((stat, i) => (
             <div key={i} className="text-center">
-              <p className="font-headline text-4xl md:text-5xl lg:text-6xl text-background mb-2">
+              <p className="font-headline text-4xl md:text-5xl lg:text-6xl text-primary-foreground mb-2 tracking-wider">
                 {stat.value}
               </p>
-              <p className="text-sm md:text-base text-background/60 font-body">
+              <p className="text-sm md:text-base text-primary-foreground/60 font-body">
                 {stat.label}
               </p>
             </div>

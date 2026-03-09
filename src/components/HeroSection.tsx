@@ -1,7 +1,12 @@
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
+import { Users, Star, Car } from "lucide-react";
 import heroImage from "@/assets/hero-car.jpg";
+
+const stats = [
+  { icon: Users, value: "+30", label: "MEMBRI" },
+  { icon: Star, value: "10", label: "EVENTI" },
+  { icon: Car, value: "15", label: "VEICOLI" },
+];
 
 export default function HeroSection() {
   return (
@@ -12,24 +17,41 @@ export default function HeroSection() {
         className="absolute inset-0 w-full h-full object-cover"
         loading="eager"
       />
-      <div className="absolute inset-0 bg-foreground/50" />
+      <div className="absolute inset-0 bg-foreground/60" />
+
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
-        <h1 className="font-headline text-4xl md:text-6xl lg:text-7xl text-accent-foreground max-w-4xl leading-tight animate-fade-up">
-          La Nuova Generazione Degli Appassionati Di Motori Storici
+        <h1 className="font-headline text-7xl md:text-9xl lg:text-[12rem] text-primary-foreground leading-none tracking-wider animate-fade-up">
+          EPOCAR
         </h1>
-        <p className="mt-6 text-base md:text-lg text-accent-foreground/80 max-w-2xl font-body animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          Epocar è una community di Piacenza che unisce persone appassionate di veicoli storici attraverso eventi, raduni e cultura.
+        <div className="w-24 h-0.5 bg-primary-foreground/60 my-4 animate-fade-up" style={{ animationDelay: "0.15s" }} />
+        <p className="text-base md:text-xl text-primary-foreground/80 font-body tracking-wide animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          La nuova generazione dei motori d'epoca
         </p>
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 animate-fade-up" style={{ animationDelay: "0.4s" }}>
-          <Button variant="hero-primary" asChild>
-            <Link to="/community">Scopri La Community</Link>
-          </Button>
-          <Button variant="hero-secondary" asChild>
-            <Link to="/eventi">Scopri Gli Eventi</Link>
-          </Button>
-        </div>
+
         <div className="absolute bottom-10 animate-scroll-hint">
-          <ChevronDown className="w-6 h-6 text-accent-foreground/60" />
+          <ChevronDown className="w-6 h-6 text-primary-foreground/60" />
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-primary-foreground/20">
+        <div className="max-w-5xl mx-auto grid grid-cols-3">
+          {stats.map((stat, i) => (
+            <div
+              key={i}
+              className={`flex items-center justify-center gap-3 py-5 ${
+                i > 0 ? "border-l border-primary-foreground/20" : ""
+              }`}
+            >
+              <stat.icon className="w-6 h-6 text-primary-foreground/70" />
+              <span className="font-headline text-2xl md:text-3xl text-primary-foreground tracking-wider">
+                {stat.value}
+              </span>
+              <span className="font-headline text-lg md:text-xl text-primary-foreground/70 tracking-widest">
+                {stat.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

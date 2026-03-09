@@ -14,23 +14,21 @@ export default function CTASection() {
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
       />
-      <div className="absolute inset-0 bg-foreground/60" />
+      <div className="absolute inset-0 bg-foreground/70" />
       <div className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8 text-center section-reveal">
-        <p className="text-sm font-medium tracking-widest text-background/60 uppercase mb-6">
-          Entra In Epocar
-        </p>
-        <h2 className="font-headline text-3xl md:text-5xl lg:text-6xl text-background leading-tight mb-6">
-          Unisciti Alla Community Epocar
+        <h2 className="font-headline text-4xl md:text-6xl lg:text-8xl text-primary-foreground leading-none tracking-wider mb-6">
+          UNISCITI A EPOCAR
         </h2>
-        <p className="text-base md:text-lg text-background/70 max-w-xl mx-auto mb-10">
-          Entra a far parte della nuova generazione di appassionati di motori storici. Partecipa agli eventi, condividi la tua passione e scopri il mondo Epocar.
+        <div className="w-24 h-0.5 bg-primary-foreground/40 mx-auto mb-6" />
+        <p className="text-base md:text-lg text-primary-foreground/70 max-w-xl mx-auto mb-10">
+          Entra a far parte della nuova generazione di appassionati di motori storici.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button variant="accent" size="lg" asChild>
+          <Button variant="hero-primary" asChild>
             <Link to="/eventi">Scopri Gli Eventi</Link>
           </Button>
           <Button variant="hero-secondary" asChild>
-            <a href="https://instagram.com/epocar" target="_blank" rel="noopener noreferrer">
+            <a href="https://instagram.com/epocar.official" target="_blank" rel="noopener noreferrer">
               Segui Su Instagram
             </a>
           </Button>
