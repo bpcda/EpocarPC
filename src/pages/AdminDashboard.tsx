@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -246,10 +247,10 @@ export default function AdminDashboard() {
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                   />
-                  <Input
-                    placeholder="Luogo"
+                  <AddressAutocomplete
                     value={form.location}
-                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    onChange={(val) => setForm({ ...form, location: val })}
+                    placeholder="Luogo"
                   />
                 </div>
 
