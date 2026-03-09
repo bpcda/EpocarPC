@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
 import eventMeetup from "@/assets/event-meetup.jpg";
@@ -69,68 +70,88 @@ export default function EventiPage() {
   return (
     <>
       <Navbar />
-      <main className="pt-20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16 lg:py-24" ref={ref}>
-          <div className="section-reveal mb-16">
-            <p className="text-sm font-medium tracking-widest text-muted-foreground uppercase mb-4">Eventi</p>
-            <h1 className="font-headline text-4xl md:text-5xl lg:text-6xl text-foreground">
-              I Nostri Eventi
-            </h1>
-          </div>
-          <div className="space-y-24 section-reveal" style={{ transitionDelay: "0.2s" }}>
-            {events.map((event, i) => (
-              <div key={event.id} className={`grid grid-cols-1 lg:grid-cols-2 gap-12 items-center`}>
-                <div className={i % 2 === 1 ? "lg:order-2" : ""}>
-                  {event.image_url ? (
-                    <img src={event.image_url} alt={event.title} className="w-full h-[400px] object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-[400px] bg-muted flex items-center justify-center">
-                      <span className="text-muted-foreground text-sm">Nessuna immagine</span>
-                    </div>
+      <main>
+        {/* Hero header */}
+        <section className="bg-foreground pt-32 pb-16 lg:pt-40 lg:pb-20">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8" ref={ref}>
+            <div className="section-reveal">
+              <h1 className="font-headline text-6xl md:text-8xl lg:text-9xl text-primary-foreground leading-none tracking-wider">
+                EVENTI
+              </h1>
+              <div className="w-24 h-0.5 bg-primary-foreground/30 mt-4" />
+            </div>
+
+            {/* Thumbnail row */}
+            <div className="grid grid-cols-3 gap-3 mt-12 section-reveal" style={{ transitionDelay: "0.1s" }}>
+              {events.slice(0, 3).map((event) => (
+                <div key={event.id} className="relative aspect-[4/5] overflow-hidden cursor-pointer group">
+                  {event.image_url && (
+                    <img
+                      src={event.image_url}
+                      alt={event.title}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
                   )}
+                  <div className="absolute inset-0 bg-foreground/20 group-hover:bg-foreground/10 transition-colors duration-300" />
                 </div>
-                <div className={i % 2 === 1 ? "lg:order-1" : ""}>
-                  <h2 className="font-headline text-3xl md:text-4xl text-foreground mb-4">{event.title}</h2>
-                  <p className="text-base text-muted-foreground leading-relaxed mb-6">{event.description}</p>
-                  <ul className="space-y-2">
-                    {event.date && (
-                      <li className="text-sm text-foreground/70 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-accent rounded-full flex-shrink-0" />
-                        {new Date(event.date).toLocaleDateString("it-IT", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </li>
-                    )}
-                    {event.location && (
-                      <li className="text-sm text-foreground/70 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-accent rounded-full flex-shrink-0" />
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline underline-offset-2 hover:text-foreground transition-colors"
-                        >
-                          {event.location}
-                        </a>
-                      </li>
-                    )}
-                    {event.category && event.category !== "event" && (
-                      <li className="text-sm text-foreground/70 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-accent rounded-full flex-shrink-0" />
-                        {event.category}
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
+
+        {/* Event details */}
+        <section className="bg-foreground pb-24 lg:pb-32">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="space-y-20">
+              {events.map((event, i) => (
+                <div key={event.id} className={`grid grid-cols-1 lg:grid-cols-2 gap-8 items-center`}>
+                  <div className={i % 2 === 1 ? "lg:order-2" : ""}>
+                    {event.image_url ? (
+                      <img src={event.image_url} alt={event.title} className="w-full h-[350px] lg:h-[450px] object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-[350px] lg:h-[450px] bg-primary-foreground/5 flex items-center justify-center">
+                        <span className="text-primary-foreground/30 text-sm">Nessuna immagine</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className={`${i % 2 === 1 ? "lg:order-1" : ""} space-y-4`}>
+                    <h2 className="font-headline text-3xl md:text-5xl text-primary-foreground tracking-wider leading-none">
+                      {event.title.toUpperCase()}
+                    </h2>
+                    <div className="flex gap-8">
+                      {event.date && (
+                        <div>
+                          <p className="font-headline text-sm tracking-widest text-primary-foreground/40">DATA</p>
+                          <p className="text-primary-foreground/70 text-sm">
+                            {new Date(event.date).toLocaleDateString("it-IT", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      )}
+                      {event.location && (
+                        <div>
+                          <p className="font-headline text-sm tracking-widest text-primary-foreground/40">LUOGO</p>
+                          <p className="text-primary-foreground/70 text-sm">{event.location}</p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-primary-foreground/60 text-sm leading-relaxed">{event.description}</p>
+                    <Button
+                      variant="outline"
+                      className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
+                    >
+                      PRENOTAZIONE
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
       <Footer />
     </>
