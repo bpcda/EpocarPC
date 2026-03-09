@@ -5,6 +5,7 @@ import logoEpocar from "@/assets/logo-epocar.png";
 const navLinks = [
   { label: "Chi Siamo", href: "/#chi-siamo" },
   { label: "Eventi", href: "/eventi" },
+  { label: "Articoli", href: "/articoli" },
   { label: "Rubricar", href: "/rubricar" },
   { label: "Community", href: "/community" },
   { label: "Contatti", href: "/contatti" },

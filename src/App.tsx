@@ -8,6 +8,7 @@ import Eventi from "./pages/Eventi.tsx";
 import Rubricar from "./pages/Rubricar.tsx";
 import Community from "./pages/Community.tsx";
 import Contatti from "./pages/Contatti.tsx";
+import Articoli from "./pages/Articoli.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/rubricar" element={<Rubricar />} />
           <Route path="/community" element={<Community />} />
           <Route path="/contatti" element={<Contatti />} />
+          <Route path="/articoli" element={<Articoli />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"
