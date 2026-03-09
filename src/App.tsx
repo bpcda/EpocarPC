@@ -8,6 +8,9 @@ import Eventi from "./pages/Eventi.tsx";
 import Rubricar from "./pages/Rubricar.tsx";
 import Community from "./pages/Community.tsx";
 import Contatti from "./pages/Contatti.tsx";
+import AdminLogin from "./pages/AdminLogin.tsx";
+import AdminDashboard from "./pages/AdminDashboard.tsx";
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -24,6 +27,15 @@ const App = () => (
           <Route path="/rubricar" element={<Rubricar />} />
           <Route path="/community" element={<Community />} />
           <Route path="/contatti" element={<Contatti />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
