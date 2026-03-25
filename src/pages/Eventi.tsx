@@ -15,6 +15,7 @@ interface EventData {
   location: string | null;
   image_url: string | null;
   category: string | null;
+  registration_link: string | null;
 }
 
 const fallbackEvents: EventData[] = [
@@ -57,7 +58,7 @@ export default function EventiPage() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url, category")
+          .select("id, title, description, date, location, image_url, category, registraion_link")
           .eq("published", true)
           .order("date", { ascending: true });
 
@@ -147,6 +148,7 @@ export default function EventiPage() {
                     <Button
                       variant="outline"
                       className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
+                      onClick={() => window.open(event.registraion_link)}
                     >
                       PRENOTAZIONE
                     </Button>
