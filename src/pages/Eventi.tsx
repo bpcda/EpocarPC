@@ -15,7 +15,7 @@ interface EventData {
   location: string | null;
   image_url: string | null;
   category: string | null;
-  registration_link: string | null;
+  registration_link?: string | null;
 }
 
 const fallbackEvents: EventData[] = [
@@ -86,7 +86,7 @@ export default function EventiPage() {
               <div className="w-24 h-0.5 bg-primary-foreground/30 mt-4" />
             </div>
 
-            {/* Thumbnail row */}
+            {/* Thumbnail row 
             <div className="grid grid-cols-3 gap-3 mt-12 section-reveal" style={{ transitionDelay: "0.1s" }}>
               {events.slice(0, 3).map((event) => (
                 <div key={event.id} className="relative aspect-[4/5] overflow-hidden cursor-pointer group">
@@ -101,7 +101,7 @@ export default function EventiPage() {
                   <div className="absolute inset-0 bg-foreground/20 group-hover:bg-foreground/10 transition-colors duration-300" />
                 </div>
               ))}
-            </div>
+            </div>*/}
           </div>
         </section>
 

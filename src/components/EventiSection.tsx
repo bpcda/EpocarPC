@@ -43,7 +43,7 @@ interface EventDisplay {
   date: string | null;
   location: string | null;
   image_url: string | null;
-  registration_link: string | null;
+  registration_link?: string | null;
   fallbackImage?: string;
 }
 
@@ -102,7 +102,7 @@ export default function EventiSection() {
           })}
         </div>
 
-        {/* Event details alternating */}
+        {/* Event details alternating 
         <div className="space-y-16 section-reveal" style={{ transitionDelay: "0.2s" }}>
           {events.map((event, i) => {
             const img = event.image_url || event.fallbackImage;
@@ -139,7 +139,7 @@ export default function EventiSection() {
               </div>
             );
           })}
-        </div>
+        </div>*/}
       </div>
     </section>
   );
