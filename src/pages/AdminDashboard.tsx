@@ -89,19 +89,27 @@ export default function AdminDashboard() {
   const [dragging, setDragging] = useState(false);
 
   const fetchEvents = async () => {
-    const { data } = await supabase
-      .from("events")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setEvents(data);
+    try {
+      const { data } = await supabase
+        .from("events")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setEvents(data);
+    } catch {
+      // Backend unavailable
+    }
   };
 
   const fetchArticles = async () => {
-    const { data } = await supabase
-      .from("articles")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setArticles(data);
+    try {
+      const { data } = await supabase
+        .from("articles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setArticles(data);
+    } catch {
+      // Backend unavailable
+    }
   };
 
   useEffect(() => {
