@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   Table,
   TableBody,
@@ -88,19 +89,27 @@ export default function AdminDashboard() {
   const [dragging, setDragging] = useState(false);
 
   const fetchEvents = async () => {
-    const { data } = await supabase
-      .from("events")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setEvents(data);
+    try {
+      const { data } = await supabase
+        .from("events")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setEvents(data);
+    } catch {
+      // Backend unavailable
+    }
   };
 
   const fetchArticles = async () => {
-    const { data } = await supabase
-      .from("articles")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setArticles(data);
+    try {
+      const { data } = await supabase
+        .from("articles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setArticles(data);
+    } catch {
+      // Backend unavailable
+    }
   };
 
   useEffect(() => {
@@ -506,12 +515,13 @@ export default function AdminDashboard() {
                       onChange={(e) => setArticleForm({ ...articleForm, summary: e.target.value })}
                       rows={2}
                     />
-                    <Textarea
-                      placeholder="Contenuto dell'articolo"
-                      value={articleForm.content}
-                      onChange={(e) => setArticleForm({ ...articleForm, content: e.target.value })}
-                      rows={10}
-                    />
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Contenuto</label>
+                      <RichTextEditor
+                        content={articleForm.content}
+                        onChange={(html) => setArticleForm({ ...articleForm, content: html })}
+                      />
+                    </div>
                     <ImageUploadArea formType="article" />
                     <div className="flex items-center gap-3">
                       <Switch

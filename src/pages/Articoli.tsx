@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Calendar } from "lucide-react";
@@ -20,12 +19,17 @@ export default function Articoli() {
 
   useEffect(() => {
     const fetchArticles = async () => {
-      const { data } = await supabase
-        .from("articles")
-        .select("*")
-        .eq("published", true)
-        .order("created_at", { ascending: false });
-      if (data) setArticles(data);
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase
+          .from("articles")
+          .select("*")
+          .eq("published", true)
+          .order("created_at", { ascending: false });
+        if (data) setArticles(data);
+      } catch {
+        // Backend unavailable
+      }
       setLoading(false);
     };
     fetchArticles();
@@ -69,9 +73,10 @@ export default function Articoli() {
               </p>
             )}
             {selectedArticle.content && (
-              <div className="text-primary-foreground/80 leading-relaxed whitespace-pre-wrap text-base">
-                {selectedArticle.content}
-              </div>
+              <div
+                className="prose prose-invert prose-sm max-w-none text-primary-foreground/80"
+                dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+              />
             )}
           </article>
         </main>
