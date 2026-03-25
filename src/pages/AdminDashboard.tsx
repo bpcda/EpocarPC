@@ -70,6 +70,8 @@ export default function AdminDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
+  if (!user) navigate("/admin/login");
+
   // Events state
   const [events, setEvents] = useState<Event[]>([]);
   const [eventForm, setEventForm] = useState(emptyEventForm);
