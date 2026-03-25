@@ -58,7 +58,7 @@ const emptyEventForm = {
   image_url: "",
   category: "event",
   published: false,
-  registration_link="",
+  registration_link: "",
 };
 
 const emptyArticleForm = {
@@ -415,6 +415,7 @@ export default function AdminDashboard() {
                       placeholder="Link Registrazione"
                       value={eventForm.registration_link}
                       onChange={(e) => setEventForm({...eventForm, registration_link: e.target.value})}
+                    />
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={eventForm.published}
