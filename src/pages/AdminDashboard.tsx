@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import GalleryTab from "@/components/admin/GalleryTab";
 
 interface Event {
   id: string;
@@ -182,6 +183,7 @@ export default function AdminDashboard() {
       image_url: imageUrl,
       category: eventForm.category || "event",
       published: eventForm.published,
+      uploaded_by: user?.id || null,
     };
     if (editingEventId) {
       await supabase.from("events").update(payload).eq("id", editingEventId);
@@ -233,6 +235,7 @@ export default function AdminDashboard() {
       content: articleForm.content || null,
       image_url: imageUrl,
       published: articleForm.published,
+      uploaded_by: user?.id || null,
     };
     if (editingArticleId) {
       await supabase.from("articles").update(payload).eq("id", editingArticleId);
@@ -343,6 +346,7 @@ export default function AdminDashboard() {
           <TabsList className="mb-6">
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
+            <TabsTrigger value="gallery">Gallery</TabsTrigger>
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
@@ -591,6 +595,11 @@ export default function AdminDashboard() {
                 </Table>
               </div>
             )}
+          </TabsContent>
+
+          {/* ════════ GALLERY TAB ════════ */}
+          <TabsContent value="gallery">
+            <GalleryTab userId={user?.id} />
           </TabsContent>
         </Tabs>
       </main>
