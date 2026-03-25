@@ -58,7 +58,7 @@ export default function EventiPage() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url, category, registraion_link")
+          .select("id, title, description, date, location, image_url, category, registration_link")
           .eq("published", true)
           .order("date", { ascending: true });
 
@@ -148,7 +148,7 @@ export default function EventiPage() {
                     <Button
                       variant="outline"
                       className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
-                      onClick={() => window.open(event.registraion_link)}
+                      onClick={() => window.open(event.registration_link)}
                     >
                       PRENOTAZIONE
                     </Button>
