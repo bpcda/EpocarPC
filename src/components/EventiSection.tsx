@@ -43,6 +43,7 @@ interface EventDisplay {
   date: string | null;
   location: string | null;
   image_url: string | null;
+  registration_link: string | null;
   fallbackImage?: string;
 }
 
@@ -56,7 +57,7 @@ export default function EventiSection() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url")
+          .select("id, title, description, date, location, image_url, registration_link")
           .eq("published", true)
           .order("date", { ascending: true })
           .limit(3);
