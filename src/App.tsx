@@ -9,6 +9,8 @@ import Rubricar from "./pages/Rubricar.tsx";
 import Community from "./pages/Community.tsx";
 import Contatti from "./pages/Contatti.tsx";
 import Articoli from "./pages/Articoli.tsx";
+import Gallery from "./pages/Gallery.tsx";
+import ChiSiamo from "./pages/ChiSiamo.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
