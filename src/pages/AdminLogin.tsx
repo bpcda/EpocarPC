@@ -17,14 +17,18 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
 
-    const { error: authError } = await signIn(email, password);
-    if (authError) {
-      setError(authError.message);
+    try {
+      const { error: authError } = await signIn(email, password);
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
+      navigate("/admin");
+    } catch (err: any) {
+      setError(err?.message || "Errore di connessione al server");
       setLoading(false);
-      return;
     }
-
-    navigate("/admin");
   };
 
   return (
