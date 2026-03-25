@@ -34,7 +34,7 @@ export function useAuth() {
           await checkRole(currentUser.id);
         }
       } catch {
-        // ignore
+        // Backend unavailable
       } finally {
         if (mounted) setLoading(false);
       }
