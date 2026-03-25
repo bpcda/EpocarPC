@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -6,9 +6,40 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+
+    const applySession = (sessionUser: User | null) => {
+      if (!mounted) return;
+      setUser(sessionUser);
+      setAuthReady(true);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        applySession(session?.user ?? null);
+      }
+    );
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        applySession(session?.user ?? null);
+      })
+      .catch(() => {
+        applySession(null);
+      });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
 
     const checkRole = async (userId: string) => {
       try {
@@ -18,51 +49,46 @@ export function useAuth() {
           .eq("user_id", userId)
           .eq("role", "admin")
           .maybeSingle();
+
         console.log("[useAuth] checkRole for", userId, "=>", { data, error: error?.message });
-        if (mounted) setIsAdmin(!!data);
+
+        if (!cancelled) {
+          setIsAdmin(!!data);
+        }
       } catch (err) {
         console.error("[useAuth] checkRole exception:", err);
-        if (mounted) setIsAdmin(false);
-      }
-    };
-
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        if (!mounted) return;
-        setUser(currentUser);
-        if (currentUser) {
-          await checkRole(currentUser.id);
-        }
-      } catch {
-        // Backend unavailable
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) return;
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        if (currentUser) {
-          await checkRole(currentUser.id);
-        } else {
+        if (!cancelled) {
           setIsAdmin(false);
         }
-        setLoading(false);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    );
+    };
 
-    initSession();
+    if (!authReady) {
+      setLoading(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!user) {
+      setIsAdmin(false);
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setLoading(true);
+    void checkRole(user.id);
 
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      cancelled = true;
     };
-  }, []);
+  }, [authReady, user]);
 
   const signIn = (email: string, password: string) =>
     supabase.auth.signInWithPassword({ email, password });
