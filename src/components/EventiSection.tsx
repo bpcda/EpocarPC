@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
 import eventMeetup from "@/assets/event-meetup.jpg";
@@ -50,6 +51,7 @@ interface EventDisplay {
 export default function EventiSection() {
   const ref = useScrollReveal();
   const [events, setEvents] = useState<EventDisplay[]>(fallbackEvents);
+  let navigate = useNavigate();
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -87,7 +89,7 @@ export default function EventiSection() {
           {events.map((event) => {
             const img = event.image_url || event.fallbackImage;
             return (
-              <div key={event.id} className="relative aspect-[4/5] overflow-hidden cursor-pointer group">
+              <div key={event.id} className="relative aspect-[4/5] overflow-hidden cursor-pointer group" onClick={()=> navigate("/eventi")}>
                 {img && (
                   <img
                     src={img}

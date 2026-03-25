@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
 import eventMeetup from "@/assets/event-meetup.jpg";
-import { useNavigate } from "react-router-dom";
 
 interface EventData {
   id: string;
@@ -52,7 +51,6 @@ const fallbackEvents: EventData[] = [
 export default function EventiPage() {
   const ref = useScrollReveal();
   const [events, setEvents] = useState<EventData[]>(fallbackEvents);
-  let navigate = useNavigate();
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -115,9 +113,9 @@ export default function EventiPage() {
                 <div key={event.id} className={`grid grid-cols-1 lg:grid-cols-2 gap-8 items-center`}>
                   <div className={i % 2 === 1 ? "lg:order-2" : ""}>
                     {event.image_url ? (
-                      <img src={event.image_url} alt={event.title} className="w-full h-[350px] lg:h-[450px] object-cover" loading="lazy" onClick={()=> navigate("/eventi")}/>
+                      <img src={event.image_url} alt={event.title} className="w-full h-[350px] lg:h-[450px] object-cover" loading="lazy" />
                     ) : (
-                      <div className="w-full h-[350px] lg:h-[450px] bg-primary-foreground/5 flex items-center justify-center" onClick={()=> navigate("/eventi")}>
+                      <div className="w-full h-[350px] lg:h-[450px] bg-primary-foreground/5 flex items-center justify-center">
                         <span className="text-primary-foreground/30 text-sm">Nessuna immagine</span>
                       </div>
                     )}

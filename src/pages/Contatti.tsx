@@ -24,8 +24,8 @@ export default function ContattiPage() {
                     <h3 className="font-headline text-2xl md:text-3xl text-primary-foreground tracking-wider">
                       EMAIL:
                     </h3>
-                    <a href="mailto:info@epocar.it" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-base">
-                      info@epocar.it
+                    <a href="mailto:epocarpc@gmail.com" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-base">
+                      epocarpc@gmail.com
                     </a>
                   </div>
                   <div>

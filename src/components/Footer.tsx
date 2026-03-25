@@ -27,7 +27,7 @@ export default function Footer() {
           <div>
             <h4 className="font-headline text-xl tracking-wider mb-4">CONTATTI</h4>
             <p className="text-sm text-primary-foreground/60">Piacenza, Italia</p>
-            <p className="text-sm text-primary-foreground/60 mt-1">info@epocar.it</p>
+            <p className="text-sm text-primary-foreground/60 mt-1">epocarpc@gmail.com</p>
             <div className="flex gap-4 mt-6">
               <a
                 href="https://instagram.com/epocar.official"
