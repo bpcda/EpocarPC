@@ -18,14 +18,17 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const { error: authError } = await signIn(email, password);
+      const { data, error: authError } = await signIn(email, password);
+      console.log("[AdminLogin] signIn result:", { data: !!data?.session, error: authError?.message });
       if (authError) {
         setError(authError.message);
         setLoading(false);
         return;
       }
-      navigate("/admin");
+      // Small delay to let onAuthStateChange propagate
+      setTimeout(() => navigate("/admin"), 100);
     } catch (err: any) {
+      console.error("[AdminLogin] signIn exception:", err);
       setError(err?.message || "Errore di connessione al server");
       setLoading(false);
     }

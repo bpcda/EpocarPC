@@ -12,14 +12,16 @@ export function useAuth() {
 
     const checkRole = async (userId: string) => {
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", userId)
           .eq("role", "admin")
           .maybeSingle();
+        console.log("[useAuth] checkRole for", userId, "=>", { data, error: error?.message });
         if (mounted) setIsAdmin(!!data);
-      } catch {
+      } catch (err) {
+        console.error("[useAuth] checkRole exception:", err);
         if (mounted) setIsAdmin(false);
       }
     };
