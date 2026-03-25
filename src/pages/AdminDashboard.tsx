@@ -594,6 +594,11 @@ export default function AdminDashboard() {
               </div>
             )}
           </TabsContent>
+
+          {/* ════════ GALLERY TAB ════════ */}
+          <TabsContent value="gallery">
+            <GalleryTab userId={user?.id} />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
