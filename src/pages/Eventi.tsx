@@ -31,7 +31,7 @@ const fallbackEvents: EventData[] = [
   {
     id: "fallback-2",
     title: "Vespa Groove Night",
-    description: "Un evento culturale che unisce la cultura Vespa, storytelling, aperitivo e DJ set.",
+    description: "Un evento culturale che unisce la cultura Vespa, storytelling, aperitivo e DJ set",
     date: null,
     location: null,
     image_url: eventVespa,
