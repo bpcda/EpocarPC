@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
@@ -54,14 +53,19 @@ export default function EventiPage() {
 
   useEffect(() => {
     const fetchEvents = async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("id, title, description, date, location, image_url, category")
-        .eq("published", true)
-        .order("date", { ascending: true });
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase
+          .from("events")
+          .select("id, title, description, date, location, image_url, category")
+          .eq("published", true)
+          .order("date", { ascending: true });
 
-      if (data && data.length > 0) {
-        setEvents(data);
+        if (data && data.length > 0) {
+          setEvents(data);
+        }
+      } catch {
+        // Backend unavailable — keep fallback data
       }
     };
     fetchEvents();

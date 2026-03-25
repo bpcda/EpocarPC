@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
@@ -53,15 +52,20 @@ export default function EventiSection() {
 
   useEffect(() => {
     const fetchEvents = async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("id, title, description, date, location, image_url")
-        .eq("published", true)
-        .order("date", { ascending: true })
-        .limit(3);
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase
+          .from("events")
+          .select("id, title, description, date, location, image_url")
+          .eq("published", true)
+          .order("date", { ascending: true })
+          .limit(3);
 
-      if (data && data.length > 0) {
-        setEvents(data);
+        if (data && data.length > 0) {
+          setEvents(data);
+        }
+      } catch {
+        // Backend unavailable — keep fallback data
       }
     };
     fetchEvents();

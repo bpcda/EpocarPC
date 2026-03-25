@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { supabase } from "@/integrations/supabase/client";
 import { CalendarDays, MapPin } from "lucide-react";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 
@@ -27,17 +26,22 @@ export default function ProssimoEventoSection() {
   const [event, setEvent] = useState<NextEvent>(fallback);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("title, date, location, description, image_url")
-        .eq("published", true)
-        .gte("date", new Date().toISOString().split("T")[0])
-        .order("date", { ascending: true })
-        .limit(1);
-      if (data && data.length > 0) setEvent(data[0]);
+    const fetchNext = async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase
+          .from("events")
+          .select("title, date, location, description, image_url")
+          .eq("published", true)
+          .gte("date", new Date().toISOString().split("T")[0])
+          .order("date", { ascending: true })
+          .limit(1);
+        if (data && data.length > 0) setEvent(data[0]);
+      } catch {
+        // Backend unavailable — keep fallback
+      }
     };
-    fetch();
+    fetchNext();
   }, []);
 
   const formatDate = (d: string | null) => {
