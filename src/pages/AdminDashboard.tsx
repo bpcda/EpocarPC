@@ -183,6 +183,7 @@ export default function AdminDashboard() {
       image_url: imageUrl,
       category: eventForm.category || "event",
       published: eventForm.published,
+      uploaded_by: user?.id || null,
     };
     if (editingEventId) {
       await supabase.from("events").update(payload).eq("id", editingEventId);
