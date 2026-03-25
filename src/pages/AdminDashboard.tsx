@@ -37,6 +37,7 @@ interface Event {
   category: string | null;
   published: boolean | null;
   created_at: string;
+  registration_link: string | null;
 }
 
 interface Article {
@@ -57,6 +58,7 @@ const emptyEventForm = {
   image_url: "",
   category: "event",
   published: false,
+  registration_link="",
 };
 
 const emptyArticleForm = {
@@ -184,6 +186,7 @@ export default function AdminDashboard() {
       category: eventForm.category || "event",
       published: eventForm.published,
       uploaded_by: user?.id || null,
+      registration_link: eventForm.registration_link || null,
     };
     if (editingEventId) {
       await supabase.from("events").update(payload).eq("id", editingEventId);
@@ -208,6 +211,7 @@ export default function AdminDashboard() {
       image_url: event.image_url || "",
       category: event.category || "event",
       published: event.published ?? false,
+      registration_link: event.registration_link || "",
     });
     setImageFile(null);
     setImagePreview(event.image_url || null);
@@ -407,6 +411,10 @@ export default function AdminDashboard() {
                       value={eventForm.category}
                       onChange={(e) => setEventForm({ ...eventForm, category: e.target.value })}
                     />
+                    <Input
+                      placeholder="Link Registrazione"
+                      value={eventForm.registration_link}
+                      onChange={(e) => setEventForm({...eventForm, registration_link: e.target.value})}
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={eventForm.published}
