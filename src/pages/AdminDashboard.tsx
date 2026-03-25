@@ -344,6 +344,7 @@ export default function AdminDashboard() {
           <TabsList className="mb-6">
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
+            <TabsTrigger value="gallery">Gallery</TabsTrigger>
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
