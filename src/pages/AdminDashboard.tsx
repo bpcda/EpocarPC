@@ -235,6 +235,7 @@ export default function AdminDashboard() {
       content: articleForm.content || null,
       image_url: imageUrl,
       published: articleForm.published,
+      uploaded_by: user?.id || null,
     };
     if (editingArticleId) {
       await supabase.from("articles").update(payload).eq("id", editingArticleId);
