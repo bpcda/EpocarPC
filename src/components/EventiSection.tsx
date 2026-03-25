@@ -57,7 +57,7 @@ export default function EventiSection() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url, registration_link")
+          .select("id, image_url")
           .eq("published", true)
           .order("date", { ascending: true })
           .limit(3);
