@@ -3,10 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import logoEpocar from "@/assets/logo-epocar.png";
 
 const navLinks = [
-  { label: "Chi Siamo", href: "/#chi-siamo" },
+  { label: "Chi Siamo", href: "/chi-siamo" },
   { label: "Eventi", href: "/eventi" },
   { label: "Articoli", href: "/articoli" },
-  { label: "Gallery", href: "/#gallery" },
+  { label: "Gallery", href: "/gallery" },
   { label: "Contatti", href: "/contatti" },
 ];
 
