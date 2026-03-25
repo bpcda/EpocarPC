@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,14 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && user && isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [authLoading, user, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,14 +31,19 @@ export default function AdminLogin() {
         setLoading(false);
         return;
       }
-      // Small delay to let onAuthStateChange propagate
-      setTimeout(() => navigate("/admin"), 100);
     } catch (err: any) {
       console.error("[AdminLogin] signIn exception:", err);
       setError(err?.message || "Errore di connessione al server");
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!loading) return;
+    if (!authLoading && (!user || !isAdmin)) {
+      setLoading(false);
+    }
+  }, [loading, authLoading, user, isAdmin]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
