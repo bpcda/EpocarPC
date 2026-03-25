@@ -515,12 +515,13 @@ export default function AdminDashboard() {
                       onChange={(e) => setArticleForm({ ...articleForm, summary: e.target.value })}
                       rows={2}
                     />
-                    <Textarea
-                      placeholder="Contenuto dell'articolo"
-                      value={articleForm.content}
-                      onChange={(e) => setArticleForm({ ...articleForm, content: e.target.value })}
-                      rows={10}
-                    />
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">Contenuto</label>
+                      <RichTextEditor
+                        content={articleForm.content}
+                        onChange={(html) => setArticleForm({ ...articleForm, content: html })}
+                      />
+                    </div>
                     <ImageUploadArea formType="article" />
                     <div className="flex items-center gap-3">
                       <Switch
