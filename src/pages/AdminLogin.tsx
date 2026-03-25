@@ -48,6 +48,7 @@ export default function AdminLogin() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
+            id="email"
             type="email"
             placeholder="Email"
             value={email}
@@ -55,6 +56,7 @@ export default function AdminLogin() {
             required
           />
           <Input
+            id="password"
             type="password"
             placeholder="Password"
             value={password}
