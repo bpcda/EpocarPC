@@ -24,6 +24,7 @@ export type Database = {
           summary: string | null
           title: string
           updated_at: string
+          uploaded_by: string | null
         }
         Insert: {
           content?: string | null
@@ -34,6 +35,7 @@ export type Database = {
           summary?: string | null
           title: string
           updated_at?: string
+          uploaded_by?: string | null
         }
         Update: {
           content?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           summary?: string | null
           title?: string
           updated_at?: string
+          uploaded_by?: string | null
         }
         Relationships: []
       }
@@ -59,6 +62,7 @@ export type Database = {
           published: boolean | null
           title: string
           updated_at: string
+          uploaded_by: string | null
         }
         Insert: {
           category?: string | null
@@ -71,6 +75,7 @@ export type Database = {
           published?: boolean | null
           title: string
           updated_at?: string
+          uploaded_by?: string | null
         }
         Update: {
           category?: string | null
@@ -83,6 +88,61 @@ export type Database = {
           published?: boolean | null
           title?: string
           updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      gallery_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          id: string
+          image_url: string
+          sort_order: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          id?: string
+          image_url: string
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          id?: string
+          image_url?: string
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
