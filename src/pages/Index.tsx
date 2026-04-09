@@ -4,7 +4,6 @@ import ProssimoEventoSection from "@/components/ProssimoEventoSection";
 import CommunityNumbersSection from "@/components/CommunityNumbersSection";
 import MissionSection from "@/components/MissionSection";
 import EventiSection from "@/components/EventiSection";
-import RubricarSection from "@/components/RubricarSection";
 import CommunitySection from "@/components/CommunitySection";
 import InstagramSection from "@/components/InstagramSection";
 import CTASection from "@/components/CTASection";
@@ -20,7 +19,6 @@ const Index = () => {
         <CommunityNumbersSection />
         <MissionSection />
         <EventiSection />
-        <RubricarSection />
         <CommunitySection />
         <InstagramSection />
         <CTASection />
