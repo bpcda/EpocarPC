@@ -114,11 +114,11 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-4 w-4 mr-1" />Aggiungi immagini</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
+          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle className="font-headline">Carica immagini</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 mt-2">
+            <div className="space-y-4 mt-2 overflow-y-auto flex-1 pr-1">
               <div
                 onDrop={handleDrop}
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
