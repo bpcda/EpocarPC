@@ -60,6 +60,7 @@ export type Database = {
           image_url: string | null
           location: string | null
           published: boolean | null
+          registration_link: string | null
           title: string
           updated_at: string
           uploaded_by: string | null
@@ -73,6 +74,7 @@ export type Database = {
           image_url?: string | null
           location?: string | null
           published?: boolean | null
+          registration_link?: string | null
           title: string
           updated_at?: string
           uploaded_by?: string | null
@@ -86,6 +88,7 @@ export type Database = {
           image_url?: string | null
           location?: string | null
           published?: boolean | null
+          registration_link?: string | null
           title?: string
           updated_at?: string
           uploaded_by?: string | null
