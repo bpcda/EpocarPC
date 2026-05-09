@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import communityImage from "@/assets/community-gathering.jpg";
+import communityImage from "@/assets/community-gathering.jpeg";
 
 export default function ChiSiamo() {
   return (
