@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CTASection from "@/components/CTASection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import communityImage from "@/assets/community-gathering.jpg";
+import communityImage from "@/assets/community-gathering.jpeg";
 import eventVespa from "@/assets/event-vespa.jpg";
 
 export default function CommunityPage() {
