@@ -1,5 +1,5 @@
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import communityImage from "@/assets/community-gathering.jpg";
+import communityImage from "@/assets/community-gathering.jpeg";
 
 export default function CommunitySection() {
   const ref = useScrollReveal();
