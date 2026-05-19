@@ -52,15 +52,18 @@ export default function ProssimoEventoSection() {
   const imageSrc = event.image_url || eventRitrovo;
 
   return (
-    <section className="relative py-32 lg:py-40 overflow-hidden" ref={ref}>
+    <section className="relative py-24 lg:py-32 overflow-hidden bg-foreground" ref={ref}>
+      {/* Blurred backdrop fills the section; the poster itself is never cropped */}
       <img
         src={imageSrc}
-        alt={event.title}
-        className="absolute inset-0 w-full h-full object-cover"
+        alt=""
+        aria-hidden
+        className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
         loading="lazy"
       />
       <div className="absolute inset-0 bg-foreground/70" />
-      <div className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8 section-reveal">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center section-reveal">
+        <div className="order-2 lg:order-1">
         <p className="font-headline text-sm tracking-[0.2em] text-primary-foreground/50 mb-6">
           PROSSIMO EVENTO
         </p>
@@ -87,6 +90,15 @@ export default function ProssimoEventoSection() {
         <Button variant="hero-primary" asChild>
           <Link to="/eventi">Partecipa All'Evento</Link>
         </Button>
+        </div>
+        <div className="order-1 lg:order-2 flex justify-center">
+          <img
+            src={imageSrc}
+            alt={event.title}
+            className="w-full max-h-[60vh] object-contain"
+            loading="lazy"
+          />
+        </div>
       </div>
     </section>
   );

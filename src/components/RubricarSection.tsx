@@ -42,11 +42,18 @@ export default function RubricarSection() {
 
 function ArticleCard({ article, tall, wide }: { article: typeof articles[0]; tall?: boolean; wide?: boolean }) {
   return (
-    <div className={`group relative overflow-hidden cursor-pointer ${tall ? "h-[500px]" : wide ? "h-[300px]" : "h-[244px]"}`}>
+    <div className={`group relative overflow-hidden cursor-pointer bg-foreground/80 ${tall ? "h-[500px]" : wide ? "h-[300px]" : "h-[244px]"}`}>
+      <img
+        src={article.image}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
+        loading="lazy"
+      />
       <img
         src={article.image}
         alt={article.title}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.03]"
         loading="lazy"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />

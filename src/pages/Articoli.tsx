@@ -48,11 +48,11 @@ export default function Articoli() {
               ← TORNA AGLI ARTICOLI
             </button>
             {selectedArticle.image_url && (
-              <div className="aspect-video w-full overflow-hidden mb-8">
+              <div className="relative w-full max-h-[70vh] overflow-hidden mb-8 bg-primary-foreground/5">
                 <img
                   src={selectedArticle.image_url}
                   alt={selectedArticle.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto max-h-[70vh] object-contain mx-auto"
                 />
               </div>
             )}
@@ -114,11 +114,18 @@ export default function Articoli() {
                     className="group text-left overflow-hidden"
                   >
                     {article.image_url ? (
-                      <div className="aspect-video overflow-hidden">
+                      <div className="relative aspect-video overflow-hidden bg-primary-foreground/5">
+                        <img
+                          src={article.image_url}
+                          alt=""
+                          aria-hidden
+                          className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
+                          loading="lazy"
+                        />
                         <img
                           src={article.image_url}
                           alt={article.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="relative w-full h-full object-contain group-hover:scale-[1.03] transition-transform duration-500"
                           loading="lazy"
                         />
                       </div>

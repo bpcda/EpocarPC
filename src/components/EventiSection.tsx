@@ -89,16 +89,30 @@ export default function EventiSection() {
           {events.map((event) => {
             const img = event.image_url || event.fallbackImage;
             return (
-              <div key={event.id} className="relative aspect-[4/5] overflow-hidden cursor-pointer group" onClick={()=> navigate("/eventi")}>
+              <div
+                key={event.id}
+                className="relative aspect-[4/5] overflow-hidden cursor-pointer group bg-foreground/80"
+                onClick={() => navigate("/eventi")}
+              >
                 {img && (
-                  <img
-                    src={img}
-                    alt={event.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
+                  <>
+                    {/* Blurred backdrop to fill the frame without cropping the poster */}
+                    <img
+                      src={img}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
+                      loading="lazy"
+                    />
+                    <img
+                      src={img}
+                      alt={event.title}
+                      className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-[1.03]"
+                      loading="lazy"
+                    />
+                  </>
                 )}
-                <div className="absolute inset-0 bg-foreground/30 group-hover:bg-foreground/10 transition-colors duration-300" />
+                <div className="absolute inset-0 bg-foreground/10 group-hover:bg-transparent transition-colors duration-300" />
               </div>
             );
           })}
