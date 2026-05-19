@@ -113,7 +113,21 @@ export default function EventiPage() {
                 <div key={event.id} className={`grid grid-cols-1 lg:grid-cols-2 gap-8 items-center`}>
                   <div className={i % 2 === 1 ? "lg:order-2" : ""}>
                     {event.image_url ? (
-                      <img src={event.image_url} alt={event.title} className="w-full h-[350px] lg:h-[450px] object-cover" loading="lazy" />
+                      <div className="relative w-full h-[350px] lg:h-[450px] bg-primary-foreground/5 overflow-hidden">
+                        <img
+                          src={event.image_url}
+                          alt=""
+                          aria-hidden
+                          className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
+                          loading="lazy"
+                        />
+                        <img
+                          src={event.image_url}
+                          alt={event.title}
+                          className="relative w-full h-full object-contain"
+                          loading="lazy"
+                        />
+                      </div>
                     ) : (
                       <div className="w-full h-[350px] lg:h-[450px] bg-primary-foreground/5 flex items-center justify-center">
                         <span className="text-primary-foreground/30 text-sm">Nessuna immagine</span>
