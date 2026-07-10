@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface GalleryImage {
   id: string;
@@ -15,6 +16,11 @@ interface GalleryImage {
 
 const PAGE_SIZE = 20;
 const THUMB_WIDTH = 600;
+// Client-side rate limiting knobs
+const MIN_FETCH_INTERVAL_MS = 600;   // throttle between requests
+const AUTO_PAGES_BEFORE_PROMPT = 5;  // after N auto pages, require a click
+const CACHE_KEY = "epocar:gallery:v1";
+const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes
 
 const getThumbUrl = (url: string, width = THUMB_WIDTH) => {
   if (!url.includes("/storage/v1/object/public/")) return url;
@@ -25,14 +31,24 @@ const getThumbUrl = (url: string, width = THUMB_WIDTH) => {
 
 export default function Gallery() {
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const inflightRef = useRef(false);
+  const lastFetchAtRef = useRef(0);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null);
+  const [needsUserAction, setNeedsUserAction] = useState(false);
 
   const fetchPage = useCallback(async (pageIndex: number) => {
+    // Guard: single inflight + minimum interval between requests
+    if (inflightRef.current) return;
+    const now = Date.now();
+    const wait = Math.max(0, MIN_FETCH_INTERVAL_MS - (now - lastFetchAtRef.current));
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    inflightRef.current = true;
+    lastFetchAtRef.current = Date.now();
     setLoading(true);
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -43,37 +59,75 @@ export default function Gallery() {
       .range(from, to);
 
     if (!error && data) {
-      setImages((prev) => (pageIndex === 0 ? data : [...prev, ...data]));
+      setImages((prev) => {
+        const next = pageIndex === 0 ? data : [...prev, ...data];
+        // cache only the first page for quick revisits
+        if (pageIndex === 0) {
+          try {
+            sessionStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ ts: Date.now(), images: data, hasMore: data.length === PAGE_SIZE }),
+            );
+          } catch { /* quota */ }
+        }
+        return next;
+      });
       setHasMore(data.length === PAGE_SIZE);
     } else {
       setHasMore(false);
     }
     setLoading(false);
     setInitialLoad(false);
+    inflightRef.current = false;
   }, []);
 
   useEffect(() => {
+    // Hydrate from session cache to skip the first network call on revisits
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts: number; images: GalleryImage[]; hasMore: boolean };
+        if (Date.now() - parsed.ts < CACHE_TTL_MS && Array.isArray(parsed.images)) {
+          setImages(parsed.images);
+          setHasMore(!!parsed.hasMore);
+          setInitialLoad(false);
+          return;
+        }
+      }
+    } catch { /* ignore */ }
     fetchPage(0);
   }, [fetchPage]);
 
   // Infinite scroll verticale (window)
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loading) return;
+    if (!sentinel || !hasMore || loading || needsUserAction) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
+        if (entries[0].isIntersecting && hasMore && !loading && !inflightRef.current) {
           const next = page + 1;
+          // Soft cap: after some auto pages, stop and wait for a click
+          if (next >= AUTO_PAGES_BEFORE_PROMPT) {
+            setNeedsUserAction(true);
+            return;
+          }
           setPage(next);
           fetchPage(next);
         }
       },
-      { rootMargin: "800px 0px", threshold: 0.01 }
+      { rootMargin: "300px 0px", threshold: 0.01 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [page, hasMore, loading, fetchPage, images.length]);
+  }, [page, hasMore, loading, fetchPage, images.length, needsUserAction]);
+
+  const loadMoreManual = () => {
+    const next = page + 1;
+    setNeedsUserAction(false);
+    setPage(next);
+    fetchPage(next);
+  };
 
   return (
     <>
@@ -125,7 +179,14 @@ export default function Gallery() {
                   ))}
               </div>
 
-              {hasMore && <div ref={sentinelRef} className="h-10 w-full" />}
+              {hasMore && !needsUserAction && <div ref={sentinelRef} className="h-10 w-full" />}
+              {hasMore && needsUserAction && (
+                <div className="flex justify-center mt-8">
+                  <Button variant="outline" onClick={loadMoreManual} disabled={loading}>
+                    {loading ? "Caricamento…" : "Carica altre immagini"}
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
