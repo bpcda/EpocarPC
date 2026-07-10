@@ -23,7 +23,6 @@ interface Vehicle {
 }
 
 export default function EventRegistrationForm({ eventId, allowGuests, fields }: Props) {
-  const { user, authReady } = { ...useAuth(), authReady: true };
   const auth = useAuth();
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [guestName, setGuestName] = useState("");
