@@ -6,7 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import type { FormField } from "@/lib/form-fields";
+import { FileDown, FileUp, FileText } from "lucide-react";
+import {
+  ALLOWED_UPLOAD_ACCEPT,
+  isAllowedUploadFile,
+  type FormField,
+} from "@/lib/form-fields";
 
 interface Props {
   eventId: string;
@@ -30,6 +35,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.user) return;
@@ -46,6 +52,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
 
   const validate = (): string | null => {
     for (const f of fields) {
+      if (f.type === "document") continue;
       if (!f.required) continue;
       const v = values[f.id];
       if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) {
@@ -57,6 +64,37 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
       if (!guestEmail.trim()) return "Inserisci la tua email";
     }
     return null;
+  };
+
+  const uploadUserFile = async (field: FormField, file: File) => {
+    if (!auth.user) {
+      toast({
+        title: "Login richiesto",
+        description: "Per caricare file devi accedere.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isAllowedUploadFile(file.name)) {
+      toast({
+        title: "Formato non consentito",
+        description: "Solo PDF, DOCX o immagini (JPG, PNG, WEBP, HEIC).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUploadingFieldId(field.id);
+    const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, "_");
+    const path = `${auth.user.id}/${eventId}/${field.id}-${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from("registration-uploads")
+      .upload(path, file, { upsert: true, contentType: file.type || undefined });
+    setUploadingFieldId(null);
+    if (error) {
+      toast({ title: "Upload fallito", description: error.message, variant: "destructive" });
+      return;
+    }
+    setValue(field.id, { path, filename: file.name, size: file.size });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,6 +112,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
 
     const answers: Record<string, unknown> = {};
     fields.forEach((f) => {
+      if (f.type === "document") return; // display-only
       answers[f.id] = { label: f.label, type: f.type, value: values[f.id] ?? null };
     });
 
@@ -151,9 +190,18 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
       {fields.map((f) => (
         <div key={f.id} className="space-y-1">
           <label className="text-xs uppercase tracking-widest text-primary-foreground/60">
-            {f.label} {f.required && <span className="text-primary-foreground">*</span>}
+            {f.label} {f.required && f.type !== "document" && <span className="text-primary-foreground">*</span>}
           </label>
-          {renderField(f, values[f.id], (v) => setValue(f.id, v), vehicles, inputClass)}
+          {renderField(
+            f,
+            values[f.id],
+            (v) => setValue(f.id, v),
+            vehicles,
+            inputClass,
+            uploadingFieldId === f.id,
+            (file) => uploadUserFile(f, file),
+            !!auth.user,
+          )}
         </div>
       ))}
 
@@ -175,6 +223,9 @@ function renderField(
   onChange: (v: unknown) => void,
   vehicles: Vehicle[],
   inputClass: string,
+  uploading: boolean,
+  onUpload: (file: File) => void,
+  isAuthenticated: boolean,
 ) {
   switch (f.type) {
     case "textarea":
@@ -279,7 +330,83 @@ function renderField(
           ))}
         </select>
       );
+    case "document":
+      return (
+        <div className="space-y-1">
+          {(f.documents || []).length === 0 ? (
+            <p className="text-xs text-primary-foreground/60">Nessun documento allegato.</p>
+          ) : (
+            (f.documents || []).map((d) => (
+              <button
+                key={d.path}
+                type="button"
+                onClick={() => openDocument(d.path)}
+                className="w-full flex items-center gap-2 text-left text-sm border border-primary-foreground/30 px-3 py-2 bg-primary-foreground/5 hover:bg-primary-foreground/10 text-primary-foreground"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="flex-1 truncate">{d.filename}</span>
+                <span className="text-xs opacity-60">{Math.max(1, Math.round(d.size / 1024))} KB</span>
+                <FileDown className="h-4 w-4" />
+              </button>
+            ))
+          )}
+        </div>
+      );
+    case "file_upload": {
+      if (!isAuthenticated) {
+        return (
+          <p className="text-xs text-primary-foreground/60">
+            Per caricare un file <Link to="/auth" className="underline">accedi al tuo account</Link>.
+          </p>
+        );
+      }
+      const uploaded = value as { filename?: string; size?: number; path?: string } | null;
+      return (
+        <div className="space-y-2">
+          {f.hint && <p className="text-xs text-primary-foreground/60">{f.hint}</p>}
+          <label className="flex items-center gap-2 text-sm border border-dashed border-primary-foreground/40 px-3 py-3 cursor-pointer text-primary-foreground/80 hover:bg-primary-foreground/5">
+            <FileUp className="h-4 w-4" />
+            {uploading
+              ? "Upload in corso..."
+              : uploaded?.filename
+                ? `Sostituisci "${uploaded.filename}"`
+                : "Seleziona un file (PDF, DOCX, immagine)"}
+            <input
+              type="file"
+              className="hidden"
+              accept={ALLOWED_UPLOAD_ACCEPT}
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {uploaded?.filename && (
+            <p className="text-xs text-primary-foreground/60">
+              Caricato: <span className="text-primary-foreground">{uploaded.filename}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
     default:
       return null;
   }
+}
+
+async function openDocument(path: string) {
+  const { data, error } = await supabase.storage
+    .from("event-documents")
+    .createSignedUrl(path, 60 * 60);
+  if (error || !data?.signedUrl) {
+    toast({
+      title: "Impossibile aprire il documento",
+      description: error?.message || "Riprova più tardi.",
+      variant: "destructive",
+    });
+    return;
+  }
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
 }

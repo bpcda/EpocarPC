@@ -290,6 +290,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_allowed_upload_ext: { Args: { _name: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
