@@ -1,7 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { X } from "lucide-react";
@@ -19,8 +18,37 @@ const THUMB_WIDTH = 600;
 // Client-side rate limiting knobs
 const MIN_FETCH_INTERVAL_MS = 600;   // throttle between requests
 const AUTO_PAGES_BEFORE_PROMPT = 5;  // after N auto pages, require a click
-const CACHE_KEY = "epocar:gallery:v1";
+const CACHE_KEY = "epocar:gallery:v2"; // bumped: now stores ETag per page
 const CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const GALLERY_FN_URL = `${SUPABASE_URL}/functions/v1/gallery-list`;
+
+type PageCacheEntry = {
+  etag: string;
+  images: GalleryImage[];
+  hasMore: boolean;
+  ts: number;
+};
+type PageCache = Record<number, PageCacheEntry>;
+
+const readPageCache = (): PageCache => {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PageCache;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const writePageCache = (cache: PageCache) => {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch { /* quota */ }
+};
 
 const getThumbUrl = (url: string, width = THUMB_WIDTH) => {
   if (!url.includes("/storage/v1/object/public/")) return url;
@@ -33,6 +61,7 @@ export default function Gallery() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const inflightRef = useRef(false);
   const lastFetchAtRef = useRef(0);
+  const pageCacheRef = useRef<PageCache>(readPageCache());
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -52,49 +81,71 @@ export default function Gallery() {
     setLoading(true);
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from("gallery_images")
-      .select("id, image_url, alt_text, sort_order")
-      .order("sort_order", { ascending: true })
-      .range(from, to);
+    const cached = pageCacheRef.current[pageIndex];
 
-    if (!error && data) {
-      setImages((prev) => {
-        const next = pageIndex === 0 ? data : [...prev, ...data];
-        // cache only the first page for quick revisits
-        if (pageIndex === 0) {
-          try {
-            sessionStorage.setItem(
-              CACHE_KEY,
-              JSON.stringify({ ts: Date.now(), images: data, hasMore: data.length === PAGE_SIZE }),
-            );
-          } catch { /* quota */ }
-        }
-        return next;
+    try {
+      const res = await fetch(`${GALLERY_FN_URL}?from=${from}&to=${to}`, {
+        method: "GET",
+        headers: {
+          apikey: SUPABASE_ANON,
+          Authorization: `Bearer ${SUPABASE_ANON}`,
+          ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
+        },
       });
-      setHasMore(data.length === PAGE_SIZE);
-    } else {
-      setHasMore(false);
+
+      // 304 → reuse cached page, no body transfer
+      if (res.status === 304 && cached) {
+        setImages((prev) => (pageIndex === 0 ? cached.images : [...prev, ...cached.images]));
+        setHasMore(cached.hasMore);
+        pageCacheRef.current[pageIndex] = { ...cached, ts: Date.now() };
+        writePageCache(pageCacheRef.current);
+      } else if (res.ok) {
+        const body = (await res.json()) as { images: GalleryImage[] };
+        const list = body.images ?? [];
+        const etag = res.headers.get("etag") || "";
+        const hasMoreLocal = list.length === PAGE_SIZE;
+
+        setImages((prev) => (pageIndex === 0 ? list : [...prev, ...list]));
+        setHasMore(hasMoreLocal);
+
+        if (etag) {
+          pageCacheRef.current[pageIndex] = {
+            etag,
+            images: list,
+            hasMore: hasMoreLocal,
+            ts: Date.now(),
+          };
+          writePageCache(pageCacheRef.current);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch {
+      // Network offline → fall back to any cached copy we already have
+      if (cached) {
+        setImages((prev) => (pageIndex === 0 ? cached.images : [...prev, ...cached.images]));
+        setHasMore(cached.hasMore);
+      } else {
+        setHasMore(false);
+      }
     }
+
     setLoading(false);
     setInitialLoad(false);
     inflightRef.current = false;
   }, []);
 
   useEffect(() => {
-    // Hydrate from session cache to skip the first network call on revisits
-    try {
-      const raw = sessionStorage.getItem(CACHE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { ts: number; images: GalleryImage[]; hasMore: boolean };
-        if (Date.now() - parsed.ts < CACHE_TTL_MS && Array.isArray(parsed.images)) {
-          setImages(parsed.images);
-          setHasMore(!!parsed.hasMore);
-          setInitialLoad(false);
-          return;
-        }
-      }
-    } catch { /* ignore */ }
+    // Instant paint from session cache; conditional revalidate happens next.
+    const cached0 = pageCacheRef.current[0];
+    if (cached0) {
+      setImages(cached0.images);
+      setHasMore(cached0.hasMore);
+      setInitialLoad(false);
+      // If cache is still fresh, skip the revalidation entirely
+      if (Date.now() - cached0.ts < CACHE_TTL_MS) return;
+    }
+    // Sends If-None-Match when we have an ETag → server replies 304 (no body)
     fetchPage(0);
   }, [fetchPage]);
 
