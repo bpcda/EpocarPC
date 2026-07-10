@@ -6,7 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import type { FormField } from "@/lib/form-fields";
+import { FileDown, FileUp, FileText } from "lucide-react";
+import {
+  ALLOWED_UPLOAD_ACCEPT,
+  isAllowedUploadFile,
+  type FormField,
+} from "@/lib/form-fields";
 
 interface Props {
   eventId: string;
@@ -30,6 +35,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [uploadingFieldId, setUploadingFieldId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.user) return;
@@ -46,6 +52,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
 
   const validate = (): string | null => {
     for (const f of fields) {
+      if (f.type === "document") continue;
       if (!f.required) continue;
       const v = values[f.id];
       if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) {
@@ -57,6 +64,37 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
       if (!guestEmail.trim()) return "Inserisci la tua email";
     }
     return null;
+  };
+
+  const uploadUserFile = async (field: FormField, file: File) => {
+    if (!auth.user) {
+      toast({
+        title: "Login richiesto",
+        description: "Per caricare file devi accedere.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isAllowedUploadFile(file.name)) {
+      toast({
+        title: "Formato non consentito",
+        description: "Solo PDF, DOCX o immagini (JPG, PNG, WEBP, HEIC).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUploadingFieldId(field.id);
+    const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, "_");
+    const path = `${auth.user.id}/${eventId}/${field.id}-${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from("registration-uploads")
+      .upload(path, file, { upsert: true, contentType: file.type || undefined });
+    setUploadingFieldId(null);
+    if (error) {
+      toast({ title: "Upload fallito", description: error.message, variant: "destructive" });
+      return;
+    }
+    setValue(field.id, { path, filename: file.name, size: file.size });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,6 +112,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
 
     const answers: Record<string, unknown> = {};
     fields.forEach((f) => {
+      if (f.type === "document") return; // display-only
       answers[f.id] = { label: f.label, type: f.type, value: values[f.id] ?? null };
     });
 
@@ -151,9 +190,18 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
       {fields.map((f) => (
         <div key={f.id} className="space-y-1">
           <label className="text-xs uppercase tracking-widest text-primary-foreground/60">
-            {f.label} {f.required && <span className="text-primary-foreground">*</span>}
+            {f.label} {f.required && f.type !== "document" && <span className="text-primary-foreground">*</span>}
           </label>
-          {renderField(f, values[f.id], (v) => setValue(f.id, v), vehicles, inputClass)}
+          {renderField(
+            f,
+            values[f.id],
+            (v) => setValue(f.id, v),
+            vehicles,
+            inputClass,
+            uploadingFieldId === f.id,
+            (file) => uploadUserFile(f, file),
+            !!auth.user,
+          )}
         </div>
       ))}
 
@@ -175,6 +223,9 @@ function renderField(
   onChange: (v: unknown) => void,
   vehicles: Vehicle[],
   inputClass: string,
+  uploading: boolean,
+  onUpload: (file: File) => void,
+  isAuthenticated: boolean,
 ) {
   switch (f.type) {
     case "textarea":
