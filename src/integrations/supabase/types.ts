@@ -124,26 +124,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          city: string | null
           created_at: string
           first_name: string | null
           id: string
           last_name: string | null
+          phone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
+          city?: string | null
           created_at?: string
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
+          city?: string | null
           created_at?: string
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -167,6 +176,48 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          brand: string
+          created_at: string
+          id: string
+          model: string
+          notes: string | null
+          photo_url: string | null
+          plate: string | null
+          type: Database["public"]["Enums"]["vehicle_type"]
+          updated_at: string
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          id?: string
+          model: string
+          notes?: string | null
+          photo_url?: string | null
+          plate?: string | null
+          type: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          id?: string
+          model?: string
+          notes?: string | null
+          photo_url?: string | null
+          plate?: string | null
+          type?: Database["public"]["Enums"]["vehicle_type"]
+          updated_at?: string
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -182,6 +233,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      vehicle_type: "auto" | "moto" | "vespa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -310,6 +362,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      vehicle_type: ["auto", "moto", "vespa"],
     },
   },
 } as const
