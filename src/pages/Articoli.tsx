@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import { Calendar } from "lucide-react";
 
 interface Article {
@@ -87,6 +88,11 @@ export default function Articoli() {
 
   return (
     <div className="min-h-screen bg-foreground">
+      <PageMeta
+        title="Rubricar — Articoli e storie di motori d'epoca | Epocar"
+        description="Rubricar è la rivista di Epocar: articoli, storie e approfondimenti su auto, moto e Vespa d'epoca dalla community di Piacenza."
+        path="/articoli"
+      />
       <Navbar />
       <main>
         <section className="pt-32 pb-24 lg:pt-40 lg:pb-32">
