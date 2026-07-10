@@ -330,7 +330,83 @@ function renderField(
           ))}
         </select>
       );
+    case "document":
+      return (
+        <div className="space-y-1">
+          {(f.documents || []).length === 0 ? (
+            <p className="text-xs text-primary-foreground/60">Nessun documento allegato.</p>
+          ) : (
+            (f.documents || []).map((d) => (
+              <button
+                key={d.path}
+                type="button"
+                onClick={() => openDocument(d.path)}
+                className="w-full flex items-center gap-2 text-left text-sm border border-primary-foreground/30 px-3 py-2 bg-primary-foreground/5 hover:bg-primary-foreground/10 text-primary-foreground"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="flex-1 truncate">{d.filename}</span>
+                <span className="text-xs opacity-60">{Math.max(1, Math.round(d.size / 1024))} KB</span>
+                <FileDown className="h-4 w-4" />
+              </button>
+            ))
+          )}
+        </div>
+      );
+    case "file_upload": {
+      if (!isAuthenticated) {
+        return (
+          <p className="text-xs text-primary-foreground/60">
+            Per caricare un file <Link to="/auth" className="underline">accedi al tuo account</Link>.
+          </p>
+        );
+      }
+      const uploaded = value as { filename?: string; size?: number; path?: string } | null;
+      return (
+        <div className="space-y-2">
+          {f.hint && <p className="text-xs text-primary-foreground/60">{f.hint}</p>}
+          <label className="flex items-center gap-2 text-sm border border-dashed border-primary-foreground/40 px-3 py-3 cursor-pointer text-primary-foreground/80 hover:bg-primary-foreground/5">
+            <FileUp className="h-4 w-4" />
+            {uploading
+              ? "Upload in corso..."
+              : uploaded?.filename
+                ? `Sostituisci "${uploaded.filename}"`
+                : "Seleziona un file (PDF, DOCX, immagine)"}
+            <input
+              type="file"
+              className="hidden"
+              accept={ALLOWED_UPLOAD_ACCEPT}
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {uploaded?.filename && (
+            <p className="text-xs text-primary-foreground/60">
+              Caricato: <span className="text-primary-foreground">{uploaded.filename}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
     default:
       return null;
   }
+}
+
+async function openDocument(path: string) {
+  const { data, error } = await supabase.storage
+    .from("event-documents")
+    .createSignedUrl(path, 60 * 60);
+  if (error || !data?.signedUrl) {
+    toast({
+      title: "Impossibile aprire il documento",
+      description: error?.message || "Riprova più tardi.",
+      variant: "destructive",
+    });
+    return;
+  }
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
 }
