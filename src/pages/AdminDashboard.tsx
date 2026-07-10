@@ -26,6 +26,9 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
+import FormBuilder from "@/components/admin/FormBuilder";
+import RegistrationsTab from "@/components/admin/RegistrationsTab";
+import type { FormField } from "@/lib/form-fields";
 
 interface Event {
   id: string;
@@ -59,6 +62,9 @@ const emptyEventForm = {
   category: "event",
   published: false,
   registration_link: "",
+  registration_enabled: false,
+  allow_guests: false,
+  form_fields: [] as FormField[],
 };
 
 const emptyArticleForm = {
@@ -187,6 +193,9 @@ export default function AdminDashboard() {
       published: eventForm.published,
       uploaded_by: user?.id || null,
       registration_link: eventForm.registration_link || null,
+      registration_enabled: eventForm.registration_enabled,
+      allow_guests: eventForm.allow_guests,
+      form_fields: eventForm.form_fields as never,
     };
     if (editingEventId) {
       await supabase.from("events").update(payload).eq("id", editingEventId);
@@ -212,6 +221,9 @@ export default function AdminDashboard() {
       category: event.category || "event",
       published: event.published ?? false,
       registration_link: event.registration_link || "",
+      registration_enabled: (event as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
+      allow_guests: (event as unknown as { allow_guests?: boolean }).allow_guests ?? false,
+      form_fields: ((event as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
     });
     setImageFile(null);
     setImagePreview(event.image_url || null);
