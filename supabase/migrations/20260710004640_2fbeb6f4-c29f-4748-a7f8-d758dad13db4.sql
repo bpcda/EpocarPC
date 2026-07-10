@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS event_registrations_event_user_unique ON public.event_registrations (event_id, user_id) WHERE user_id IS NOT NULL;
