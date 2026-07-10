@@ -88,7 +88,12 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
 
     setSubmitting(false);
     if (error) {
-      toast({ title: "Errore", description: error.message, variant: "destructive" });
+      const msg =
+        error.code === "23505"
+          ? "Risulti già iscritto a questo evento."
+          : error.message;
+      toast({ title: "Errore", description: msg, variant: "destructive" });
+      if (error.code === "23505") setDone(true);
       return;
     }
     setDone(true);
