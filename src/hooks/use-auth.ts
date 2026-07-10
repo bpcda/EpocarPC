@@ -5,6 +5,8 @@ import type { User } from "@supabase/supabase-js";
 type AuthContextValue = {
   user: User | null;
   isAdmin: boolean;
+  isStaff: boolean;
+  canAccessDashboard: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
   signOut: () => ReturnType<typeof supabase.auth.signOut>;
@@ -15,6 +17,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(true);
   const currentUserId = useRef<string | null>(null);
   const roleCheckedFor = useRef<string | null>(null);
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) {
       roleCheckedFor.current = null;
       setIsAdmin(false);
+      setIsStaff(false);
       setLoading(false);
       return;
     }
@@ -77,11 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
-        setIsAdmin(!!data);
+        const roles = (data ?? []).map((r) => r.role);
+        setIsAdmin(roles.includes("admin"));
+        setIsStaff(roles.includes("staff"));
         setLoading(false);
       });
 
@@ -93,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAdmin,
+    isStaff,
+    canAccessDashboard: isAdmin || isStaff,
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signOut: () => supabase.auth.signOut(),
