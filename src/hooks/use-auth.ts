@@ -1,35 +1,55 @@
-import { useEffect, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
-export function useAuth() {
+type AuthContextValue = {
+  user: User | null;
+  isAdmin: boolean;
+  loading: boolean;
+  signIn: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
+  signOut: () => ReturnType<typeof supabase.auth.signOut>;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [authReady, setAuthReady] = useState(false);
+  const currentUserId = useRef<string | null>(null);
+  const roleCheckedFor = useRef<string | null>(null);
 
+  // Single subscription for the whole app. Only update state when the
+  // user identity actually changes — TOKEN_REFRESHED and tab-focus events
+  // otherwise re-emit the same user and would cause a cascade of re-renders
+  // and role re-checks across every consumer.
   useEffect(() => {
     let mounted = true;
 
     const applySession = (sessionUser: User | null) => {
       if (!mounted) return;
+      const nextId = sessionUser?.id ?? null;
+      if (nextId === currentUserId.current) {
+        // same identity → no state change, avoid re-render churn
+        return;
+      }
+      currentUserId.current = nextId;
       setUser(sessionUser);
-      setAuthReady(true);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        applySession(session?.user ?? null);
-      }
+      (_event, session) => applySession(session?.user ?? null),
     );
 
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
         applySession(session?.user ?? null);
+        if (mounted) setLoading((l) => (currentUserId.current ? l : false));
       })
       .catch(() => {
         applySession(null);
+        if (mounted) setLoading(false);
       });
 
     return () => {
@@ -38,62 +58,53 @@ export function useAuth() {
     };
   }, []);
 
+  // Role check only when the user id changes — never on token refresh.
   useEffect(() => {
     let cancelled = false;
 
-    const checkRole = async (userId: string) => {
-      try {
-        const { data, error } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .eq("role", "admin")
-          .maybeSingle();
-
-        console.log("[useAuth] checkRole for", userId, "=>", { data, error: error?.message });
-
-        if (!cancelled) {
-          setIsAdmin(!!data);
-        }
-      } catch (err) {
-        console.error("[useAuth] checkRole exception:", err);
-        if (!cancelled) {
-          setIsAdmin(false);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    if (!authReady) {
-      setLoading(true);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     if (!user) {
+      roleCheckedFor.current = null;
       setIsAdmin(false);
       setLoading(false);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
+    if (roleCheckedFor.current === user.id) return;
+    roleCheckedFor.current = user.id;
     setLoading(true);
-    void checkRole(user.id);
+
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setIsAdmin(!!data);
+        setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [authReady, user]);
+  }, [user]);
 
-  const signIn = (email: string, password: string) =>
-    supabase.auth.signInWithPassword({ email, password });
+  const value: AuthContextValue = {
+    user,
+    isAdmin,
+    loading,
+    signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    signOut: () => supabase.auth.signOut(),
+  };
 
-  const signOut = () => supabase.auth.signOut();
+  return createElement(AuthContext.Provider, { value }, children);
+}
 
-  return { user, isAdmin, loading, signIn, signOut };
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within an <AuthProvider>. Wrap your app in App.tsx.");
+  }
+  return ctx;
 }
