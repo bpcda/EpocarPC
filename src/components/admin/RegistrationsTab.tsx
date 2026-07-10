@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, FileDown } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import type { FormField } from "@/lib/form-fields";
 
 interface EventOption {
@@ -50,7 +51,26 @@ function formatVehicle(v?: VehicleInfo | null): string {
 function answerToText(v: unknown): string {
   if (v == null) return "";
   if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") {
+    const o = v as { filename?: string };
+    if (o?.filename) return o.filename;
+  }
   return String(v);
+}
+
+async function openRegistrationFile(path: string) {
+  const { data, error } = await supabase.storage
+    .from("registration-uploads")
+    .createSignedUrl(path, 60 * 60);
+  if (error || !data?.signedUrl) {
+    toast({
+      title: "Impossibile aprire il file",
+      description: error?.message || "Riprova più tardi.",
+      variant: "destructive",
+    });
+    return;
+  }
+  window.open(data.signedUrl, "_blank", "noopener,noreferrer");
 }
 
 function csvEscape(v: string): string {
@@ -121,7 +141,9 @@ export default function RegistrationsTab() {
 
   const currentEvent = events.find((e) => e.id === selectedEvent);
   const fields = (currentEvent?.form_fields as FormField[]) || [];
-  const nonVehicleFields = fields.filter((f) => f.type !== "vehicle");
+  const nonVehicleFields = fields.filter(
+    (f) => f.type !== "vehicle" && f.type !== "document",
+  );
 
   const handleDelete = async (id: string) => {
     if (!confirm("Eliminare questa iscrizione?")) return;
@@ -222,7 +244,25 @@ export default function RegistrationsTab() {
                   <TableCell className="text-sm">{formatVehicle(vehicleFor(r))}</TableCell>
                   {nonVehicleFields.map((f) => (
                     <TableCell key={f.id} className="text-sm">
-                      {answerToText(r.answers?.[f.id]?.value)}
+                      {(() => {
+                        const raw = r.answers?.[f.id]?.value;
+                        if (f.type === "file_upload" && raw && typeof raw === "object") {
+                          const o = raw as { path?: string; filename?: string };
+                          if (o.path) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => openRegistrationFile(o.path!)}
+                                className="inline-flex items-center gap-1 underline"
+                              >
+                                <FileDown className="h-3 w-3" />
+                                {o.filename || "File"}
+                              </button>
+                            );
+                          }
+                        }
+                        return answerToText(raw);
+                      })()}
                     </TableCell>
                   ))}
                   <TableCell>
