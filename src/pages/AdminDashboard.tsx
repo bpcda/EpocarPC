@@ -171,7 +171,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditEvent(event)}>
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/eventi/${event.id}`)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteEvent(event.id)}>
@@ -191,63 +191,10 @@ export default function AdminDashboard() {
           <TabsContent value="articles">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-headline font-medium text-foreground">Articoli</h2>
-              <Dialog
-                open={articleDialogOpen}
-                onOpenChange={(open) => {
-                  setArticleDialogOpen(open);
-                  if (!open) {
-                    setArticleForm(emptyArticleForm);
-                    setEditingArticleId(null);
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuovo articolo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
-                  <DialogHeader>
-                    <DialogTitle className="font-headline">
-                      {editingArticleId ? "Modifica articolo" : "Nuovo articolo"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <Input
-                      placeholder="Titolo *"
-                      value={articleForm.title}
-                      onChange={(e) => setArticleForm({ ...articleForm, title: e.target.value })}
-                    />
-                    <Textarea
-                      placeholder="Sommario (breve descrizione)"
-                      value={articleForm.summary}
-                      onChange={(e) => setArticleForm({ ...articleForm, summary: e.target.value })}
-                      rows={2}
-                    />
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">Contenuto</label>
-                      <RichTextEditor
-                        content={articleForm.content}
-                        onChange={(html) => setArticleForm({ ...articleForm, content: html })}
-                      />
-                    </div>
-                    <ImageUploadArea formType="article" />
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={articleForm.published}
-                        onCheckedChange={(checked) => setArticleForm({ ...articleForm, published: checked })}
-                      />
-                      <span className="text-sm text-muted-foreground">Pubblicato</span>
-                    </div>
-                    <Button className="w-full" onClick={handleSaveArticle} disabled={!articleForm.title || loading}>
-                      {loading ? "Salvataggio..." : editingArticleId ? "Salva modifiche" : "Crea articolo"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => navigate("/admin/articoli/nuovo")}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nuovo articolo
+              </Button>
             </div>
 
             {articles.length === 0 ? (
@@ -287,7 +234,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditArticle(article)}>
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/articoli/${article.id}`)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteArticle(article.id)}>
