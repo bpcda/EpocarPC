@@ -19,7 +19,7 @@ interface Vehicle {
   brand: string | null;
   model: string | null;
   year: number | null;
-  vehicle_type: string | null;
+  type: string | null;
 }
 
 export default function EventRegistrationForm({ eventId, allowGuests, fields }: Props) {
@@ -36,10 +36,10 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
     if (!auth.user) return;
     supabase
       .from("vehicles")
-      .select("id, brand, model, year, vehicle_type")
+      .select("id, brand, model, year, type")
       .eq("user_id", auth.user.id)
       .then(({ data }) => {
-        if (data) setVehicles(data);
+        if (data) setVehicles(data as Vehicle[]);
       });
   }, [auth.user]);
 
@@ -84,7 +84,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
       vehicle_id: vehicleId,
       guest_name: auth.user ? null : guestName.trim(),
       guest_email: auth.user ? null : guestEmail.trim(),
-      answers,
+      answers: answers as never,
     });
 
     setSubmitting(false);
