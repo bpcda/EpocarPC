@@ -8,7 +8,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, Upload, X, Image as ImageIcon, GripVertical } from "lucide-react";
+import { Plus, Trash2, Upload, X, Image as ImageIcon, GripVertical, Search, Eye, EyeOff } from "lucide-react";
 
 interface GalleryImage {
   id: string;
@@ -23,8 +23,28 @@ interface GalleryTabProps {
   userId?: string;
 }
 
+const THUMB_WIDTH = 300;
+const getThumbUrl = (url: string, width = THUMB_WIDTH) => {
+  if (!url.includes("/storage/v1/object/public/")) return url;
+  const transformed = url.replace("/object/public/", "/render/image/public/");
+  const sep = transformed.includes("?") ? "&" : "?";
+  return `${transformed}${sep}width=${width}&quality=60&resize=contain`;
+};
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const daysAgoISO = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
 export default function GalleryTab({ userId }: GalleryTabProps) {
   const [images, setImages] = useState<GalleryImage[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [rangeFrom, setRangeFrom] = useState<string>(daysAgoISO(30));
+  const [rangeTo, setRangeTo] = useState<string>(todayISO());
+  const [revealed, setRevealed] = useState(false);
+  const [rangeLoading, setRangeLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [altText, setAltText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -32,15 +52,33 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const fetchImages = async () => {
-    const { data } = await supabase
+  // Only ask for the row count — no image URLs, no bucket reads.
+  const fetchCount = async () => {
+    const { count } = await supabase
       .from("gallery_images")
-      .select("*")
-      .order("sort_order", { ascending: true });
-    if (data) setImages(data as GalleryImage[]);
+      .select("id", { count: "exact", head: true });
+    setTotalCount(count ?? 0);
   };
 
-  useEffect(() => { fetchImages(); }, []);
+  // Fetch only rows whose created_at falls inside the requested window.
+  const fetchRange = async () => {
+    if (!rangeFrom || !rangeTo) return;
+    setRangeLoading(true);
+    const fromISO = new Date(`${rangeFrom}T00:00:00`).toISOString();
+    const toISO = new Date(`${rangeTo}T23:59:59.999`).toISOString();
+    const { data } = await supabase
+      .from("gallery_images")
+      .select("id, image_url, alt_text, sort_order, uploaded_by, created_at")
+      .gte("created_at", fromISO)
+      .lte("created_at", toISO)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    setImages((data as GalleryImage[]) || []);
+    setRevealed(true);
+    setRangeLoading(false);
+  };
+
+  useEffect(() => { fetchCount(); }, []);
 
   const handleFileSelect = (newFiles: File[]) => {
     const imageFiles = newFiles.filter(f => f.type.startsWith("image/"));
@@ -62,7 +100,13 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
 
   const uploadAndSave = async () => {
     setLoading(true);
-    const maxOrder = images.length > 0 ? Math.max(...images.map(i => i.sort_order)) : -1;
+    // Ask the DB for the current max sort_order (metadata only, no bucket hit)
+    const { data: last } = await supabase
+      .from("gallery_images")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1);
+    const maxOrder = last?.[0]?.sort_order ?? -1;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -90,7 +134,8 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
     setAltText("");
     setDialogOpen(false);
     setLoading(false);
-    fetchImages();
+    fetchCount();
+    if (revealed) fetchRange();
   };
 
   const handleDelete = async (img: GalleryImage) => {
@@ -100,7 +145,8 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
     const fileName = parts[parts.length - 1];
     await supabase.storage.from("gallery").remove([fileName]);
     await supabase.from("gallery_images").delete().eq("id", img.id);
-    fetchImages();
+    setImages((prev) => prev.filter((x) => x.id !== img.id));
+    fetchCount();
   };
 
   return (
@@ -177,15 +223,68 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
         </Dialog>
       </div>
 
-      {images.length === 0 ? (
+      {/* Count + range picker: no thumbnails until admin explicitly asks */}
+      <div className="border border-border bg-card p-4 mb-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">
+              {totalCount === null
+                ? "Conteggio in corso…"
+                : `${totalCount} immagin${totalCount === 1 ? "e" : "i"} nella gallery`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              (non visualizzate per ridurre le richieste al bucket)
+            </span>
+          </div>
+          {revealed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setImages([]); setRevealed(false); }}
+            >
+              <EyeOff className="h-4 w-4 mr-1" /> Nascondi
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex flex-col">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Dal</label>
+            <Input type="date" value={rangeFrom} max={rangeTo} onChange={(e) => setRangeFrom(e.target.value)} className="w-44" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Al</label>
+            <Input type="date" value={rangeTo} min={rangeFrom} max={todayISO()} onChange={(e) => setRangeTo(e.target.value)} className="w-44" />
+          </div>
+          <Button size="sm" onClick={fetchRange} disabled={rangeLoading || !rangeFrom || !rangeTo}>
+            {rangeLoading ? (
+              "Caricamento…"
+            ) : (
+              <><Eye className="h-4 w-4 mr-1" /> Carica intervallo</>
+            )}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Suggerimento: seleziona un intervallo ristretto per limitare le immagini scaricate.
+        </p>
+      </div>
+
+      {!revealed ? null : images.length === 0 ? (
         <p className="text-muted-foreground text-sm py-12 text-center">
-          Nessuna immagine nella gallery. Clicca "Aggiungi immagini" per iniziare.
+          Nessuna immagine caricata in questo intervallo.
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {images.map((img) => (
             <div key={img.id} className="group relative rounded-md overflow-hidden border border-border aspect-square">
-              <img src={img.image_url} alt={img.alt_text || ""} className="w-full h-full object-cover" />
+              <img
+                src={getThumbUrl(img.image_url)}
+                alt={img.alt_text || ""}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/40 transition-colors duration-200 flex items-center justify-center">
                 <Button
                   variant="ghost"
