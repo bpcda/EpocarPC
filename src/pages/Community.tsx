@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import CTASection from "@/components/CTASection";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import communityImage from "@/assets/community-gathering.jpeg";
@@ -10,6 +11,11 @@ export default function CommunityPage() {
 
   return (
     <>
+      <PageMeta
+        title="Community — Epocar, appassionati di motori d'epoca"
+        description="La community Epocar riunisce a Piacenza collezionisti e appassionati di auto, moto e Vespa d'epoca. Unisciti ai nostri raduni ed eventi."
+        path="/community"
+      />
       <Navbar />
       <main>
         <section className="bg-foreground pt-32 pb-24 lg:pt-40 lg:pb-32" ref={ref}>

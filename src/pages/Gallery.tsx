@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -182,6 +183,11 @@ export default function Gallery() {
 
   return (
     <>
+      <PageMeta
+        title="Gallery — Auto e moto d'epoca | Epocar Piacenza"
+        description="Sfoglia la gallery di Epocar: foto di auto, moto e Vespa d'epoca scattate ai raduni e agli eventi della community di Piacenza."
+        path="/gallery"
+      />
       <Navbar />
       <main className="min-h-screen bg-foreground pt-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-20">

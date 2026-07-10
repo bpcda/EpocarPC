@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 
 export default function ContattiPage() {
@@ -7,6 +8,11 @@ export default function ContattiPage() {
 
   return (
     <>
+      <PageMeta
+        title="Contatti — Epocar Piacenza"
+        description="Contatta Epocar: scrivici per informazioni sui raduni, per unirti alla community o per collaborare con noi a Piacenza."
+        path="/contatti"
+      />
       <Navbar />
       <main>
         {/* Full burgundy hero */}

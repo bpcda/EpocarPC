@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
 import type { FormField } from "@/lib/form-fields";
@@ -79,6 +80,11 @@ export default function EventiPage() {
 
   return (
     <>
+      <PageMeta
+        title="Eventi e raduni — Epocar Piacenza"
+        description="Calendario di raduni, mostre e uscite dedicate ad auto, moto e Vespa d'epoca organizzati dalla community Epocar a Piacenza e dintorni."
+        path="/eventi"
+      />
       <Navbar />
       <main>
         {/* Hero header */}

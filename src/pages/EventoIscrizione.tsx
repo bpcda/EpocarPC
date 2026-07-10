@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import EventRegistrationForm from "@/components/EventRegistrationForm";
 import type { FormField } from "@/lib/form-fields";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,11 @@ export default function EventoIscrizione() {
 
   return (
     <>
+      <PageMeta
+        title="Iscrizione evento — Epocar"
+        description="Compila il modulo di iscrizione per partecipare all'evento Epocar: indica i tuoi dati e il veicolo d'epoca con cui prenderai parte al raduno."
+        path="/eventi"
+      />
       <Navbar />
       <main className="bg-foreground min-h-screen pt-32 pb-24">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">

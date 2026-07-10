@@ -1,10 +1,16 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import communityImage from "@/assets/community-gathering.jpeg";
 
 export default function ChiSiamo() {
   return (
     <>
+      <PageMeta
+        title="Chi Siamo — Epocar, passione motori d'epoca a Piacenza"
+        description="Scopri chi siamo: una community giovane di Piacenza che coltiva la cultura di auto, moto e Vespa d'epoca attraverso raduni ed eventi."
+        path="/chi-siamo"
+      />
       <Navbar />
       <main className="min-h-screen bg-foreground">
         <section className="pt-0">
