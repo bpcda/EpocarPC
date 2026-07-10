@@ -26,6 +26,9 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
+import FormBuilder from "@/components/admin/FormBuilder";
+import RegistrationsTab from "@/components/admin/RegistrationsTab";
+import type { FormField } from "@/lib/form-fields";
 
 interface Event {
   id: string;
@@ -59,6 +62,9 @@ const emptyEventForm = {
   category: "event",
   published: false,
   registration_link: "",
+  registration_enabled: false,
+  allow_guests: false,
+  form_fields: [] as FormField[],
 };
 
 const emptyArticleForm = {
@@ -187,6 +193,9 @@ export default function AdminDashboard() {
       published: eventForm.published,
       uploaded_by: user?.id || null,
       registration_link: eventForm.registration_link || null,
+      registration_enabled: eventForm.registration_enabled,
+      allow_guests: eventForm.allow_guests,
+      form_fields: eventForm.form_fields as never,
     };
     if (editingEventId) {
       await supabase.from("events").update(payload).eq("id", editingEventId);
@@ -212,6 +221,9 @@ export default function AdminDashboard() {
       category: event.category || "event",
       published: event.published ?? false,
       registration_link: event.registration_link || "",
+      registration_enabled: (event as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
+      allow_guests: (event as unknown as { allow_guests?: boolean }).allow_guests ?? false,
+      form_fields: ((event as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
     });
     setImageFile(null);
     setImagePreview(event.image_url || null);
@@ -351,6 +363,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
+            <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
@@ -375,7 +388,7 @@ export default function AdminDashboard() {
                     Nuovo evento
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-lg" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
+                <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
                   <DialogHeader>
                     <DialogTitle className="font-headline">
                       {editingEventId ? "Modifica evento" : "Nuovo evento"}
@@ -416,6 +429,36 @@ export default function AdminDashboard() {
                       value={eventForm.registration_link}
                       onChange={(e) => setEventForm({...eventForm, registration_link: e.target.value})}
                     />
+                    <div className="border border-border p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Form di iscrizione interno</span>
+                        <Switch
+                          checked={eventForm.registration_enabled}
+                          onCheckedChange={(checked) =>
+                            setEventForm({ ...eventForm, registration_enabled: checked })
+                          }
+                        />
+                      </div>
+                      {eventForm.registration_enabled && (
+                        <>
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={eventForm.allow_guests}
+                              onCheckedChange={(checked) =>
+                                setEventForm({ ...eventForm, allow_guests: checked })
+                              }
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              Consenti iscrizioni da ospiti (non registrati)
+                            </span>
+                          </div>
+                          <FormBuilder
+                            fields={eventForm.form_fields}
+                            onChange={(fields) => setEventForm({ ...eventForm, form_fields: fields })}
+                          />
+                        </>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={eventForm.published}
@@ -609,6 +652,10 @@ export default function AdminDashboard() {
           {/* ════════ GALLERY TAB ════════ */}
           <TabsContent value="gallery">
             <GalleryTab userId={user?.id} />
+          </TabsContent>
+
+          <TabsContent value="registrations">
+            <RegistrationsTab />
           </TabsContent>
         </Tabs>
       </main>

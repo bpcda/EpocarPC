@@ -3,6 +3,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
+import EventRegistrationForm from "@/components/EventRegistrationForm";
+import type { FormField } from "@/lib/form-fields";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
 import eventMeetup from "@/assets/event-meetup.jpg";
@@ -16,6 +18,9 @@ interface EventData {
   image_url: string | null;
   category: string | null;
   registration_link?: string | null;
+  registration_enabled?: boolean | null;
+  allow_guests?: boolean | null;
+  form_fields?: FormField[] | null;
 }
 
 const fallbackEvents: EventData[] = [
@@ -58,12 +63,12 @@ export default function EventiPage() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url, registration_link, category")
+          .select("id, title, description, date, location, image_url, registration_link, category, registration_enabled, allow_guests, form_fields")
           .eq("published", true)
           .order("date", { ascending: true });
 
         if (data && data.length > 0) {
-          setEvents(data);
+          setEvents(data as unknown as EventData[]);
         }
       } catch {
         // Backend unavailable — keep fallback data
@@ -159,14 +164,25 @@ export default function EventiPage() {
                       )}
                     </div>
                     <p className="text-primary-foreground/60 text-sm leading-relaxed">{event.description}</p>
-                    <Button
-                      variant="outline"
-                      className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
-                      onClick={() => window.open(event.registration_link)}
-                    >
-                      PRENOTAZIONE
-                    </Button>
+                    {event.registration_enabled ? null : event.registration_link ? (
+                      <Button
+                        variant="outline"
+                        className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
+                        onClick={() => window.open(event.registration_link!)}
+                      >
+                        PRENOTAZIONE
+                      </Button>
+                    ) : null}
                   </div>
+                  {event.registration_enabled && (
+                    <div className="lg:col-span-2">
+                      <EventRegistrationForm
+                        eventId={event.id}
+                        allowGuests={!!event.allow_guests}
+                        fields={(event.form_fields as FormField[]) || []}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

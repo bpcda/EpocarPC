@@ -50,44 +50,104 @@ export type Database = {
         }
         Relationships: []
       }
+      event_registrations: {
+        Row: {
+          answers: Json
+          created_at: string
+          event_id: string
+          guest_email: string | null
+          guest_name: string | null
+          id: string
+          updated_at: string
+          user_id: string | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          event_id: string
+          guest_email?: string | null
+          guest_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          event_id?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_registrations_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
+          allow_guests: boolean
           category: string | null
           created_at: string
           date: string | null
           description: string | null
+          form_fields: Json
           id: string
           image_url: string | null
           location: string | null
           published: boolean | null
+          registration_enabled: boolean
           registration_link: string | null
           title: string
           updated_at: string
           uploaded_by: string | null
         }
         Insert: {
+          allow_guests?: boolean
           category?: string | null
           created_at?: string
           date?: string | null
           description?: string | null
+          form_fields?: Json
           id?: string
           image_url?: string | null
           location?: string | null
           published?: boolean | null
+          registration_enabled?: boolean
           registration_link?: string | null
           title: string
           updated_at?: string
           uploaded_by?: string | null
         }
         Update: {
+          allow_guests?: boolean
           category?: string | null
           created_at?: string
           date?: string | null
           description?: string | null
+          form_fields?: Json
           id?: string
           image_url?: string | null
           location?: string | null
           published?: boolean | null
+          registration_enabled?: boolean
           registration_link?: string | null
           title?: string
           updated_at?: string
