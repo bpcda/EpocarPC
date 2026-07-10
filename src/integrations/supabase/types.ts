@@ -218,6 +218,39 @@ export type Database = {
         }
         Relationships: []
       }
+      role_audit_log: {
+        Row: {
+          action: string
+          changed_by: string
+          created_at: string
+          id: string
+          new_state: string
+          previous_state: string
+          role: Database["public"]["Enums"]["app_role"]
+          target_user: string
+        }
+        Insert: {
+          action: string
+          changed_by: string
+          created_at?: string
+          id?: string
+          new_state: string
+          previous_state: string
+          role: Database["public"]["Enums"]["app_role"]
+          target_user: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string
+          created_at?: string
+          id?: string
+          new_state?: string
+          previous_state?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          target_user?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -283,6 +316,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_role_audit: {
+        Args: { _limit?: number; _offset?: number }
+        Returns: {
+          action: string
+          changed_by: string
+          changed_by_email: string
+          changed_by_name: string
+          created_at: string
+          id: string
+          new_state: string
+          previous_state: string
+          role: Database["public"]["Enums"]["app_role"]
+          target_email: string
+          target_name: string
+          target_user: string
+          total_count: number
+        }[]
+      }
       admin_list_users: {
         Args: { _limit?: number; _offset?: number; _search?: string }
         Returns: {
