@@ -15,6 +15,7 @@ import { Plus, Pencil, Trash2, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
+import UsersTab from "@/components/admin/UsersTab";
 
 interface Event {
   id: string;
@@ -121,6 +122,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="articles">Articoli</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
+            {isAdmin && <TabsTrigger value="users">Utenti</TabsTrigger>}
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
@@ -271,6 +273,12 @@ export default function AdminDashboard() {
           <TabsContent value="registrations">
             <RegistrationsTab />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="users">
+              <UsersTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
