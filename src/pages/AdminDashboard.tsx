@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
+import RoleAuditTab from "@/components/admin/RoleAuditTab";
 
 interface Event {
   id: string;
@@ -123,6 +124,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
             {isAdmin && <TabsTrigger value="users">Utenti</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="role-audit">Audit ruoli</TabsTrigger>}
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
