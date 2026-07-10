@@ -5,6 +5,7 @@ import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PageMeta from "@/components/PageMeta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +75,11 @@ export default function Auth() {
 
   return (
     <>
+      <PageMeta
+        title="Accedi o registrati — Epocar"
+        description="Accedi al tuo account Epocar o registrati per iscriverti ai raduni, gestire i tuoi veicoli d'epoca e partecipare alla community."
+        path="/auth"
+      />
       <Navbar />
       <main className="min-h-screen bg-foreground pt-32 pb-24">
         <div className="max-w-md mx-auto px-6">
