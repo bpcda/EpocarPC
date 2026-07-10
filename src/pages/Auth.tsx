@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -60,12 +59,16 @@ export default function Auth() {
   const handleGoogle = async () => {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`,
+          queryParams: { prompt: "select_account" },
+        },
       });
-      if (result.error) throw result.error;
-      if (result.redirected) return;
-      navigate(nextPath, { replace: true });
+      if (error) throw error;
+      // Il browser reindirizza a Google; al ritorno Supabase gestisce il token
+      // e l'utente viene rimandato a `nextPath` dal useEffect sopra.
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Errore Google";
       toast.error(msg);
