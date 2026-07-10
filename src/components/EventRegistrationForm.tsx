@@ -215,9 +215,9 @@ function renderField(
           value={(value as string) || ""}
           onChange={(e) => onChange(e.target.value)}
         >
-          <option value="">— seleziona —</option>
+          <option value="" className="bg-background text-foreground">— seleziona —</option>
           {(f.options || []).map((o) => (
-            <option key={o} value={o}>{o}</option>
+            <option key={o} value={o} className="bg-background text-foreground">{o}</option>
           ))}
         </select>
       );
@@ -271,9 +271,9 @@ function renderField(
           value={(value as string) || ""}
           onChange={(e) => onChange(e.target.value)}
         >
-          <option value="">— seleziona veicolo —</option>
+          <option value="" className="bg-background text-foreground">— seleziona veicolo —</option>
           {vehicles.map((v) => (
-            <option key={v.id} value={v.id}>
+            <option key={v.id} value={v.id} className="bg-background text-foreground">
               {[v.type, v.brand, v.model, v.year].filter(Boolean).join(" · ")}
             </option>
           ))}
