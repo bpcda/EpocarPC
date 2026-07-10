@@ -8,6 +8,16 @@ import {
 import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Role = "admin" | "staff" | "user";
 
@@ -32,6 +42,12 @@ export default function UsersTab() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [pending, setPending] = useState<{
+    userId: string;
+    role: Role;
+    grant: boolean;
+    label: string;
+  } | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
@@ -68,7 +84,10 @@ export default function UsersTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, page]);
 
-  const toggleRole = async (userId: string, role: Role, grant: boolean) => {
+  const confirmToggle = async () => {
+    if (!pending) return;
+    const { userId, role, grant } = pending;
+    setPending(null);
     setUpdating(`${userId}:${role}`);
     const { error } = await supabase.rpc("admin_set_user_role", {
       _user_id: userId,
@@ -150,15 +169,30 @@ export default function UsersTab() {
                         <RoleToggle
                           label="admin"
                           active={isAdmin}
-                          disabled={isSelf && isAdmin /* prevent self-lockout */}
+                          disabled={isSelf /* non modificare il proprio ruolo admin */}
                           loading={updating === `${r.user_id}:admin`}
-                          onClick={() => toggleRole(r.user_id, "admin", !isAdmin)}
+                          onClick={() =>
+                            setPending({
+                              userId: r.user_id,
+                              role: "admin",
+                              grant: !isAdmin,
+                              label: fullName,
+                            })
+                          }
                         />
                         <RoleToggle
                           label="staff"
                           active={isStaff}
+                          disabled={isSelf}
                           loading={updating === `${r.user_id}:staff`}
-                          onClick={() => toggleRole(r.user_id, "staff", !isStaff)}
+                          onClick={() =>
+                            setPending({
+                              userId: r.user_id,
+                              role: "staff",
+                              grant: !isStaff,
+                              label: fullName,
+                            })
+                          }
                         />
                       </div>
                     </TableCell>
@@ -198,6 +232,25 @@ export default function UsersTab() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pending?.grant ? "Assegnare" : "Revocare"} ruolo {pending?.role}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pending?.grant
+                ? `Stai per assegnare il ruolo "${pending?.role}" a ${pending?.label}.`
+                : `Stai per revocare il ruolo "${pending?.role}" a ${pending?.label}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmToggle}>Conferma</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -216,7 +269,7 @@ function RoleToggle({
       type="button"
       disabled={disabled || loading}
       onClick={onClick}
-      title={disabled ? "Non puoi rimuovere il tuo ruolo admin" : active ? "Clicca per revocare" : "Clicca per assegnare"}
+      title={disabled ? "Non puoi modificare il tuo stesso ruolo" : active ? "Clicca per revocare" : "Clicca per assegnare"}
       className={`text-xs uppercase tracking-wider px-2 py-1 border transition-colors ${
         active
           ? "bg-accent text-accent-foreground border-accent"
