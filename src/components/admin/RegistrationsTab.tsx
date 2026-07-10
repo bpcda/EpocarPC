@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Trash2, FileDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { FormField } from "@/lib/form-fields";
+import { useAuth } from "@/hooks/use-auth";
 
 interface EventOption {
   id: string;
@@ -79,6 +80,7 @@ function csvEscape(v: string): string {
 }
 
 export default function RegistrationsTab() {
+  const { isAdmin } = useAuth();
   const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [regs, setRegs] = useState<Registration[]>([]);
