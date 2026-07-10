@@ -60,9 +60,9 @@ export default function AdminEventEditor() {
             category: data.category || "event",
             published: data.published ?? false,
             registration_link: data.registration_link || "",
-            registration_enabled: (data as { registration_enabled?: boolean }).registration_enabled ?? false,
-            allow_guests: (data as { allow_guests?: boolean }).allow_guests ?? false,
-            form_fields: ((data as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
+            registration_enabled: (data as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
+            allow_guests: (data as unknown as { allow_guests?: boolean }).allow_guests ?? false,
+            form_fields: ((data as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
           };
           preview = data.image_url || null;
         }
