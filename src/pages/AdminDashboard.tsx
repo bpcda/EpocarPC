@@ -428,6 +428,36 @@ export default function AdminDashboard() {
                       value={eventForm.registration_link}
                       onChange={(e) => setEventForm({...eventForm, registration_link: e.target.value})}
                     />
+                    <div className="border border-border p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Form di iscrizione interno</span>
+                        <Switch
+                          checked={eventForm.registration_enabled}
+                          onCheckedChange={(checked) =>
+                            setEventForm({ ...eventForm, registration_enabled: checked })
+                          }
+                        />
+                      </div>
+                      {eventForm.registration_enabled && (
+                        <>
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={eventForm.allow_guests}
+                              onCheckedChange={(checked) =>
+                                setEventForm({ ...eventForm, allow_guests: checked })
+                              }
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              Consenti iscrizioni da ospiti (non registrati)
+                            </span>
+                          </div>
+                          <FormBuilder
+                            fields={eventForm.form_fields}
+                            onChange={(fields) => setEventForm({ ...eventForm, form_fields: fields })}
+                          />
+                        </>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={eventForm.published}
