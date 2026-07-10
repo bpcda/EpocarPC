@@ -16,7 +16,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user, canAccessDashboard } = useAuth();
   const isHome = location.pathname === "/";
   const solid = !isHome || scrolled;
 
@@ -54,7 +54,7 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          {user && isAdmin && (
+          {user && canAccessDashboard && (
             <Link
               to="/admin"
               className="font-headline text-sm tracking-[0.15em] text-primary-foreground border border-primary-foreground/40 px-5 py-2 hover:bg-primary-foreground/10 transition-colors duration-200 flex items-center gap-2"
@@ -97,7 +97,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {user && isAdmin && (
+            {user && canAccessDashboard && (
               <Link
                 to="/admin"
                 className="font-headline text-base tracking-[0.15em] text-primary-foreground border border-primary-foreground/30 px-5 py-3 text-center hover:bg-primary-foreground/10 transition-colors"
