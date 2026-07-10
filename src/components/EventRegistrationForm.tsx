@@ -270,7 +270,7 @@ function renderField(
           <option value="">— seleziona veicolo —</option>
           {vehicles.map((v) => (
             <option key={v.id} value={v.id}>
-              {[v.vehicle_type, v.brand, v.model, v.year].filter(Boolean).join(" · ")}
+              {[v.type, v.brand, v.model, v.year].filter(Boolean).join(" · ")}
             </option>
           ))}
         </select>
