@@ -13,6 +13,9 @@ import ChiSiamo from "./pages/ChiSiamo.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import UserProtectedRoute from "./components/UserProtectedRoute.tsx";
+import Auth from "./pages/Auth.tsx";
+import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 
@@ -33,6 +36,15 @@ const App = () => (
           <Route path="/community" element={<Community />} />
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/articoli" element={<Articoli />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/account"
+            element={
+              <UserProtectedRoute>
+                <Account />
+              </UserProtectedRoute>
+            }
+          />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"
