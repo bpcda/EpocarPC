@@ -40,7 +40,7 @@ interface Article {
 }
 
 export default function AdminDashboard() {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, isStaff, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [events, setEvents] = useState<Event[]>([]);
@@ -98,6 +98,11 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-headline font-semibold text-foreground">
             Dashboard Epocar
+            {isStaff && !isAdmin && (
+              <span className="ml-3 text-xs font-body font-normal uppercase tracking-widest text-muted-foreground border border-border px-2 py-0.5 align-middle">
+                Staff · sola lettura
+              </span>
+            )}
           </h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
@@ -122,10 +127,12 @@ export default function AdminDashboard() {
           <TabsContent value="events">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-headline font-medium text-foreground">Eventi</h2>
-              <Button size="sm" onClick={() => navigate("/admin/eventi/nuovo")}>
-                <Plus className="h-4 w-4 mr-1" />
-                Nuovo evento
-              </Button>
+              {isAdmin && (
+                <Button size="sm" onClick={() => navigate("/admin/eventi/nuovo")}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nuovo evento
+                </Button>
+              )}
             </div>
 
             {events.length === 0 ? (
@@ -141,7 +148,7 @@ export default function AdminDashboard() {
                       <TableHead className="hidden md:table-cell">Data</TableHead>
                       <TableHead className="hidden sm:table-cell">Luogo</TableHead>
                       <TableHead>Stato</TableHead>
-                      <TableHead className="w-24">Azioni</TableHead>
+                      {isAdmin && <TableHead className="w-24">Azioni</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -169,16 +176,18 @@ export default function AdminDashboard() {
                             {event.published ? "Pubblicato" : "Bozza"}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/eventi/${event.id}`)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteEvent(event.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/eventi/${event.id}`)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteEvent(event.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -191,10 +200,12 @@ export default function AdminDashboard() {
           <TabsContent value="articles">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-headline font-medium text-foreground">Articoli</h2>
-              <Button size="sm" onClick={() => navigate("/admin/articoli/nuovo")}>
-                <Plus className="h-4 w-4 mr-1" />
-                Nuovo articolo
-              </Button>
+              {isAdmin && (
+                <Button size="sm" onClick={() => navigate("/admin/articoli/nuovo")}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nuovo articolo
+                </Button>
+              )}
             </div>
 
             {articles.length === 0 ? (
@@ -209,7 +220,7 @@ export default function AdminDashboard() {
                       <TableHead>Titolo</TableHead>
                       <TableHead className="hidden md:table-cell">Data</TableHead>
                       <TableHead>Stato</TableHead>
-                      <TableHead className="w-24">Azioni</TableHead>
+                      {isAdmin && <TableHead className="w-24">Azioni</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -232,16 +243,18 @@ export default function AdminDashboard() {
                             {article.published ? "Pubblicato" : "Bozza"}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/articoli/${article.id}`)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteArticle(article.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/articoli/${article.id}`)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteArticle(article.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
