@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Trash2, FileDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { FormField } from "@/lib/form-fields";
+import { useAuth } from "@/hooks/use-auth";
 
 interface EventOption {
   id: string;
@@ -79,6 +80,7 @@ function csvEscape(v: string): string {
 }
 
 export default function RegistrationsTab() {
+  const { isAdmin } = useAuth();
   const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [regs, setRegs] = useState<Registration[]>([]);
@@ -230,7 +232,7 @@ export default function RegistrationsTab() {
                 {nonVehicleFields.map((f) => (
                   <TableHead key={f.id}>{f.label}</TableHead>
                 ))}
-                <TableHead className="w-16" />
+                {isAdmin && <TableHead className="w-16" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -265,11 +267,13 @@ export default function RegistrationsTab() {
                       })()}
                     </TableCell>
                   ))}
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
