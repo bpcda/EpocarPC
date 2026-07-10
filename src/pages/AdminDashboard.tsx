@@ -363,6 +363,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
+            <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
           </TabsList>
 
           {/* ════════ EVENTS TAB ════════ */}
@@ -651,6 +652,10 @@ export default function AdminDashboard() {
           {/* ════════ GALLERY TAB ════════ */}
           <TabsContent value="gallery">
             <GalleryTab userId={user?.id} />
+          </TabsContent>
+
+          <TabsContent value="registrations">
+            <RegistrationsTab />
           </TabsContent>
         </Tabs>
       </main>
