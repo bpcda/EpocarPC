@@ -94,6 +94,21 @@ export default function Articoli() {
         description="Rubricar è la rivista di Epocar: articoli, storie e approfondimenti su auto, moto e Vespa d'epoca dalla community di Piacenza."
         path="/articoli"
       />
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": articles.map((a) => ({
+              "@type": "Article",
+              headline: a.title,
+              datePublished: a.created_at,
+              description: a.summary ?? undefined,
+              image: a.image_url ?? undefined,
+              author: { "@type": "Organization", name: "Epocar" },
+            })),
+          })}
+        </script>
+      </Helmet>
       <Navbar />
       <main>
         <section className="pt-32 pb-24 lg:pt-40 lg:pb-32">
