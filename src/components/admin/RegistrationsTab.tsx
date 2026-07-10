@@ -232,7 +232,7 @@ export default function RegistrationsTab() {
                 {nonVehicleFields.map((f) => (
                   <TableHead key={f.id}>{f.label}</TableHead>
                 ))}
-                <TableHead className="w-16" />
+                {isAdmin && <TableHead className="w-16" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -267,11 +267,13 @@ export default function RegistrationsTab() {
                       })()}
                     </TableCell>
                   ))}
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
