@@ -281,6 +281,12 @@ export default function AdminDashboard() {
               <UsersTab />
             </TabsContent>
           )}
+
+          {isAdmin && (
+            <TabsContent value="role-audit">
+              <RoleAuditTab />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
