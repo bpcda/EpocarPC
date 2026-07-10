@@ -12,6 +12,8 @@ import Articoli from "./pages/Articoli.tsx";
 import Gallery from "./pages/Gallery.tsx";
 import ChiSiamo from "./pages/ChiSiamo.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
+import AdminEventEditor from "./pages/AdminEventEditor.tsx";
+import AdminArticleEditor from "./pages/AdminArticleEditor.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import UserProtectedRoute from "./components/UserProtectedRoute.tsx";
 import Auth from "./pages/Auth.tsx";
@@ -55,6 +57,22 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/eventi/:id"
+            element={
+              <ProtectedRoute>
+                <AdminEventEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/articoli/:id"
+            element={
+              <ProtectedRoute>
+                <AdminArticleEditor />
               </ProtectedRoute>
             }
           />

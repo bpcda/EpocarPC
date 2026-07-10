@@ -1,10 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import RichTextEditor from "@/components/RichTextEditor";
 import {
   Table,
   TableBody,
@@ -13,22 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AddressAutocomplete from "@/components/AddressAutocomplete";
-import { Plus, Pencil, Trash2, LogOut, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
-import FormBuilder from "@/components/admin/FormBuilder";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
-import type { FormField } from "@/lib/form-fields";
 
 interface Event {
   id: string;
@@ -53,51 +39,12 @@ interface Article {
   created_at: string;
 }
 
-const emptyEventForm = {
-  title: "",
-  description: "",
-  date: "",
-  location: "",
-  image_url: "",
-  category: "event",
-  published: false,
-  registration_link: "",
-  registration_enabled: false,
-  allow_guests: false,
-  form_fields: [] as FormField[],
-};
-
-const emptyArticleForm = {
-  title: "",
-  summary: "",
-  content: "",
-  image_url: "",
-  published: false,
-};
-
 export default function AdminDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  
-
-  // Events state
   const [events, setEvents] = useState<Event[]>([]);
-  const [eventForm, setEventForm] = useState(emptyEventForm);
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
-
-  // Articles state
   const [articles, setArticles] = useState<Article[]>([]);
-  const [articleForm, setArticleForm] = useState(emptyArticleForm);
-  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
-  const [articleDialogOpen, setArticleDialogOpen] = useState(false);
-
-  // Shared state
-  const [loading, setLoading] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
 
   const fetchEvents = async () => {
     try {
@@ -128,157 +75,10 @@ export default function AdminDashboard() {
     fetchArticles();
   }, []);
 
-  const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileSelect(file);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-  }, []);
-
-  const removeImage = (formType: "event" | "article") => {
-    setImageFile(null);
-    setImagePreview(null);
-    if (formType === "event") setEventForm({ ...eventForm, image_url: "" });
-    else setArticleForm({ ...articleForm, image_url: "" });
-  };
-
-  const uploadImage = async (file: File): Promise<string | null> => {
-    const ext = file.name.split(".").pop();
-    const fileName = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage
-      .from("event-images")
-      .upload(fileName, file, { contentType: file.type });
-    if (error) {
-      console.error("Upload error:", error);
-      return null;
-    }
-    const { data } = supabase.storage.from("event-images").getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
-  // ── Events CRUD ──
-  const handleSaveEvent = async () => {
-    setLoading(true);
-    let imageUrl = eventForm.image_url || null;
-    if (imageFile) {
-      const uploaded = await uploadImage(imageFile);
-      if (uploaded) imageUrl = uploaded;
-    }
-    const payload = {
-      title: eventForm.title,
-      description: eventForm.description || null,
-      date: eventForm.date || null,
-      location: eventForm.location || null,
-      image_url: imageUrl,
-      category: eventForm.category || "event",
-      published: eventForm.published,
-      uploaded_by: user?.id || null,
-      registration_link: eventForm.registration_link || null,
-      registration_enabled: eventForm.registration_enabled,
-      allow_guests: eventForm.allow_guests,
-      form_fields: eventForm.form_fields as never,
-    };
-    if (editingEventId) {
-      await supabase.from("events").update(payload).eq("id", editingEventId);
-    } else {
-      await supabase.from("events").insert(payload);
-    }
-    setEventForm(emptyEventForm);
-    setEditingEventId(null);
-    setImageFile(null);
-    setImagePreview(null);
-    setEventDialogOpen(false);
-    setLoading(false);
-    fetchEvents();
-  };
-
-  const handleEditEvent = (event: Event) => {
-    setEventForm({
-      title: event.title,
-      description: event.description || "",
-      date: event.date ? event.date.slice(0, 16) : "",
-      location: event.location || "",
-      image_url: event.image_url || "",
-      category: event.category || "event",
-      published: event.published ?? false,
-      registration_link: event.registration_link || "",
-      registration_enabled: (event as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
-      allow_guests: (event as unknown as { allow_guests?: boolean }).allow_guests ?? false,
-      form_fields: ((event as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
-    });
-    setImageFile(null);
-    setImagePreview(event.image_url || null);
-    setEditingEventId(event.id);
-    setEventDialogOpen(true);
-  };
-
   const handleDeleteEvent = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo evento?")) return;
     await supabase.from("events").delete().eq("id", id);
     fetchEvents();
-  };
-
-  // ── Articles CRUD ──
-  const handleSaveArticle = async () => {
-    setLoading(true);
-    let imageUrl = articleForm.image_url || null;
-    if (imageFile) {
-      const uploaded = await uploadImage(imageFile);
-      if (uploaded) imageUrl = uploaded;
-    }
-    const payload = {
-      title: articleForm.title,
-      summary: articleForm.summary || null,
-      content: articleForm.content || null,
-      image_url: imageUrl,
-      published: articleForm.published,
-      uploaded_by: user?.id || null,
-    };
-    if (editingArticleId) {
-      await supabase.from("articles").update(payload).eq("id", editingArticleId);
-    } else {
-      await supabase.from("articles").insert(payload);
-    }
-    setArticleForm(emptyArticleForm);
-    setEditingArticleId(null);
-    setImageFile(null);
-    setImagePreview(null);
-    setArticleDialogOpen(false);
-    setLoading(false);
-    fetchArticles();
-  };
-
-  const handleEditArticle = (article: Article) => {
-    setArticleForm({
-      title: article.title,
-      summary: article.summary || "",
-      content: article.content || "",
-      image_url: article.image_url || "",
-      published: article.published ?? false,
-    });
-    setImageFile(null);
-    setImagePreview(article.image_url || null);
-    setEditingArticleId(article.id);
-    setArticleDialogOpen(true);
   };
 
   const handleDeleteArticle = async (id: string) => {
@@ -291,54 +91,6 @@ export default function AdminDashboard() {
     await signOut();
     navigate("/admin/login");
   };
-
-  const ImageUploadArea = ({ formType }: { formType: "event" | "article" }) => (
-    <div>
-      <label className="text-sm text-muted-foreground mb-2 block">Immagine</label>
-      {imagePreview ? (
-        <div className="relative rounded-md overflow-hidden border border-border">
-          <img src={imagePreview} alt="Anteprima" className="w-full h-40 object-cover" />
-          <button
-            type="button"
-            onClick={() => removeImage(formType)}
-            className="absolute top-2 right-2 bg-foreground/70 text-background rounded-full p-1 hover:bg-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      ) : (
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-            input.onchange = (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) handleFileSelect(file);
-            };
-            input.click();
-          }}
-          className={`border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition-colors ${
-            dragging ? "border-accent bg-accent/5" : "border-border hover:border-muted-foreground"
-          }`}
-        >
-          <div className="flex flex-col items-center gap-2">
-            {dragging ? (
-              <Upload className="h-8 w-8 text-accent" />
-            ) : (
-              <ImageIcon className="h-8 w-8 text-muted-foreground" />
-            )}
-            <p className="text-sm text-muted-foreground">
-              {dragging ? "Rilascia qui" : "Trascina un'immagine o clicca per selezionare"}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -370,108 +122,10 @@ export default function AdminDashboard() {
           <TabsContent value="events">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-headline font-medium text-foreground">Eventi</h2>
-              <Dialog
-                open={eventDialogOpen}
-                onOpenChange={(open) => {
-                  setEventDialogOpen(open);
-                  if (!open) {
-                    setEventForm(emptyEventForm);
-                    setEditingEventId(null);
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuovo evento
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
-                  <DialogHeader>
-                    <DialogTitle className="font-headline">
-                      {editingEventId ? "Modifica evento" : "Nuovo evento"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <Input
-                      placeholder="Titolo *"
-                      value={eventForm.title}
-                      onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
-                    />
-                    <Textarea
-                      placeholder="Descrizione"
-                      value={eventForm.description}
-                      onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
-                      rows={3}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        type="datetime-local"
-                        value={eventForm.date}
-                        onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
-                      />
-                      <AddressAutocomplete
-                        value={eventForm.location}
-                        onChange={(val) => setEventForm({ ...eventForm, location: val })}
-                        placeholder="Luogo"
-                      />
-                    </div>
-                    <ImageUploadArea formType="event" />
-                    <Input
-                      placeholder="Categoria"
-                      value={eventForm.category}
-                      onChange={(e) => setEventForm({ ...eventForm, category: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Link Registrazione"
-                      value={eventForm.registration_link}
-                      onChange={(e) => setEventForm({...eventForm, registration_link: e.target.value})}
-                    />
-                    <div className="border border-border p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Form di iscrizione interno</span>
-                        <Switch
-                          checked={eventForm.registration_enabled}
-                          onCheckedChange={(checked) =>
-                            setEventForm({ ...eventForm, registration_enabled: checked })
-                          }
-                        />
-                      </div>
-                      {eventForm.registration_enabled && (
-                        <>
-                          <div className="flex items-center gap-3">
-                            <Switch
-                              checked={eventForm.allow_guests}
-                              onCheckedChange={(checked) =>
-                                setEventForm({ ...eventForm, allow_guests: checked })
-                              }
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              Consenti iscrizioni da ospiti (non registrati)
-                            </span>
-                          </div>
-                          <FormBuilder
-                            fields={eventForm.form_fields}
-                            onChange={(fields) => setEventForm({ ...eventForm, form_fields: fields })}
-                          />
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={eventForm.published}
-                        onCheckedChange={(checked) => setEventForm({ ...eventForm, published: checked })}
-                      />
-                      <span className="text-sm text-muted-foreground">Pubblicato</span>
-                    </div>
-                    <Button className="w-full" onClick={handleSaveEvent} disabled={!eventForm.title || loading}>
-                      {loading ? "Salvataggio..." : editingEventId ? "Salva modifiche" : "Crea evento"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => navigate("/admin/eventi/nuovo")}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nuovo evento
+              </Button>
             </div>
 
             {events.length === 0 ? (
@@ -517,7 +171,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditEvent(event)}>
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/eventi/${event.id}`)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteEvent(event.id)}>
@@ -537,63 +191,10 @@ export default function AdminDashboard() {
           <TabsContent value="articles">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-headline font-medium text-foreground">Articoli</h2>
-              <Dialog
-                open={articleDialogOpen}
-                onOpenChange={(open) => {
-                  setArticleDialogOpen(open);
-                  if (!open) {
-                    setArticleForm(emptyArticleForm);
-                    setEditingArticleId(null);
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }
-                }}
-              >
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuovo articolo
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
-                  <DialogHeader>
-                    <DialogTitle className="font-headline">
-                      {editingArticleId ? "Modifica articolo" : "Nuovo articolo"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-2">
-                    <Input
-                      placeholder="Titolo *"
-                      value={articleForm.title}
-                      onChange={(e) => setArticleForm({ ...articleForm, title: e.target.value })}
-                    />
-                    <Textarea
-                      placeholder="Sommario (breve descrizione)"
-                      value={articleForm.summary}
-                      onChange={(e) => setArticleForm({ ...articleForm, summary: e.target.value })}
-                      rows={2}
-                    />
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">Contenuto</label>
-                      <RichTextEditor
-                        content={articleForm.content}
-                        onChange={(html) => setArticleForm({ ...articleForm, content: html })}
-                      />
-                    </div>
-                    <ImageUploadArea formType="article" />
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={articleForm.published}
-                        onCheckedChange={(checked) => setArticleForm({ ...articleForm, published: checked })}
-                      />
-                      <span className="text-sm text-muted-foreground">Pubblicato</span>
-                    </div>
-                    <Button className="w-full" onClick={handleSaveArticle} disabled={!articleForm.title || loading}>
-                      {loading ? "Salvataggio..." : editingArticleId ? "Salva modifiche" : "Crea articolo"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => navigate("/admin/articoli/nuovo")}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nuovo articolo
+              </Button>
             </div>
 
             {articles.length === 0 ? (
@@ -633,7 +234,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditArticle(article)}>
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/articoli/${article.id}`)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteArticle(article.id)}>
