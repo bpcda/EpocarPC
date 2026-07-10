@@ -9,6 +9,7 @@ import EventoIscrizione from "./pages/EventoIscrizione.tsx";
 import Community from "./pages/Community.tsx";
 import Contatti from "./pages/Contatti.tsx";
 import Articoli from "./pages/Articoli.tsx";
+import QuandoAutoEpoca from "./pages/QuandoAutoEpoca.tsx";
 import Gallery from "./pages/Gallery.tsx";
 import ChiSiamo from "./pages/ChiSiamo.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/community" element={<Community />} />
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/articoli" element={<Articoli />} />
+          <Route path="/articoli/quando-auto-diventa-epoca" element={<QuandoAutoEpoca />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/account"
