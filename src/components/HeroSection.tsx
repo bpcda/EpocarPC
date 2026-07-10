@@ -22,7 +22,7 @@ export default function HeroSection() {
         </h1>
         <div className="w-24 h-0.5 bg-primary-foreground/60 my-4 animate-fade-up" style={{ animationDelay: "0.15s" }} />
         <p className="text-base md:text-xl text-primary-foreground/80 font-body tracking-wide animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          Community di veicoli storici a Piacenza
+          La nuova generazione dei motori d'epoca
         </p>
 
         <div className="absolute bottom-10 animate-scroll-hint">
