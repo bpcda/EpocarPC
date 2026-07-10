@@ -19,6 +19,7 @@ import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
+import { AuthProvider } from "./hooks/use-auth.ts";
 
 const queryClient = new QueryClient();
 
@@ -28,8 +29,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <ScrollToTop />
-        <Routes>
+        <AuthProvider>
+          <ScrollToTop />
+          <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/chi-siamo" element={<ChiSiamo />} />
           <Route path="/gallery" element={<Gallery />} />
@@ -56,8 +58,9 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
