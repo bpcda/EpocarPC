@@ -78,12 +78,12 @@ export default function Gallery() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background pt-20">
+      <main className="min-h-screen bg-foreground pt-20">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12 lg:py-20">
-          <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl text-foreground tracking-wider mb-2">
+          <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl text-primary-foreground tracking-wider mb-2">
             GALLERY
           </h1>
-          <div className="w-24 h-0.5 bg-foreground/30 mb-10" />
+          <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
           {initialLoad ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -92,7 +92,7 @@ export default function Gallery() {
               ))}
             </div>
           ) : images.length === 0 ? (
-            <p className="text-muted-foreground text-center py-24">Nessuna immagine disponibile.</p>
+            <p className="text-primary-foreground/60 text-center py-24">Nessuna immagine disponibile.</p>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
