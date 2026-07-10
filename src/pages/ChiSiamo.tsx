@@ -10,8 +10,8 @@ export default function ChiSiamo() {
         <section className="pt-0">
           <div className="grid grid-cols-1 lg:grid-cols-12">
             <div className="lg:col-span-7 bg-foreground text-primary-foreground p-10 lg:p-16 xl:p-20 pt-28 lg:pt-32">
-              <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl text-primary-foreground leading-none mb-2">
-                CHI SIAMO
+              <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl text-primary-foreground leading-tight mb-2">
+                Chi Siamo — Passione per i Motori d'Epoca a Piacenza
               </h1>
               <div className="w-full h-0.5 bg-primary-foreground/30 mb-8" />
               <p className="text-base text-primary-foreground/80 leading-relaxed mb-6 max-w-xl">

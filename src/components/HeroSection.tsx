@@ -17,12 +17,12 @@ export default function HeroSection() {
       <div className="absolute inset-0 bg-foreground/60" />
 
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
-        <h1 className="font-headline text-7xl md:text-9xl lg:text-[12rem] text-primary-foreground leading-none tracking-wider animate-fade-up">
-          EPOCAR
+        <h1 className="font-headline text-5xl md:text-7xl lg:text-[8rem] text-primary-foreground leading-tight tracking-wider animate-fade-up">
+          EPOCAR — La nuova generazione dei motori d'epoca
         </h1>
         <div className="w-24 h-0.5 bg-primary-foreground/60 my-4 animate-fade-up" style={{ animationDelay: "0.15s" }} />
         <p className="text-base md:text-xl text-primary-foreground/80 font-body tracking-wide animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          La nuova generazione dei motori d'epoca
+          Community di veicoli storici a Piacenza
         </p>
 
         <div className="absolute bottom-10 animate-scroll-hint">

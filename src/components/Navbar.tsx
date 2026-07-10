@@ -40,7 +40,7 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between h-16 lg:h-20">
         <Link to="/" className="flex items-center gap-3">
-          <img src={logoEpocar} alt="Epocar" className="h-10 lg:h-12 w-auto brightness-0 invert" />
+          <img src={logoEpocar} alt="Epocar — Community motori storici" className="h-10 lg:h-12 w-auto brightness-0 invert" />
         </Link>
 
         {/* Desktop nav - bordered boxes */}
