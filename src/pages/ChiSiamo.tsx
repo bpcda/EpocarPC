@@ -6,7 +6,7 @@ export default function ChiSiamo() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-foreground">
         <section className="pt-0">
           <div className="grid grid-cols-1 lg:grid-cols-12">
             <div className="lg:col-span-7 bg-foreground text-primary-foreground p-10 lg:p-16 xl:p-20 pt-28 lg:pt-32">
