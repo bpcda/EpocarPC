@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
+import { Helmet } from "react-helmet-async";
 import { Calendar } from "lucide-react";
 
 interface Article {
