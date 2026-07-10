@@ -23,6 +23,30 @@ interface Registration {
   created_at: string;
 }
 
+interface VehicleInfo {
+  id: string;
+  type: string | null;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  plate: string | null;
+  user_id: string;
+}
+
+interface ProfileInfo {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+}
+
+function formatVehicle(v?: VehicleInfo | null): string {
+  if (!v) return "—";
+  const parts = [v.brand, v.model, v.year].filter(Boolean).join(" ");
+  const label = parts || v.type || "Veicolo";
+  return v.plate ? `${label} (${v.plate})` : label;
+}
+
 function answerToText(v: unknown): string {
   if (v == null) return "";
   if (Array.isArray(v)) return v.join(", ");
@@ -38,6 +62,8 @@ export default function RegistrationsTab() {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [regs, setRegs] = useState<Registration[]>([]);
+  const [vehiclesById, setVehiclesById] = useState<Record<string, VehicleInfo>>({});
+  const [profilesByUser, setProfilesByUser] = useState<Record<string, ProfileInfo>>({});
 
   useEffect(() => {
     supabase
@@ -60,7 +86,33 @@ export default function RegistrationsTab() {
       .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
-    if (data) setRegs(data as unknown as Registration[]);
+    const list = (data as unknown as Registration[]) || [];
+    setRegs(list);
+
+    // Also pull vehicles referenced directly OR by any "vehicle" answer field
+    const vehicleIds = new Set<string>();
+    list.forEach((r) => {
+      if (r.vehicle_id) vehicleIds.add(r.vehicle_id);
+      Object.values(r.answers || {}).forEach((a) => {
+        if (a?.type === "vehicle" && typeof a.value === "string") vehicleIds.add(a.value);
+      });
+    });
+    const userIds = Array.from(new Set(list.map((r) => r.user_id).filter(Boolean) as string[]));
+
+    const [vRes, pRes] = await Promise.all([
+      vehicleIds.size
+        ? supabase.from("vehicles").select("id, type, brand, model, year, plate, user_id").in("id", Array.from(vehicleIds))
+        : Promise.resolve({ data: [] as VehicleInfo[] }),
+      userIds.length
+        ? supabase.from("profiles").select("user_id, first_name, last_name, phone").in("user_id", userIds)
+        : Promise.resolve({ data: [] as ProfileInfo[] }),
+    ]);
+    const vMap: Record<string, VehicleInfo> = {};
+    (vRes.data as VehicleInfo[] | null)?.forEach((v) => (vMap[v.id] = v));
+    setVehiclesById(vMap);
+    const pMap: Record<string, ProfileInfo> = {};
+    (pRes.data as ProfileInfo[] | null)?.forEach((p) => (pMap[p.user_id] = p));
+    setProfilesByUser(pMap);
   };
 
   useEffect(() => {
@@ -69,6 +121,7 @@ export default function RegistrationsTab() {
 
   const currentEvent = events.find((e) => e.id === selectedEvent);
   const fields = (currentEvent?.form_fields as FormField[]) || [];
+  const nonVehicleFields = fields.filter((f) => f.type !== "vehicle");
 
   const handleDelete = async (id: string) => {
     if (!confirm("Eliminare questa iscrizione?")) return;
@@ -76,15 +129,36 @@ export default function RegistrationsTab() {
     fetchRegs(selectedEvent);
   };
 
+  const nameFor = (r: Registration): string => {
+    if (r.guest_name) return r.guest_name;
+    if (r.user_id) {
+      const p = profilesByUser[r.user_id];
+      const full = [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim();
+      return full || "Utente registrato";
+    }
+    return "—";
+  };
+
+  const vehicleFor = (r: Registration): VehicleInfo | null => {
+    if (r.vehicle_id && vehiclesById[r.vehicle_id]) return vehiclesById[r.vehicle_id];
+    for (const a of Object.values(r.answers || {})) {
+      if (a?.type === "vehicle" && typeof a.value === "string" && vehiclesById[a.value]) {
+        return vehiclesById[a.value];
+      }
+    }
+    return null;
+  };
+
   const exportCsv = () => {
     if (!currentEvent) return;
-    const headers = ["Data", "Nome", "Email", ...fields.map((f) => f.label)];
+    const headers = ["Data", "Nome", "Email", "Veicolo", ...nonVehicleFields.map((f) => f.label)];
     const rows = regs.map((r) => {
-      const name = r.guest_name || "";
+      const name = nameFor(r);
       const email = r.guest_email || "";
       const date = new Date(r.created_at).toLocaleString("it-IT");
-      const answers = fields.map((f) => answerToText(r.answers?.[f.id]?.value));
-      return [date, name, email, ...answers].map(csvEscape).join(",");
+      const vehicle = formatVehicle(vehicleFor(r));
+      const answers = nonVehicleFields.map((f) => answerToText(r.answers?.[f.id]?.value));
+      return [date, name, email, vehicle, ...answers].map(csvEscape).join(",");
     });
     const csv = [headers.map(csvEscape).join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -130,7 +204,8 @@ export default function RegistrationsTab() {
                 <TableHead>Data</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
-                {fields.map((f) => (
+                <TableHead>Veicolo</TableHead>
+                {nonVehicleFields.map((f) => (
                   <TableHead key={f.id}>{f.label}</TableHead>
                 ))}
                 <TableHead className="w-16" />
@@ -142,9 +217,10 @@ export default function RegistrationsTab() {
                   <TableCell className="text-xs">
                     {new Date(r.created_at).toLocaleString("it-IT")}
                   </TableCell>
-                  <TableCell>{r.guest_name || (r.user_id ? "Utente registrato" : "—")}</TableCell>
+                  <TableCell>{nameFor(r)}</TableCell>
                   <TableCell>{r.guest_email || "—"}</TableCell>
-                  {fields.map((f) => (
+                  <TableCell className="text-sm">{formatVehicle(vehicleFor(r))}</TableCell>
+                  {nonVehicleFields.map((f) => (
                     <TableCell key={f.id} className="text-sm">
                       {answerToText(r.answers?.[f.id]?.value)}
                     </TableCell>

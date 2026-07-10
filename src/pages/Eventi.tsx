@@ -3,8 +3,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
-import EventRegistrationForm from "@/components/EventRegistrationForm";
 import type { FormField } from "@/lib/form-fields";
+import { Link } from "react-router-dom";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 import eventVespa from "@/assets/event-vespa.jpg";
 import eventMeetup from "@/assets/event-meetup.jpg";
@@ -164,7 +164,16 @@ export default function EventiPage() {
                       )}
                     </div>
                     <p className="text-primary-foreground/60 text-sm leading-relaxed">{event.description}</p>
-                    {event.registration_enabled ? null : event.registration_link ? (
+                    {event.registration_enabled ? (
+                      <Link to={`/eventi/${event.id}/iscrizione`}>
+                        <Button
+                          variant="outline"
+                          className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
+                        >
+                          ISCRIVITI
+                        </Button>
+                      </Link>
+                    ) : event.registration_link ? (
                       <Button
                         variant="outline"
                         className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest"
@@ -174,15 +183,6 @@ export default function EventiPage() {
                       </Button>
                     ) : null}
                   </div>
-                  {event.registration_enabled && (
-                    <div className="lg:col-span-2">
-                      <EventRegistrationForm
-                        eventId={event.id}
-                        allowGuests={!!event.allow_guests}
-                        fields={(event.form_fields as FormField[]) || []}
-                      />
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
