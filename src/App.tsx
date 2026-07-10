@@ -10,7 +10,6 @@ import Contatti from "./pages/Contatti.tsx";
 import Articoli from "./pages/Articoli.tsx";
 import Gallery from "./pages/Gallery.tsx";
 import ChiSiamo from "./pages/ChiSiamo.tsx";
-import AdminLogin from "./pages/AdminLogin.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import UserProtectedRoute from "./components/UserProtectedRoute.tsx";
@@ -18,6 +17,7 @@ import Auth from "./pages/Auth.tsx";
 import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -45,7 +45,7 @@ const App = () => (
               </UserProtectedRoute>
             }
           />
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<Navigate to="/auth?next=/admin" replace />} />
           <Route
             path="/admin"
             element={
