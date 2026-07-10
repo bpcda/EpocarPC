@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
+import { Helmet } from "react-helmet-async";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
 import type { FormField } from "@/lib/form-fields";
@@ -85,6 +86,27 @@ export default function EventiPage() {
         description="Calendario di raduni, mostre e uscite dedicate ad auto, moto e Vespa d'epoca organizzati dalla community Epocar a Piacenza e dintorni."
         path="/eventi"
       />
+      <Helmet>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": events
+              .filter((e) => e.date)
+              .map((e) => ({
+                "@type": "Event",
+                name: e.title,
+                startDate: e.date,
+                description: e.description ?? undefined,
+                image: e.image_url ?? undefined,
+                eventStatus: "https://schema.org/EventScheduled",
+                location: e.location
+                  ? { "@type": "Place", name: e.location, address: e.location }
+                  : undefined,
+                organizer: { "@type": "Organization", name: "Epocar" },
+              })),
+          })}
+        </script>
+      </Helmet>
       <Navbar />
       <main>
         {/* Hero header */}
