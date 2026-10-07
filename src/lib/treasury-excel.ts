@@ -1,0 +1,166 @@
+import JSZip from "jszip";
+import { TEMPLATE_LIMITS } from "./treasury-template-lists";
+
+/**
+ * Export engine for the accountant's official workbook.
+ * The template is never rebuilt: we copy the original zip and only replace
+ * empty input cells (<c r=".." s=".."/>) in the Movimenti, Quote Soci and
+ * Budget Previsionale sheets. Every formula is checked before and after.
+ */
+export const TEMPLATE_URL = "/templates/EPOCAR_Tesoreria_Rendiconto_template.xlsx";
+
+export type CellValue = string | number | Date | null | undefined;
+export type CellWrites = Record<string, Record<string, CellValue>>; // sheet name -> ref -> value
+
+// Explicit mapping: database field -> sheet -> column (input columns only).
+export const EXCEL_MAPPING = {
+  Movimenti: {
+    firstRow: 2, lastRow: 2 + TEMPLATE_LIMITS.movements - 1,
+    columns: { transaction_date: "A", movement_number: "B", type: "C", excel_code: "D", description: "G", subject: "H", document: "I", payment_method: "J", account: "K", amount: "L", event: "M", notes: "N" },
+    readOnly: ["E", "F"],
+  },
+  "Quote Soci": {
+    firstRow: 2, lastRow: 2 + TEMPLATE_LIMITS.members - 1,
+    columns: { member_number: "A", full_name: "B", category: "C", admission_date: "D", last_payment_date: "H", notes: "J" },
+    readOnly: ["E", "F", "G", "I"],
+  },
+  "Budget Previsionale": { firstRow: 5, lastRow: 62, codeColumn: "A", columns: { planned_amount: "C" }, readOnly: ["D", "E", "F"] },
+} as const;
+
+const parser = () => new DOMParser();
+
+async function sheetFiles(zip: JSZip): Promise<Record<string, string>> {
+  const wb = parser().parseFromString(await zip.file("xl/workbook.xml")!.async("string"), "application/xml");
+  const rels = parser().parseFromString(await zip.file("xl/_rels/workbook.xml.rels")!.async("string"), "application/xml");
+  const targets: Record<string, string> = {};
+  Array.from(rels.getElementsByTagName("Relationship")).forEach((r) => {
+    const t = r.getAttribute("Target")!;
+    targets[r.getAttribute("Id")!] = t.startsWith("/") ? t.slice(1) : `xl/${t}`;
+  });
+  const out: Record<string, string> = {};
+  Array.from(wb.getElementsByTagName("sheet")).forEach((s) => {
+    const rid = s.getAttribute("r:id") || s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+    out[s.getAttribute("name")!] = targets[rid!];
+  });
+  return out;
+}
+
+/** Every <f> element in every sheet, keyed by "Sheet!REF", including attributes (shared formulas). */
+export async function extractFormulas(zip: JSZip): Promise<Map<string, string>> {
+  const files = await sheetFiles(zip);
+  const map = new Map<string, string>();
+  for (const [name, path] of Object.entries(files)) {
+    const xml = await zip.file(path)!.async("string");
+    const re = /<c r="([A-Z]+[0-9]+)"((?: [a-zA-Z:]+="[^"]*")*)\s*(\/>|>((?:(?!<\/c>).)*)<\/c>)/gs;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(xml))) {
+      const f = m[4]?.match(/<f[^>]*?(?:\/>|>(?:(?!<\/f>).)*<\/f>)/s);
+      if (f) map.set(`${name}!${m[1]}`, f[0]);
+    }
+  }
+  return map;
+}
+
+export function compareFormulas(a: Map<string, string>, b: Map<string, string>): string[] {
+  const diffs: string[] = [];
+  if (a.size !== b.size) diffs.push(`Numero formule diverso: template ${a.size}, file ${b.size}`);
+  for (const [k, v] of a) if (b.get(k) !== v) diffs.push(`Formula alterata o mancante in ${k}`);
+  for (const k of b.keys()) if (!a.has(k)) diffs.push(`Formula aggiunta in ${k}`);
+  return diffs;
+}
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export function excelSerial(d: Date | string): number {
+  const date = typeof d === "string" ? new Date(`${d.slice(0, 10)}T00:00:00Z`) : d;
+  return (Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(1899, 11, 30)) / 86400000;
+}
+
+/** Replace one EMPTY input cell, keeping its style. Refuses cells containing formulas or values. */
+export function writeCell(xml: string, ref: string, value: CellValue): string {
+  if (value === null || value === undefined || value === "") return xml;
+  const re = new RegExp(`<c r="${ref}"((?: [a-zA-Z:]+="[^"]*")*)\\s*(/>|>((?:(?!</c>).)*)</c>)`, "s");
+  const m = xml.match(re);
+  if (!m) throw new Error(`Cella di input ${ref} non trovata nel template`);
+  if (m[3] !== undefined && m[3].trim() !== "") throw new Error(`La cella ${ref} non è vuota nel template: scrittura rifiutata`);
+  const style = m[1].match(/ s="(\d+)"/)?.[0] ?? "";
+  let cell: string;
+  if (value instanceof Date) {
+    cell = `<c r="${ref}"${style}><v>${excelSerial(value)}</v></c>`;
+  } else if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`Valore non valido per ${ref}`);
+    cell = `<c r="${ref}"${style}><v>${value}</v></c>`;
+  } else {
+    cell = `<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${esc(String(value))}</t></is></c>`;
+  }
+  return xml.replace(m[0], cell);
+}
+
+async function sharedStrings(zip: JSZip): Promise<string[]> {
+  const f = zip.file("xl/sharedStrings.xml");
+  if (!f) return [];
+  const doc = parser().parseFromString(await f.async("string"), "application/xml");
+  return Array.from(doc.getElementsByTagName("si")).map((si) => Array.from(si.getElementsByTagName("t")).map((t) => t.textContent ?? "").join(""));
+}
+
+/** Reads the budget code row index from the template (column A, rows 5-62). */
+export async function budgetCodeRows(zip: JSZip): Promise<Record<string, number>> {
+  const files = await sheetFiles(zip);
+  const xml = await zip.file(files["Budget Previsionale"])!.async("string");
+  const ss = await sharedStrings(zip);
+  const out: Record<string, number> = {};
+  const { firstRow, lastRow } = EXCEL_MAPPING["Budget Previsionale"];
+  for (let r = firstRow; r <= lastRow; r++) {
+    const m = xml.match(new RegExp(`<c r="A${r}"[^>]*t="s"[^>]*><v>(\\d+)</v></c>`));
+    if (m) out[ss[Number(m[1])]] = r;
+  }
+  return out;
+}
+
+export async function loadTemplate(): Promise<{ zip: JSZip; bytes: ArrayBuffer }> {
+  const res = await fetch(TEMPLATE_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error("Template Excel ufficiale non disponibile");
+  const bytes = await res.arrayBuffer();
+  return { zip: await JSZip.loadAsync(bytes), bytes };
+}
+
+/** Copies the template, writes only the given input cells and verifies formulas are byte-identical. */
+export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
+  const { bytes } = await loadTemplate();
+  const original = await JSZip.loadAsync(bytes);
+  const copy = await JSZip.loadAsync(bytes);
+  const before = await extractFormulas(original);
+  const files = await sheetFiles(copy);
+
+  for (const [sheet, cells] of Object.entries(writes)) {
+    const mapping = EXCEL_MAPPING[sheet as keyof typeof EXCEL_MAPPING];
+    if (!mapping) throw new Error(`Il foglio ${sheet} non è un foglio di input`);
+    const path = files[sheet];
+    let xml = await copy.file(path)!.async("string");
+    for (const [ref, value] of Object.entries(cells)) {
+      const col = ref.replace(/\d+/g, ""), row = Number(ref.replace(/\D+/g, ""));
+      const allowed = Object.values(mapping.columns) as string[];
+      if (!allowed.includes(col) || row < mapping.firstRow || row > mapping.lastRow) throw new Error(`Scrittura non consentita in ${sheet}!${ref}`);
+      if (before.has(`${sheet}!${ref}`)) throw new Error(`${sheet}!${ref} contiene una formula: scrittura rifiutata`);
+      xml = writeCell(xml, ref, value);
+    }
+    copy.file(path, xml);
+  }
+
+  // Ask Excel to recompute the accountant's formulas on open (no formula is changed).
+  const wbXml = await copy.file("xl/workbook.xml")!.async("string");
+  copy.file("xl/workbook.xml", wbXml.replace(/<calcPr(?![^>]*fullCalcOnLoad)([^>]*?)\/>/, '<calcPr$1 fullCalcOnLoad="1"/>'));
+
+  const out = await copy.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+  const reloaded = await JSZip.loadAsync(out);
+  const diffs = compareFormulas(before, await extractFormulas(reloaded));
+  const origNames = Object.keys(original.files).sort().join("|"), newNames = Object.keys(reloaded.files).sort().join("|");
+  if (origNames !== newNames) diffs.push("Struttura del file diversa dal template");
+  const touched = new Set([...Object.keys(writes).map((s) => files[s]), "xl/workbook.xml"]);
+  for (const name of Object.keys(original.files)) {
+    if (touched.has(name) || original.files[name].dir) continue;
+    const [a, b] = await Promise.all([original.file(name)!.async("uint8array"), reloaded.file(name)!.async("uint8array")]);
+    if (a.length !== b.length || a.some((x, i) => x !== b[i])) diffs.push(`Parte del file modificata: ${name}`);
+  }
+  if (diffs.length) throw new Error(`Controllo integrità fallito, export interrotto:\n${diffs.slice(0, 10).join("\n")}`);
+  return new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
