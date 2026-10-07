@@ -153,7 +153,8 @@ export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
   const out = await copy.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
   const reloaded = await JSZip.loadAsync(out);
   const diffs = compareFormulas(before, await extractFormulas(reloaded));
-  const origNames = Object.keys(original.files).sort().join("|"), newNames = Object.keys(reloaded.files).sort().join("|");
+  const names = (z: JSZip) => Object.values(z.files).filter((f) => !f.dir).map((f) => f.name).sort().join("|");
+  const origNames = names(original), newNames = names(reloaded);
   if (origNames !== newNames) diffs.push("Struttura del file diversa dal template");
   const touched = new Set([...Object.keys(writes).map((s) => files[s]), "xl/workbook.xml"]);
   for (const name of Object.keys(original.files)) {
