@@ -91,7 +91,7 @@ export default function UsersTab() {
     setUpdating(`${userId}:${role}`);
     const { error } = await supabase.rpc("admin_set_user_role", {
       _user_id: userId,
-      _role: role,
+      _role: role as "admin" | "staff" | "user",
       _grant: grant,
     });
     setUpdating(null);
