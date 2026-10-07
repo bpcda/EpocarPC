@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type Role = "admin" | "staff" | "user";
+type Role = "admin" | "staff" | "treasurer" | "user";
 
 interface UserRow {
   user_id: string;
@@ -91,7 +91,7 @@ export default function UsersTab() {
     setUpdating(`${userId}:${role}`);
     const { error } = await supabase.rpc("admin_set_user_role", {
       _user_id: userId,
-      _role: role,
+      _role: role as "admin" | "staff" | "user",
       _grant: grant,
     });
     setUpdating(null);
@@ -148,6 +148,7 @@ export default function UsersTab() {
               rows.map((r) => {
                 const isAdmin = r.roles.includes("admin");
                 const isStaff = r.roles.includes("staff");
+                const isTreasurer = r.roles.includes("treasurer");
                 const isSelf = r.user_id === currentUser?.id;
                 const fullName = [r.first_name, r.last_name].filter(Boolean).join(" ") || "—";
                 return (
@@ -190,6 +191,20 @@ export default function UsersTab() {
                               userId: r.user_id,
                               role: "staff",
                               grant: !isStaff,
+                              label: fullName,
+                            })
+                          }
+                        />
+                        <RoleToggle
+                          label="tesoriere"
+                          active={isTreasurer}
+                          disabled={isSelf}
+                          loading={updating === `${r.user_id}:treasurer`}
+                          onClick={() =>
+                            setPending({
+                              userId: r.user_id,
+                              role: "treasurer",
+                              grant: !isTreasurer,
                               label: fullName,
                             })
                           }

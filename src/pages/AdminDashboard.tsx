@@ -18,6 +18,7 @@ import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
 import RoleAuditTab from "@/components/admin/RoleAuditTab";
 import AssociationTab from "@/components/admin/AssociationTab";
+import TreasuryTab from "@/components/admin/treasury/TreasuryTab";
 
 interface Event {
   id: string;
@@ -43,7 +44,8 @@ interface Article {
 }
 
 export default function AdminDashboard() {
-  const { user, isAdmin, isStaff, signOut } = useAuth();
+  const { user, isAdmin, isStaff, isTreasurer, canAccessTreasury, signOut } = useAuth();
+  const onlyTreasury = isTreasurer && !isAdmin && !isStaff;
   const navigate = useNavigate();
 
   const [events, setEvents] = useState<Event[]>([]);
@@ -118,13 +120,16 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="events">
+        <Tabs defaultValue={onlyTreasury ? "treasury" : "events"}>
           <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
+            {!onlyTreasury && <>
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
             <TabsTrigger value="association">Associazione</TabsTrigger>
+            </>}
+            {canAccessTreasury && <TabsTrigger value="treasury">Tesoreria</TabsTrigger>}
             {isAdmin && <TabsTrigger value="users">Utenti</TabsTrigger>}
             {isAdmin && <TabsTrigger value="role-audit">Audit ruoli</TabsTrigger>}
           </TabsList>
@@ -280,6 +285,12 @@ export default function AdminDashboard() {
           <TabsContent value="association">
             <AssociationTab />
           </TabsContent>
+
+          {canAccessTreasury && (
+            <TabsContent value="treasury">
+              <TreasuryTab />
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="users">

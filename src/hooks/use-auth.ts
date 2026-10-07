@@ -6,6 +6,8 @@ type AuthContextValue = {
   user: User | null;
   isAdmin: boolean;
   isStaff: boolean;
+  isTreasurer: boolean;
+  canAccessTreasury: boolean;
   canAccessDashboard: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
@@ -18,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
+  const [isTreasurer, setIsTreasurer] = useState(false);
   const [loading, setLoading] = useState(true);
   const currentUserId = useRef<string | null>(null);
   const roleCheckedFor = useRef<string | null>(null);
@@ -69,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roleCheckedFor.current = null;
       setIsAdmin(false);
       setIsStaff(false);
+      setIsTreasurer(false);
       setLoading(false);
       return;
     }
@@ -83,9 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", user.id)
       .then(({ data }) => {
         if (cancelled) return;
-        const roles = (data ?? []).map((r) => r.role);
+        const roles = (data ?? []).map((r) => String(r.role));
         setIsAdmin(roles.includes("admin"));
         setIsStaff(roles.includes("staff"));
+        setIsTreasurer(roles.includes("treasurer"));
         setLoading(false);
       });
 
@@ -98,7 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isAdmin,
     isStaff,
-    canAccessDashboard: isAdmin || isStaff,
+    isTreasurer,
+    canAccessTreasury: isAdmin || isTreasurer,
+    canAccessDashboard: isAdmin || isStaff || isTreasurer,
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signOut: () => supabase.auth.signOut(),

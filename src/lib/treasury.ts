@@ -1,0 +1,222 @@
+import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { TEMPLATE_ACCOUNTS, TEMPLATE_CODES, TEMPLATE_LIMITS, TEMPLATE_MEMBER_CATEGORIES, TEMPLATE_METHODS } from "./treasury-template-lists";
+import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, loadTemplate, type CellWrites } from "./treasury-excel";
+
+// External-instance schema (public/setup/treasury.sql); managed types are not edited.
+export const treasuryClient: SupabaseClient = supabase;
+export const BUCKET = "treasury-documents";
+
+export const CODES = TEMPLATE_CODES;
+export const codeLabel = (code: string) => CODES.find((c) => c.code === code)?.label ?? "";
+export const feeFor = (category: string) => TEMPLATE_MEMBER_CATEGORIES.find((c) => c.name === category)?.fee ?? 0;
+
+const num = z.union([z.number(), z.string()]).transform(Number);
+export const transactionSchema = z.object({
+  id: z.string().uuid(), fiscal_year: z.number(), movement_number: z.number().nullable(), transaction_date: z.string(),
+  type: z.enum(["Entrata", "Uscita"]), excel_code: z.string(), description: z.string(), subject: z.string().nullable(),
+  amount: num, payment_method: z.string(), account: z.string(), event_id: z.string().nullable(), member_id: z.string().nullable(),
+  document_number: z.string().nullable(), document_date: z.string().nullable(), attachment_path: z.string().nullable(),
+  attachment_name: z.string().nullable(), notes: z.string().nullable(), created_by: z.string(), created_at: z.string(),
+});
+export type Transaction = z.infer<typeof transactionSchema>;
+export const memberSchema = z.object({
+  id: z.string().uuid(), user_id: z.string().nullable(), full_name: z.string(), member_number: z.string().nullable(),
+  category: z.string(), admission_date: z.string().nullable(), notes: z.string().nullable(), active: z.boolean(),
+});
+export type Member = z.infer<typeof memberSchema>;
+export const budgetSchema = z.object({ id: z.string().uuid(), fiscal_year: z.number(), excel_code: z.string(), description: z.string().nullable(), planned_amount: num });
+export type Budget = z.infer<typeof budgetSchema>;
+export type FiscalYear = { year: number; status: "open" | "closed" };
+
+export const transactionInput = z.object({
+  transaction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data obbligatoria"),
+  type: z.enum(["Entrata", "Uscita"]),
+  excel_code: z.string().refine((c) => CODES.some((x) => x.code === c), "Voce non valida"),
+  description: z.string().trim().min(1, "Descrizione obbligatoria").max(500),
+  subject: z.string().trim().max(200).optional().or(z.literal("")),
+  amount: z.number({ invalid_type_error: "Importo non valido" }).positive("L'importo deve essere positivo").max(9_999_999),
+  payment_method: z.enum(TEMPLATE_METHODS),
+  account: z.enum(TEMPLATE_ACCOUNTS),
+  event_id: z.string().uuid().nullable(),
+  member_id: z.string().uuid().nullable(),
+  document_number: z.string().trim().max(100).optional().or(z.literal("")),
+  document_date: z.string().optional().or(z.literal("")),
+  notes: z.string().trim().max(1000).optional().or(z.literal("")),
+}).refine((v) => CODES.find((c) => c.code === v.excel_code)?.type === v.type, { message: "La voce non corrisponde al tipo", path: ["excel_code"] });
+export type TransactionInput = z.infer<typeof transactionInput>;
+
+export const memberInput = z.object({
+  full_name: z.string().trim().min(2, "Nome obbligatorio").max(120),
+  member_number: z.string().trim().max(20).optional().or(z.literal("")),
+  category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]),
+  admission_date: z.string().optional().or(z.literal("")),
+  notes: z.string().trim().max(1000).optional().or(z.literal("")),
+});
+
+const ATTACH: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+export function validateReceipt(file: File) {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!ATTACH[ext] || (file.type && file.type !== ATTACH[ext])) throw new Error("Giustificativo: solo PDF, JPG o PNG.");
+  if (!file.size || file.size > 10 * 1024 * 1024) throw new Error("Il file deve essere non vuoto e sotto i 10 MB.");
+  return { ext, contentType: ATTACH[ext] };
+}
+
+const fail = (e: { message: string } | null, msg: string) => { if (e) throw new Error(`${msg}: ${e.message}`); };
+
+export async function loadTreasury(year: number) {
+  const [years, tx, members, budgets, events] = await Promise.all([
+    treasuryClient.from("treasury_fiscal_years").select("year,status").order("year"),
+    treasuryClient.from("treasury_transactions").select("*").eq("fiscal_year", year).is("deleted_at", null).order("transaction_date").order("created_at"),
+    treasuryClient.from("association_members").select("*").order("full_name"),
+    treasuryClient.from("treasury_budgets").select("*").eq("fiscal_year", year),
+    supabase.from("events").select("id,title").order("date", { ascending: false }),
+  ]);
+  if (years.error || tx.error || members.error || budgets.error) throw new Error("Tesoreria non installata: esegui lo script SQL sulla tua istanza.");
+  return {
+    years: (years.data ?? []) as FiscalYear[],
+    transactions: z.array(transactionSchema).parse(tx.data),
+    members: z.array(memberSchema).parse(members.data),
+    budgets: z.array(budgetSchema).parse(budgets.data),
+    events: (events.data ?? []) as { id: string; title: string }[],
+  };
+}
+export type TreasuryData = Awaited<ReturnType<typeof loadTreasury>>;
+
+const blank = (v?: string | null) => (v ? v : null);
+export async function saveTransaction(year: number, input: TransactionInput, id: string | null, file: File | null, members: Member[]) {
+  const v = transactionInput.parse(input);
+  if (Number(v.transaction_date.slice(0, 4)) !== year) throw new Error(`La data deve essere nell'esercizio ${year}`);
+  const member = members.find((m) => m.id === v.member_id);
+  // Template rule: membership fees must use A.E.1 and the same name as "Quote Soci".
+  const subject = member && v.excel_code === "A.E.1" ? member.full_name : blank(v.subject);
+  const row = { ...v, fiscal_year: year, subject, document_number: blank(v.document_number), document_date: blank(v.document_date), notes: blank(v.notes) };
+  let txId = id;
+  if (id) {
+    const { error } = await treasuryClient.from("treasury_transactions").update(row).eq("id", id);
+    fail(error, "Salvataggio non riuscito");
+  } else {
+    const { data: u } = await supabase.auth.getUser();
+    const { data, error } = await treasuryClient.from("treasury_transactions").insert({ ...row, created_by: u.user?.id }).select("id").single();
+    fail(error, "Salvataggio non riuscito");
+    txId = data!.id;
+  }
+  if (file && txId) await attachReceipt(year, txId, file);
+}
+
+export async function attachReceipt(year: number, txId: string, file: File) {
+  const { ext, contentType } = validateReceipt(file);
+  const path = `${year}/${txId}/${crypto.randomUUID()}.${ext}`;
+  const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType, upsert: false });
+  fail(up.error, "Caricamento giustificativo non riuscito");
+  const { error } = await treasuryClient.from("treasury_transactions").update({ attachment_path: path, attachment_name: file.name.slice(0, 255) }).eq("id", txId);
+  fail(error, "Collegamento giustificativo non riuscito");
+}
+
+export async function softDeleteTransaction(id: string) {
+  const { error } = await treasuryClient.from("treasury_transactions").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  fail(error, "Eliminazione non riuscita");
+}
+
+export async function openReceipt(path: string, filename: string, download: boolean) {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60, download ? { download: filename } : undefined);
+  if (error || !data) throw new Error("Documento non disponibile");
+  window.open(data.signedUrl, "_blank", "noopener");
+}
+
+export async function saveMember(input: z.infer<typeof memberInput>, id: string | null) {
+  const v = memberInput.parse(input);
+  const row = { ...v, member_number: blank(v.member_number), admission_date: blank(v.admission_date), notes: blank(v.notes) };
+  const { error } = id ? await treasuryClient.from("association_members").update(row).eq("id", id) : await treasuryClient.from("association_members").insert(row);
+  fail(error, "Salvataggio socio non riuscito");
+}
+
+export async function saveBudget(year: number, code: string, planned: number, description: string) {
+  if (!Number.isFinite(planned) || planned < 0) throw new Error("Importo preventivo non valido");
+  const { error } = await treasuryClient.from("treasury_budgets").upsert({ fiscal_year: year, excel_code: code, planned_amount: planned, description: description || null }, { onConflict: "fiscal_year,excel_code" });
+  fail(error, "Salvataggio budget non riuscito");
+}
+
+export async function ensureYear(year: number) {
+  const { error } = await treasuryClient.from("treasury_fiscal_years").insert({ year });
+  fail(error, "Creazione esercizio non riuscita");
+}
+export async function setYearStatus(year: number, status: "open" | "closed") {
+  const { error } = await treasuryClient.from("treasury_fiscal_years").update({ status, closed_at: status === "closed" ? new Date().toISOString() : null }).eq("year", year);
+  fail(error, "Aggiornamento esercizio non riuscito");
+}
+
+/* ── Derived figures for the web dashboard (the Excel file computes its own) ── */
+export function memberDues(data: TreasuryData, year: number) {
+  return data.members.filter((m) => m.active).map((m) => {
+    const pays = data.transactions.filter((t) => t.member_id === m.id && t.excel_code === "A.E.1" && t.type === "Entrata");
+    const due = feeFor(m.category), paid = pays.reduce((s, t) => s + t.amount, 0);
+    const last = pays.map((t) => t.transaction_date).sort().pop() ?? null;
+    const status = due === 0 ? "Esente" : paid >= due ? "Pagato" : paid > 0 ? "Parzialmente pagato" : "Da pagare";
+    return { member: m, due, paid, residual: Math.max(0, due - paid), last, method: pays.at(-1)?.payment_method ?? null, status, year };
+  });
+}
+export function summary(data: TreasuryData, year: number) {
+  const t = data.transactions, sum = (f: (x: Transaction) => boolean) => t.filter(f).reduce((s, x) => s + x.amount, 0);
+  const inc = sum((x) => x.type === "Entrata"), out = sum((x) => x.type === "Uscita");
+  const bal = (a: string) => sum((x) => x.account === a && x.type === "Entrata") - sum((x) => x.account === a && x.type === "Uscita");
+  const dues = memberDues(data, year);
+  const plannedIn = data.budgets.filter((b) => b.excel_code.includes(".E.")).reduce((s, b) => s + b.planned_amount, 0);
+  const plannedOut = data.budgets.filter((b) => b.excel_code.includes(".U.")).reduce((s, b) => s + b.planned_amount, 0);
+  return {
+    inc, out, result: inc - out, bank: bal("Banca"), cash: bal("Cassa"),
+    duesTotal: dues.reduce((s, d) => s + d.due, 0), duesPaid: dues.reduce((s, d) => s + Math.min(d.paid, d.due), 0), duesOpen: dues.reduce((s, d) => s + d.residual, 0),
+    count: t.length, missingDocs: t.filter((x) => !x.attachment_path && !x.document_number).length,
+    plannedIn, plannedOut, plannedResult: plannedIn - plannedOut, gap: inc - out - (plannedIn - plannedOut),
+  };
+}
+export const euro = (n: number) => n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+
+/* ── Excel export: database → input cells of the official template ── */
+export async function buildExportWrites(data: TreasuryData): Promise<CellWrites> {
+  const tx = data.transactions, members = data.members.filter((m) => m.active);
+  if (tx.length > TEMPLATE_LIMITS.movements) throw new Error(`Il template accetta al massimo ${TEMPLATE_LIMITS.movements} movimenti (presenti: ${tx.length}).`);
+  if (members.length > TEMPLATE_LIMITS.members) throw new Error(`Il template accetta al massimo ${TEMPLATE_LIMITS.members} soci.`);
+  const ev = new Map(data.events.map((e) => [e.id, e.title]));
+  const M = EXCEL_MAPPING.Movimenti.columns, Q = EXCEL_MAPPING["Quote Soci"].columns;
+  const date = (s: string | null) => (s ? new Date(`${s.slice(0, 10)}T00:00:00Z`) : null);
+  const mov: Record<string, unknown> = {};
+  tx.forEach((t, i) => {
+    const r = EXCEL_MAPPING.Movimenti.firstRow + i;
+    const doc = [t.document_number, t.document_date ? new Date(t.document_date).toLocaleDateString("it-IT") : null].filter(Boolean).join(" del ") || (t.attachment_path ? t.attachment_name : null);
+    Object.assign(mov, {
+      [`${M.transaction_date}${r}`]: date(t.transaction_date), [`${M.movement_number}${r}`]: t.movement_number ?? i + 1, [`${M.type}${r}`]: t.type,
+      [`${M.excel_code}${r}`]: t.excel_code, [`${M.description}${r}`]: t.description, [`${M.subject}${r}`]: t.subject, [`${M.document}${r}`]: doc,
+      [`${M.payment_method}${r}`]: t.payment_method, [`${M.account}${r}`]: t.account, [`${M.amount}${r}`]: t.amount,
+      [`${M.event}${r}`]: t.event_id ? ev.get(t.event_id) ?? null : null, [`${M.notes}${r}`]: t.notes,
+    });
+  });
+  const quote: Record<string, unknown> = {};
+  const dues = new Map(memberDues(data, 0).map((d) => [d.member.id, d]));
+  members.forEach((m, i) => {
+    const r = EXCEL_MAPPING["Quote Soci"].firstRow + i;
+    Object.assign(quote, {
+      [`${Q.member_number}${r}`]: m.member_number ?? String(i + 1), [`${Q.full_name}${r}`]: m.full_name, [`${Q.category}${r}`]: m.category,
+      [`${Q.admission_date}${r}`]: date(m.admission_date), [`${Q.last_payment_date}${r}`]: date(dues.get(m.id)?.last ?? null), [`${Q.notes}${r}`]: m.notes,
+    });
+  });
+  const rows = await budgetCodeRows((await loadTemplate()).zip);
+  const budget: Record<string, unknown> = {};
+  for (const b of data.budgets) {
+    const r = rows[b.excel_code];
+    if (!r) throw new Error(`La voce ${b.excel_code} non è prevista nel foglio Budget del template`);
+    if (b.planned_amount) budget[`C${r}`] = b.planned_amount;
+  }
+  return { Movimenti: mov, "Quote Soci": quote, "Budget Previsionale": budget } as CellWrites;
+}
+
+export async function exportReport(data: TreasuryData, year: number) {
+  const blob = await buildWorkbook(await buildExportWrites(data));
+  const d = new Date(), p = (n: number) => String(n).padStart(2, "0");
+  const name = `EPOCAR_Tesoreria_Rendiconto_${year}_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}.xlsx`;
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return name;
+}
