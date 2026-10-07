@@ -12,6 +12,8 @@ import Articoli from "./pages/Articoli.tsx";
 import QuandoAutoEpoca from "./pages/QuandoAutoEpoca.tsx";
 import Gallery from "./pages/Gallery.tsx";
 import ChiSiamo from "./pages/ChiSiamo.tsx";
+import Associazione from "./pages/Associazione.tsx";
+import Adesione from "./pages/Adesione.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import AdminEventEditor from "./pages/AdminEventEditor.tsx";
 import AdminArticleEditor from "./pages/AdminArticleEditor.tsx";
@@ -37,6 +39,8 @@ const App = () => (
           <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/chi-siamo" element={<ChiSiamo />} />
+           <Route path="/associazione" element={<Associazione />} />
+           <Route path="/associazione/iscrizione" element={<Adesione />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/eventi" element={<Eventi />} />
           <Route path="/eventi/:id/iscrizione" element={<EventoIscrizione />} />

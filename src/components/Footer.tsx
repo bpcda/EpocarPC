@@ -17,7 +17,9 @@ export default function Footer() {
             <h4 className="font-headline text-xl tracking-wider mb-4">NAVIGAZIONE</h4>
             <div className="flex flex-col gap-2">
               <Link to="/" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Home</Link>
-              <Link to="/#chi-siamo" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Chi Siamo</Link>
+              <Link to="/chi-siamo" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Chi Siamo</Link>
+              <Link to="/associazione" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Associazione</Link>
+              <Link to="/associazione/iscrizione" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Diventa socio</Link>
               <Link to="/eventi" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Eventi</Link>
               <Link to="/articoli" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Articoli</Link>
               <Link to="/community" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Community</Link>

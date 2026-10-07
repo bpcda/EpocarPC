@@ -6,6 +6,7 @@ import { User as UserIcon, LayoutDashboard } from "lucide-react";
 
 const navLinks = [
   { label: "Chi Siamo", href: "/chi-siamo" },
+   { label: "Associazione", href: "/associazione" },
   { label: "Eventi", href: "/eventi" },
   { label: "Articoli", href: "/articoli" },
   { label: "Gallery", href: "/gallery" },
@@ -44,7 +45,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop nav - bordered boxes */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden xl:flex items-center gap-2">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -74,7 +75,7 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col gap-1.5 p-2"
+          className="xl:hidden flex flex-col gap-1.5 p-2"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
         >
@@ -86,7 +87,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-foreground border-b border-primary-foreground/10">
+        <div className="xl:hidden bg-foreground border-b border-primary-foreground/10 max-h-[calc(100dvh-80px)] overflow-y-auto">
           <div className="px-6 py-4 flex flex-col gap-3">
             {navLinks.map((link) => (
               <Link
