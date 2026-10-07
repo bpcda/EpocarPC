@@ -125,6 +125,10 @@ export async function loadTemplate(): Promise<{ zip: JSZip; bytes: ArrayBuffer }
 
 /** Copies the template, writes only the given input cells and verifies formulas are byte-identical. */
 export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
+  return new Blob([await buildWorkbookBytes(writes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+export async function buildWorkbookBytes(writes: CellWrites): Promise<ArrayBuffer> {
   const { bytes } = await loadTemplate();
   const original = await JSZip.loadAsync(bytes);
   const copy = await JSZip.loadAsync(bytes);
@@ -163,5 +167,5 @@ export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
     if (a.length !== b.length || a.some((x, i) => x !== b[i])) diffs.push(`Parte del file modificata: ${name}`);
   }
   if (diffs.length) throw new Error(`Controllo integrità fallito, export interrotto:\n${diffs.slice(0, 10).join("\n")}`);
-  return new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  return out;
 }
