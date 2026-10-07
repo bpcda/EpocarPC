@@ -17,6 +17,7 @@ import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
 import RoleAuditTab from "@/components/admin/RoleAuditTab";
+import AssociationTab from "@/components/admin/AssociationTab";
 
 interface Event {
   id: string;
@@ -118,11 +119,12 @@ export default function AdminDashboard() {
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="events">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
             <TabsTrigger value="events">Eventi</TabsTrigger>
             <TabsTrigger value="articles">Articoli</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
+            <TabsTrigger value="association">Associazione</TabsTrigger>
             {isAdmin && <TabsTrigger value="users">Utenti</TabsTrigger>}
             {isAdmin && <TabsTrigger value="role-audit">Audit ruoli</TabsTrigger>}
           </TabsList>
@@ -274,6 +276,9 @@ export default function AdminDashboard() {
 
           <TabsContent value="registrations">
             <RegistrationsTab />
+          </TabsContent>
+          <TabsContent value="association">
+            <AssociationTab />
           </TabsContent>
 
           {isAdmin && (
