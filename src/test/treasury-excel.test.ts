@@ -14,7 +14,7 @@ describe("treasury excel export", () => {
       "Budget Previsionale": { C6: 500 },
     });
     const tpl = await extractFormulas(await JSZip.loadAsync(bytes));
-    const out = await JSZip.loadAsync(await blob.arrayBuffer());
+    const out = await JSZip.loadAsync(await new Response(blob).arrayBuffer());
     expect(tpl.size).toBeGreaterThan(1000);
     expect(compareFormulas(tpl, await extractFormulas(out))).toEqual([]);
     const xml = await out.file("xl/worksheets/sheet2.xml")!.async("string");
