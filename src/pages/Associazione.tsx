@@ -19,7 +19,7 @@ export default function Associazione() {
     <Navbar />
     <main className="bg-foreground text-primary-foreground">
       <section className="relative min-h-[520px] flex items-end pt-32 pb-12">
-        <img src={communityImage} alt="Auto storiche e appassionati riuniti a un ritrovo Epocar" className="absolute inset-0 w-full h-full object-cover" />
+        <img src={communityImage} alt="Appassionati della community riuniti a un ritrovo Epocar" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-foreground/80" />
         <div className="relative max-w-7xl w-full mx-auto px-6 lg:px-8">
           <p className="text-sm uppercase mb-5">Piacenza · Un nuovo capitolo</p>
