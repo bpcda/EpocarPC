@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
@@ -46,6 +46,8 @@ export default function AdminDashboard() {
   const { user, isAdmin, isStaff, isTreasurer, canAccessTreasury, signOut } = useAuth();
   const onlyTreasury = isTreasurer && !isAdmin && !isStaff;
   const navigate = useNavigate();
+  // Treasurer-only accounts have nothing else here: the treasury app lives at /tesoreria.
+  useEffect(() => { if (onlyTreasury) navigate("/tesoreria", { replace: true }); }, [onlyTreasury, navigate]);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
