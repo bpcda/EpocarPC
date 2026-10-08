@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Plus, Settings, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { euro, memberDues, summary } from "@/lib/treasury";
+import { cardNo, euro, memberDues, summary } from "@/lib/treasury";
 import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
 
 const STATI = ["Pagato", "Parzialmente pagato", "Da pagare", "Esente", "Quota non deliberata"];
@@ -31,6 +31,7 @@ export default function QuoteYear() {
           <Button asChild className="h-11"><Link to={`/tesoreria/quote/${year}/soci/nuovo`}><Plus className="h-4 w-4 mr-1" />Nuovo socio</Link></Button>
         </>} />
       {data.fees === null && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per le quote deliberate esegui <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL</a>.</p>}
+      {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per assegnare il numero tessera progressivo esegui <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <Kpi label="Dovuto" value={euro(s.duesTotal)} /><Kpi label="Incassato" value={euro(s.duesPaid)} /><Kpi label="Residuo" value={euro(s.duesOpen)} warn={s.duesOpen > 0} />
       </div>
@@ -47,7 +48,7 @@ export default function QuoteYear() {
             <Link to={edit(d.member.id)} className="flex items-center gap-3 p-4">
               <div className="flex-1 min-w-0 space-y-1">
                 <p className="font-medium text-foreground truncate">{d.member.full_name}</p>
-                <p className="text-xs text-muted-foreground">{d.member.category}{d.member.member_number ? ` · N. ${d.member.member_number}` : ""}</p>
+                <p className="text-xs text-muted-foreground">{d.member.category}{cardNo(d.member) ? ` · Tessera n. ${cardNo(d.member)}` : ""}</p>
                 <p className="text-sm">Versato {euro(d.paid)} di {euro(d.due)}</p>
                 <StatusBadge status={d.status} />
               </div>
@@ -60,12 +61,12 @@ export default function QuoteYear() {
 
       <div className="hidden md:block border border-border bg-card overflow-x-auto">
         <Table>
-          <TableHeader><TableRow><TableHead>Socio</TableHead><TableHead>N.</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Dovuta</TableHead><TableHead className="text-right">Versato</TableHead><TableHead className="text-right">Residuo</TableHead><TableHead className="hidden lg:table-cell">Ultimo pagamento</TableHead><TableHead>Stato</TableHead><TableHead /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Socio</TableHead><TableHead>Tessera</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Dovuta</TableHead><TableHead className="text-right">Versato</TableHead><TableHead className="text-right">Residuo</TableHead><TableHead className="hidden lg:table-cell">Ultimo pagamento</TableHead><TableHead>Stato</TableHead><TableHead /></TableRow></TableHeader>
           <TableBody>
             {dues.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Nessun socio.</TableCell></TableRow>}
             {dues.map((d) => (
               <TableRow key={d.member.id} className="cursor-pointer" onClick={() => navigate(edit(d.member.id))}>
-                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{d.member.member_number || "—"}</TableCell><TableCell>{d.member.category}</TableCell>
+                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{cardNo(d.member) || "—"}</TableCell><TableCell>{d.member.category}</TableCell>
                 <TableCell className="text-right">{euro(d.due)}</TableCell><TableCell className="text-right">{euro(d.paid)}</TableCell><TableCell className="text-right">{euro(d.residual)}</TableCell>
                 <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{d.last ? `${fmtDate(d.last)} · ${d.method}` : "—"}</TableCell>
                 <TableCell><StatusBadge status={d.status} /></TableCell>

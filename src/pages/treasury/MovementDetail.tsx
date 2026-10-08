@@ -6,7 +6,7 @@ import { Download, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { codeLabel, euro, loadAudit, loadTransaction, openReceipt, softDeleteTransaction } from "@/lib/treasury";
+import { codeLabel, euro, loadAudit, memberLabel, loadTransaction, openReceipt, softDeleteTransaction } from "@/lib/treasury";
 import { AuditList } from "@/components/treasury/AuditList";
 import { ErrorBox, Loading, PageHeader, Panel, StatusBadge, fmtDate, fmtDateTime, useRefreshTreasury, useTreasuryData } from "@/components/treasury/shared";
 
@@ -66,7 +66,7 @@ export default function MovementDetail() {
               <Row k="Modalità">{t.payment_method}</Row>
               <Row k="Conto">{t.account}</Row>
               <Row k="Evento">{event?.title ?? "—"}</Row>
-              <Row k="Socio">{member ? <Link className="underline" to={`/tesoreria/quote/${t.fiscal_year}/soci/${member.id}`}>{member.full_name}</Link> : "—"}</Row>
+              <Row k="Socio">{member ? <Link className="underline" to={`/tesoreria/quote/${t.fiscal_year}/soci/${member.id}`}>{memberLabel(member)}</Link> : "—"}</Row>
               <Row k="Documento">{[t.document_number, t.document_date && `del ${fmtDate(t.document_date)}`].filter(Boolean).join(" ") || "—"}</Row>
               <Row k="Note">{t.notes || "—"}</Row>
             </dl>

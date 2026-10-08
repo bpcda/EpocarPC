@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CODES, euro, loadTransaction, memberDues, saveTransaction, type TransactionInput } from "@/lib/treasury";
+import { CODES, euro, loadTransaction, memberLabel, memberDues, saveTransaction, type TransactionInput } from "@/lib/treasury";
 import { TEMPLATE_ACCOUNTS, TEMPLATE_METHODS } from "@/lib/treasury-template-lists";
 import { ErrorBox, Loading, PageHeader, selectCls, useRefreshTreasury, useSessionDraft, useTreasuryData, useUnsavedGuard } from "@/components/treasury/shared";
 
@@ -124,7 +124,7 @@ export default function MovementForm() {
             <F label="Soggetto / fornitore"><Input className={inp} maxLength={200} disabled={!!v.member_id && v.excel_code === "A.E.1"} value={v.subject ?? ""} onChange={(e) => set({ subject: e.target.value })} /></F>
             <div className="grid sm:grid-cols-2 gap-4">
               <F label="Evento collegato"><select className={selectCls} value={v.event_id ?? ""} onChange={(e) => set({ event_id: e.target.value || null })}><option value="">—</option>{data.events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title}</option>)}</select></F>
-              <F label="Socio collegato"><select className={selectCls} value={v.member_id ?? ""} onChange={(e) => { const m = data.members.find((x) => x.id === e.target.value); set({ member_id: m?.id ?? null, ...(m && v.excel_code === "A.E.1" ? { subject: m.full_name } : {}) }); }}><option value="">—</option>{data.members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}</select></F>
+              <F label="Socio collegato"><select className={selectCls} value={v.member_id ?? ""} onChange={(e) => { const m = data.members.find((x) => x.id === e.target.value); set({ member_id: m?.id ?? null, ...(m && v.excel_code === "A.E.1" ? { subject: m.full_name } : {}) }); }}><option value="">—</option>{data.members.map((m) => <option key={m.id} value={m.id}>{memberLabel(m)}</option>)}</select></F>
             </div>
             {v.member_id && v.excel_code === "A.E.1" && <p className="text-xs text-muted-foreground">Quota associativa: il soggetto è il nome del socio, come richiesto dal modello del commercialista.</p>}
           </Section>

@@ -97,7 +97,7 @@ export function ErrorBox({ error }: { error: unknown }) {
   return (
     <div className="border border-border bg-card p-6 space-y-2">
       <p className="font-medium text-foreground">{error instanceof Error ? error.message : "Errore di caricamento"}</p>
-      <p className="text-sm text-muted-foreground">Se la Tesoreria non è ancora installata esegui <a className="underline" href="/setup/treasury.sql" target="_blank" rel="noreferrer">questo script SQL</a> e poi <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento</a> sulla tua istanza.</p>
+      <p className="text-sm text-muted-foreground">Se la Tesoreria non è ancora installata esegui <a className="underline" href="/setup/treasury.sql" target="_blank" rel="noreferrer">questo script SQL</a> , poi <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento quote</a> e <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">il numero tessera</a> sulla tua istanza.</p>
     </div>
   );
 }
