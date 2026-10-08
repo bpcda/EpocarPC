@@ -364,7 +364,18 @@ export type Database = {
       is_allowed_upload_ext: { Args: { _name: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user" | "staff"
+      app_role:
+        | "admin"
+        | "user"
+        | "staff"
+        | "treasurer"
+        | "founder"
+        | "ordinary"
+        | "supporter"
+        | "president"
+        | "vice_president"
+        | "secretary"
+        | "councillor"
       vehicle_type: "auto" | "moto" | "vespa"
     }
     CompositeTypes: {
@@ -493,7 +504,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "staff"],
+      app_role: [
+        "admin",
+        "user",
+        "staff",
+        "treasurer",
+        "founder",
+        "ordinary",
+        "supporter",
+        "president",
+        "vice_president",
+        "secretary",
+        "councillor",
+      ],
       vehicle_type: ["auto", "moto", "vespa"],
     },
   },

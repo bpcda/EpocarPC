@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791434713780,
+      "tag": "0000_add_association_and_treasury_roles",
+      "breakpoints": true
+    }
+  ]
+}
