@@ -48,9 +48,9 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   FROM public.user_roles ur
   LEFT JOIN public.profiles p ON p.user_id = ur.user_id
   LEFT JOIN public.association_people_order o ON o.user_id = ur.user_id
-  WHERE ur.role::text IN ('founder','ordinary','supporter','president','vice_president','secretary','councillor')
+  WHERE ur.role::text IN ('founder','ordinary','supporter','president','vice_president','secretary','treasurer','councillor')
   GROUP BY ur.user_id, p.first_name, p.last_name, p.avatar_url, o.sort_order
-  HAVING bool_or(ur.role::text IN ('founder','president','vice_president','secretary','councillor'))
+  HAVING bool_or(ur.role::text IN ('founder','president','vice_president','secretary','treasurer','councillor'))
   ORDER BY COALESCE(o.sort_order, 0), p.last_name NULLS LAST, p.first_name NULLS LAST
 $$;
 REVOKE ALL ON FUNCTION public.list_association_people() FROM PUBLIC;
@@ -62,7 +62,7 @@ CREATE POLICY association_people_avatars_read ON storage.objects FOR SELECT TO a
   bucket_id = 'avatars' AND EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id::text = (storage.foldername(name))[1]
-      AND ur.role::text IN ('founder','president','vice_president','secretary','councillor')));
+      AND ur.role::text IN ('founder','president','vice_president','secretary','treasurer','councillor')));
 
 COMMENT ON TABLE public.association_founders IS 'DEPRECATED: founders now come from user roles (association_people_order)';
 COMMIT;

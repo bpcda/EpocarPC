@@ -20,8 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type Role = "admin" | "staff" | "treasurer" | "user" | keyof typeof CATEGORY_ROLES | keyof typeof BOARD_ROLES;
-const SYSTEM_ROLES: [Role, string][] = [["admin","admin"],["staff","staff"],["treasurer","tesoriere"]];
+type Role = "admin" | "staff" | "user" | keyof typeof CATEGORY_ROLES | keyof typeof BOARD_ROLES;
+const SYSTEM_ROLES: [Role, string][] = [["admin","admin"],["staff","staff"]];
 
 interface UserRow {
   user_id: string;
