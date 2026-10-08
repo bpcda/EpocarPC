@@ -9,3 +9,4 @@
 - Founders and board members are derived from user roles assigned in user management; the association tab only stores display order, and the public list exposes only founders/board members via a security-definer function.
 - Treasury is a standalone routed app under /tesoreria (guarded layout + one page per entity, filters/year in the URL); modals only for confirmations, so state survives refresh and deep links.
 - Member card numbers are server-assigned from a sequence and immutable (treasury-v3.sql); names are not unique, so UIs identify members by name plus card number.
+- The treasury member register is the single source of members; site accounts link optionally by email (treasury-v4.sql), and the register drives the category role, never the reverse except for the one-off reconciliation.

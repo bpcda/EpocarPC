@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Plus, Settings, Wallet } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, Plus, RefreshCw, Settings, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cardNo, euro, memberDues, summary } from "@/lib/treasury";
-import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
+import { cardNo, euro, memberDues, summary, syncMembers } from "@/lib/treasury";
+import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useRefreshTreasury, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
 
 const STATI = ["Pagato", "Parzialmente pagato", "Da pagare", "Esente", "Quota non deliberata"];
 
@@ -12,6 +14,13 @@ export default function QuoteYear() {
   const { data, error, isLoading } = useTreasuryData(year);
   const [sp, set] = useQueryState();
   const navigate = useNavigate();
+  const refresh = useRefreshTreasury();
+  const [syncing, setSyncing] = useState(false);
+  const sync = async () => {
+    setSyncing(true);
+    try { const n = await syncMembers(); await refresh(); toast.success(n ? `${n} soci aggiunti all'anagrafica dal sito` : "Anagrafica già allineata"); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Sincronizzazione non riuscita"); } finally { setSyncing(false); }
+  };
   if (error) return <ErrorBox error={error} />;
   if (isLoading || !data) return <Loading />;
   const s = summary(data, year);
@@ -28,9 +37,11 @@ export default function QuoteYear() {
       <PageHeader crumbs={[{ label: "Quote", to: "/tesoreria/quote" }, { label: String(year) }]} title="Quote soci" subtitle={`Esercizio ${year} · quote secondo la delibera del Consiglio Direttivo`}
         actions={<>
           <Button asChild variant="outline" className="h-11"><Link to={`/tesoreria/quote/${year}/impostazioni`}><Settings className="h-4 w-4 mr-1" />Quote deliberate</Link></Button>
+          <Button variant="outline" className="h-11" disabled={syncing} onClick={sync}><RefreshCw className="h-4 w-4 mr-1" />{syncing ? "Sincronizzo…" : "Sincronizza soci dal sito"}</Button>
           <Button asChild className="h-11"><Link to={`/tesoreria/quote/${year}/soci/nuovo`}><Plus className="h-4 w-4 mr-1" />Nuovo socio</Link></Button>
         </>} />
       {data.fees === null && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per le quote deliberate esegui <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL</a>.</p>}
+      {data.members.length > 0 && data.members.every((m) => m.email === undefined) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per l’anagrafica soci unica con collegamento agli account esegui <a className="underline" href="/setup/treasury-v4.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per assegnare il numero tessera progressivo esegui <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <Kpi label="Dovuto" value={euro(s.duesTotal)} /><Kpi label="Incassato" value={euro(s.duesPaid)} /><Kpi label="Residuo" value={euro(s.duesOpen)} warn={s.duesOpen > 0} />

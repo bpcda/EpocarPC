@@ -25,6 +25,7 @@ export type Transaction = z.infer<typeof transactionSchema>;
 export const memberSchema = z.object({
   id: z.string().uuid(), user_id: z.string().nullable(), full_name: z.string(), member_number: z.string().nullable(), card_number: z.number().nullable().optional(),
   category: z.string(), admission_date: z.string().nullable(), notes: z.string().nullable(), active: z.boolean(),
+  email: z.string().nullable().optional(),
 });
 export type Member = z.infer<typeof memberSchema>;
 /** Card number shown to users: server-assigned progressive number, legacy text number as fallback. */
@@ -61,6 +62,7 @@ export type TransactionInput = z.infer<typeof transactionInput>;
 export const memberInput = z.object({
   full_name: z.string().trim().min(2, "Nome obbligatorio").max(120),
   member_number: z.string().trim().max(20).optional().or(z.literal("")),
+  email: z.string().trim().toLowerCase().email("Email non valida").max(254).optional().or(z.literal("")),
   category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]),
   admission_date: z.string().optional().or(z.literal("")),
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
@@ -155,9 +157,16 @@ export async function openReceipt(path: string, filename: string, download: bool
 export async function saveMember(input: z.infer<typeof memberInput>, id: string | null) {
   const v = memberInput.parse(input);
   const { member_number: _legacy, ...rest } = v; void _legacy;
-  const row = { ...rest, admission_date: blank(v.admission_date), notes: blank(v.notes) };
+  const row = { ...rest, email: blank(v.email), admission_date: blank(v.admission_date), notes: blank(v.notes) };
   const { error } = id ? await treasuryClient.from("association_members").update(row).eq("id", id) : await treasuryClient.from("association_members").insert(row);
   fail(error, "Salvataggio socio non riuscito");
+}
+
+/** Reconciles site members (category roles) into the register and links accounts by email. Returns created entries. */
+export async function syncMembers(): Promise<number> {
+  const { data, error } = await treasuryClient.rpc("treasury_sync_members");
+  fail(error, "Sincronizzazione non riuscita (serve lo script treasury-v4.sql)");
+  return Number(data) || 0;
 }
 
 export async function saveBudget(year: number, code: string, planned: number, description: string) {
