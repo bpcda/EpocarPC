@@ -117,7 +117,7 @@ function writeFormulaResult(xml: string, ref: string, value: string | number): s
   const attrs = match[1].replace(/ t="[^"]*"/g, "");
   const body = match[0].slice(match[0].indexOf(">") + 1, -4);
   const cached = typeof value === "number" ? `<v>${value}</v>` : `<v>${esc(value)}</v>`;
-  const updatedBody = /<v>[^<]*<\/v>/.test(body) ? body.replace(/<v>[^<]*<\/v>/, cached) : `${body}${cached}`;
+  const updatedBody = /<v(?:\s*\/|>[^<]*<\/v)>/.test(body) ? body.replace(/<v(?:\s*\/|>[^<]*<\/v)>/, cached) : `${body}${cached}`;
   return xml.replace(match[0], `<c r="${ref}"${attrs}${typeof value === "string" ? ' t="str"' : ""}>${updatedBody}</c>`);
 }
 
