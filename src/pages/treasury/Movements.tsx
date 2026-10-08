@@ -111,7 +111,7 @@ export default function Movements() {
       <Pager page={Math.min(page, pages)} pages={pages} onPage={(p) => set({ page: String(p) }, true)} />
 
       {!locked && (
-        <Link to={newHref} className="md:hidden fixed right-4 bottom-20 z-30 flex items-center gap-2 h-14 px-5 bg-primary-foreground text-primary font-headline tracking-widest uppercase shadow-lg">
+        <Link to={newHref} className="md:hidden fixed right-4 bottom-20 z-30 flex items-center gap-2 h-14 px-5 bg-primary text-primary-foreground font-headline tracking-widest uppercase shadow-lg">
           <Plus className="h-5 w-5" />Movimento
         </Link>
       )}

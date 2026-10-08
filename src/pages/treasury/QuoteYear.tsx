@@ -36,7 +36,7 @@ export default function QuoteYear() {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4 md:mx-0 md:px-0">
         {[["", `Tutti (${all.length})`], ["Pagato", `Pagati (${count("Pagato")})`], ["Parzialmente pagato", `Parziali (${count("Parzialmente pagato")})`], ["Da pagare", `Da pagare (${count("Da pagare")})`], ...STATI.slice(3).filter(count).map((x) => [x, `${x} (${count(x)})`])].map(([k, l]) => (
-          <button key={k} type="button" onClick={() => set({ stato: k || null })} className={`h-11 px-4 whitespace-nowrap border text-sm ${stato === k ? "border-primary-foreground bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
+          <button key={k} type="button" onClick={() => set({ stato: k || null })} className={`h-11 px-4 whitespace-nowrap border text-sm ${stato === k ? "border-primary bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
         ))}
       </div>
 

@@ -51,7 +51,7 @@ export default function BudgetYear() {
       </div>
       <div className="flex gap-2 mb-4">
         {[["", "Tutte"], ["entrate", "Entrate"], ["uscite", "Uscite"]].map(([k, l]) => (
-          <button key={k} type="button" onClick={() => set({ tipo: k || null }, true)} className={`h-11 px-4 border text-sm ${(sp.get("tipo") ?? "") === k ? "border-primary-foreground bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
+          <button key={k} type="button" onClick={() => set({ tipo: k || null }, true)} className={`h-11 px-4 border text-sm ${(sp.get("tipo") ?? "") === k ? "border-primary bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
         ))}
       </div>
       {!editing && shown.length === 0 && <p className="border border-border bg-card p-6 text-center text-muted-foreground">Nessuna voce con preventivo o consuntivo.</p>}

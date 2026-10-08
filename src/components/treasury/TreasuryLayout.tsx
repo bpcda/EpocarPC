@@ -76,7 +76,7 @@ function TreasuryLayout() {
         <aside className="hidden md:block w-56 lg:w-60 shrink-0 border-r border-border min-h-[calc(100vh-3.5rem)] sticky top-14 self-start">
           <nav className="py-4 flex flex-col">
             {items.map((i) => (
-              <NavLink key={i.label} to={i.to} className={() => `flex items-center gap-3 px-5 h-11 text-sm uppercase tracking-widest border-l-4 transition-colors ${i.match(p) ? "border-primary-foreground bg-card text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:bg-card/60"}`}>
+              <NavLink key={i.label} to={i.to} className={() => `flex items-center gap-3 px-5 h-11 text-sm uppercase tracking-widest border-l-4 transition-colors ${i.match(p) ? "border-primary bg-card text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:bg-card/60"}`}>
                 <i.icon className="h-4 w-4" />{i.label}
               </NavLink>
             ))}

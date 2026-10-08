@@ -104,7 +104,7 @@ export default function MovementForm() {
                 <div className="grid grid-cols-2 border border-input">
                   {(["Entrata", "Uscita"] as const).map((ty) => (
                     <button key={ty} type="button" aria-pressed={v.type === ty} onClick={() => set({ type: ty, excel_code: CODES.find((c) => c.type === ty)!.code })}
-                      className={`h-11 text-sm uppercase tracking-widest ${v.type === ty ? "bg-primary-foreground text-primary" : "text-muted-foreground"}`}>{ty}</button>
+                      className={`h-11 text-sm uppercase tracking-widest ${v.type === ty ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{ty}</button>
                   ))}
                 </div>
               </F>

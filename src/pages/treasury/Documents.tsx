@@ -34,7 +34,7 @@ export default function Documents() {
         <Input type="search" className="h-11 text-base md:text-sm" placeholder="Cerca movimento, documento, file…" value={q} onChange={(e) => set({ search: e.target.value })} />
         <div className="flex gap-2">
           {[["", "Tutti"], ["con", "Presenti"], ["senza", "Mancanti"]].map(([k, l]) => (
-            <button key={k} type="button" onClick={() => set({ stato: k || null })} className={`h-11 px-4 border text-sm ${stato === k ? "border-primary-foreground bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
+            <button key={k} type="button" onClick={() => set({ stato: k || null })} className={`h-11 px-4 border text-sm ${stato === k ? "border-primary bg-card text-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
           ))}
         </div>
       </div>
