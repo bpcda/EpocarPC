@@ -8,7 +8,7 @@ export const documentSchema = z.object({ kind: z.enum(["statute", "membership_fo
 export const personSchema = z.object({ user_id: z.string().uuid(), first_name: z.string().nullable(), last_name: z.string().nullable(), avatar_url: z.string().nullable(), roles: z.array(z.string()), sort_order: z.number() });
 export type Person = z.infer<typeof personSchema>;
 export const CATEGORY_ROLES = { founder: "Fondatore", ordinary: "Ordinario", supporter: "Sostenitore" } as const;
-export const BOARD_ROLES = { president: "Presidente", vice_president: "Vicepresidente", secretary: "Segretario", councillor: "Consigliere" } as const;
+export const BOARD_ROLES = { president: "Presidente", vice_president: "Vicepresidente", secretary: "Segretario", treasurer: "Tesoriere", councillor: "Consigliere" } as const;
 export const personName = (p: Person) => [p.first_name, p.last_name].filter(Boolean).join(" ") || "Nome non indicato";
 export const boardRole = (p: Person) => (Object.keys(BOARD_ROLES) as (keyof typeof BOARD_ROLES)[]).find(r => p.roles.includes(r));
 export const categoryRole = (p: Person) => (Object.keys(CATEGORY_ROLES) as (keyof typeof CATEGORY_ROLES)[]).find(r => p.roles.includes(r));
