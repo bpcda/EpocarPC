@@ -3,11 +3,12 @@ import { toast } from "sonner";
 import { Download, Upload, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { ApplicationDecision } from "@/components/admin/ApplicationDecision";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { associationClient, loadAssociation, loadPeople, personName, boardRole, BOARD_ROLES, publicAssociationFile, validateAssociationFile, submissionSchema, downloadMembership, type AssociationDocument, type PersonWithPhoto, type Submission } from "@/lib/association";
+import { associationClient, loadAssociation, loadPeople, personName, boardRole, BOARD_ROLES, publicAssociationFile, validateAssociationFile, submissionSchema, downloadMembership, APPLICATION_STATUS, type AssociationDocument, type PersonWithPhoto, type Submission } from "@/lib/association";
 
 export default function AssociationTab() {
   const { isAdmin } = useAuth();
@@ -16,6 +17,7 @@ export default function AssociationTab() {
   const [orders, setOrders] = useState<Record<string,string>>({});
   const [applications, setApplications] = useState<Submission[]>([]);
   const [page, setPage] = useState(0);
+  const [tick, setTick] = useState(0);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -27,7 +29,7 @@ export default function AssociationTab() {
     Promise.all([loadAssociation(), associationClient.from("membership_applications").select("*", { count: "exact" }).order("created_at", { ascending:false }).order("id").range(page*20,page*20+19)])
       .then(([data,result]) => { if (!active) return; if (result.error) throw result.error; setDocs(data.documents);setApplications(z.array(submissionSchema).parse(result.data));setTotal(result.count || 0); })
       .catch(() => { if(active) setError(true); }).finally(() => {if(active)setLoading(false);});return () => {active=false;};
-  }, [page]);
+  }, [page, tick]);
   async function uploadDocument(kind: "statute" | "membership_form", file: File) {
     if (!isAdmin || busy) return; setBusy(true); let path: string | null=null; let saved=false;
     try { const {ext,contentType}=validateAssociationFile(file);path=`${kind}/${crypto.randomUUID()}.${ext}`;
@@ -67,7 +69,7 @@ export default function AssociationTab() {
       </div>;})}
     </section>
     <section className="border-t border-border pt-6"><h3 className="text-2xl mb-4">Richieste di adesione <span className="text-muted-foreground">({total})</span></h3>
-      {loading ? <p role="status">Caricamento…</p> : !applications.length ? <p className="text-muted-foreground text-sm">{error ? "Richieste non disponibili." : "Nessuna richiesta ricevuta."}</p> : <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Ricevuta il</TableHead><TableHead>Modulo</TableHead></TableRow></TableHeader><TableBody>{applications.map(a=><TableRow key={a.id}><TableCell>{a.full_name}</TableCell><TableCell>{a.email}</TableCell><TableCell>{new Date(a.created_at).toLocaleDateString("it-IT")}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>downloadMembership(a.file_path,a.filename).catch(e=>toast.error(e.message))}><Download /> Scarica</Button></TableCell></TableRow>)}</TableBody></Table>}
+      {loading ? <p role="status">Caricamento…</p> : !applications.length ? <p className="text-muted-foreground text-sm">{error ? "Richieste non disponibili." : "Nessuna richiesta ricevuta."}</p> : <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Ricevuta il</TableHead><TableHead>Stato</TableHead><TableHead>Modulo</TableHead><TableHead>Decisione del CD</TableHead></TableRow></TableHeader><TableBody>{applications.map(a=><TableRow key={a.id}><TableCell>{a.full_name}</TableCell><TableCell>{a.email}</TableCell><TableCell>{new Date(a.created_at).toLocaleDateString("it-IT")}</TableCell><TableCell className="whitespace-nowrap">{APPLICATION_STATUS[a.status]}</TableCell><TableCell>{a.file_path ? <Button size="sm" variant="outline" onClick={()=>downloadMembership(a.file_path!,a.filename ?? "modulo").catch(e=>toast.error(e.message))}><Download /> Scarica</Button> : "—"}</TableCell><TableCell><ApplicationDecision app={a} onDone={()=>setTick(t=>t+1)} /></TableCell></TableRow>)}</TableBody></Table>}
       {total>20 && <div className="flex items-center gap-4 mt-4"><Button variant="outline" size="icon" aria-label="Pagina precedente" disabled={page===0 || loading} onClick={()=>setPage(p=>p-1)}><ChevronLeft /></Button><span className="text-sm">Pagina {page+1} di {Math.ceil(total/20)}</span><Button variant="outline" size="icon" aria-label="Pagina successiva" disabled={(page+1)*20>=total || loading} onClick={()=>setPage(p=>p+1)}><ChevronRight /></Button></div>}
     </section>
   </div>;
