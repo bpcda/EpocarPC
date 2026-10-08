@@ -66,7 +66,7 @@ export default function MovementDetail() {
               <Row k="Modalità">{t.payment_method}</Row>
               <Row k="Conto">{t.account}</Row>
               <Row k="Evento">{event?.title ?? "—"}</Row>
-              <Row k="Socio">{member ? <Link className="underline" to={`/tesoreria/quote/${t.fiscal_year}/soci/${member.id}`}>{member.full_name}</Link> : "—"}</Row>
+              <Row k="Socio">{member ? <Link className="underline" to={`/tesoreria/quote/${t.fiscal_year}/soci/${member.id}`}>{memberLabel(member)}</Link> : "—"}</Row>
               <Row k="Documento">{[t.document_number, t.document_date && `del ${fmtDate(t.document_date)}`].filter(Boolean).join(" ") || "—"}</Row>
               <Row k="Note">{t.notes || "—"}</Row>
             </dl>

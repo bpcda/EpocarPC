@@ -49,13 +49,13 @@ export default function MemberForm() {
 
   return (
     <>
-      <PageHeader back={back} crumbs={[{ label: "Quote", to: "/tesoreria/quote" }, { label: String(year), to: back }, { label: isNew ? "Nuovo socio" : m!.full_name }]} title={isNew ? "Nuovo socio" : m!.full_name} subtitle={!isNew && due ? <>Esercizio {year} · <StatusBadge status={due.status} /></> : undefined} />
+      <PageHeader back={back} crumbs={[{ label: "Quote", to: "/tesoreria/quote" }, { label: String(year), to: back }, { label: isNew ? "Nuovo socio" : m!.full_name }]} title={isNew ? "Nuovo socio" : m!.full_name} subtitle={!isNew && due ? <>{cardNo(m!) ? `Tessera n. ${cardNo(m!)} · ` : ""}Esercizio {year} · <StatusBadge status={due.status} /></> : undefined} />
       <div className="grid lg:grid-cols-[1fr_20rem] gap-4 max-w-5xl">
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <Panel title="Anagrafica">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2"><Label>Cognome e nome *</Label><Input className={inp} required maxLength={120} value={v.full_name} onChange={(e) => set({ full_name: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Numero socio</Label><Input className={inp} maxLength={20} value={v.member_number} onChange={(e) => set({ member_number: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>Numero tessera</Label><Input className={inp} readOnly disabled value={m && cardNo(m) ? cardNo(m)! : "Assegnato automaticamente al salvataggio"} /></div>
               <div className="space-y-1.5"><Label>Categoria *</Label><select className={selectCls} value={v.category} onChange={(e) => set({ category: e.target.value as Form["category"] })}>{MEMBER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
               <div className="space-y-1.5"><Label>Data ammissione</Label><Input className={inp} type="date" value={v.admission_date} onChange={(e) => set({ admission_date: e.target.value })} /></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Note</Label><Textarea className="text-base md:text-sm" maxLength={1000} value={v.notes} onChange={(e) => set({ notes: e.target.value })} /></div>

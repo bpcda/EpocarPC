@@ -57,7 +57,7 @@ export default function MemberDetail() {
   return (
     <>
       <PageHeader back={back} crumbs={[{ label: "Quote", to: "/tesoreria/quote" }, { label: String(year), to: back }, { label: m.full_name }]}
-        title={m.full_name} subtitle={<>{m.category}{m.member_number ? ` · N. ${m.member_number}` : ""} · Esercizio {year}</>}
+        title={m.full_name} subtitle={<>{m.category}{cardNo(m) ? ` · Tessera n. ${cardNo(m)}` : ""} · Esercizio {year}</>}
         actions={<>
           <Button asChild variant="outline" className="h-11"><Link to={`/tesoreria/quote/${year}/soci/${m.id}`}><Pencil className="h-4 w-4 mr-1" />Modifica</Link></Button>
           {canPay && <Button asChild className="h-11 hidden md:inline-flex"><Link to={payUrl}><Wallet className="h-4 w-4 mr-1" />Registra pagamento</Link></Button>}
@@ -74,7 +74,7 @@ export default function MemberDetail() {
           <dl>
             <Row label="Cognome e nome">{m.full_name}</Row>
             <Row label="Categoria">{m.category}</Row>
-            <Row label="Numero socio">{m.member_number || "—"}</Row>
+            <Row label="Numero tessera">{cardNo(m) || "—"}</Row>
             <Row label="Data ammissione">{fmtDate(m.admission_date)}</Row>
             <Row label="Stato pagamento">{due ? <StatusBadge status={due.status} /> : "—"}</Row>
             <Row label="Ultimo pagamento">{due?.last ? `${fmtDate(due.last)}${due.method ? ` · ${due.method}` : ""}` : "—"}</Row>

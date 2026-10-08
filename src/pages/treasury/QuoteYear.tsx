@@ -47,7 +47,7 @@ export default function QuoteYear() {
             <Link to={edit(d.member.id)} className="flex items-center gap-3 p-4">
               <div className="flex-1 min-w-0 space-y-1">
                 <p className="font-medium text-foreground truncate">{d.member.full_name}</p>
-                <p className="text-xs text-muted-foreground">{d.member.category}{d.member.member_number ? ` · N. ${d.member.member_number}` : ""}</p>
+                <p className="text-xs text-muted-foreground">{d.member.category}{cardNo(d.member) ? ` · Tessera n. ${cardNo(d.member)}` : ""}</p>
                 <p className="text-sm">Versato {euro(d.paid)} di {euro(d.due)}</p>
                 <StatusBadge status={d.status} />
               </div>
@@ -65,7 +65,7 @@ export default function QuoteYear() {
             {dues.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Nessun socio.</TableCell></TableRow>}
             {dues.map((d) => (
               <TableRow key={d.member.id} className="cursor-pointer" onClick={() => navigate(edit(d.member.id))}>
-                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{d.member.member_number || "—"}</TableCell><TableCell>{d.member.category}</TableCell>
+                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{cardNo(d.member) || "—"}</TableCell><TableCell>{d.member.category}</TableCell>
                 <TableCell className="text-right">{euro(d.due)}</TableCell><TableCell className="text-right">{euro(d.paid)}</TableCell><TableCell className="text-right">{euro(d.residual)}</TableCell>
                 <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{d.last ? `${fmtDate(d.last)} · ${d.method}` : "—"}</TableCell>
                 <TableCell><StatusBadge status={d.status} /></TableCell>

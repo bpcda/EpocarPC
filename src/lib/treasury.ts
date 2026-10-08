@@ -23,10 +23,14 @@ export const transactionSchema = z.object({
 });
 export type Transaction = z.infer<typeof transactionSchema>;
 export const memberSchema = z.object({
-  id: z.string().uuid(), user_id: z.string().nullable(), full_name: z.string(), member_number: z.string().nullable(),
+  id: z.string().uuid(), user_id: z.string().nullable(), full_name: z.string(), member_number: z.string().nullable(), card_number: z.number().nullable().optional(),
   category: z.string(), admission_date: z.string().nullable(), notes: z.string().nullable(), active: z.boolean(),
 });
 export type Member = z.infer<typeof memberSchema>;
+/** Card number shown to users: server-assigned progressive number, legacy text number as fallback. */
+export const cardNo = (m: Pick<Member, "card_number" | "member_number">) => m.card_number != null ? String(m.card_number) : m.member_number || null;
+/** Name with card number, used wherever homonyms must be told apart. */
+export const memberLabel = (m: Pick<Member, "full_name" | "card_number" | "member_number">) => { const n = cardNo(m); return n ? `${m.full_name} (Tessera n. ${n})` : m.full_name; };
 export const budgetSchema = z.object({ id: z.string().uuid(), fiscal_year: z.number(), excel_code: z.string(), description: z.string().nullable(), planned_amount: num });
 export type Budget = z.infer<typeof budgetSchema>;
 export const feeSchema = z.object({
@@ -150,7 +154,8 @@ export async function openReceipt(path: string, filename: string, download: bool
 
 export async function saveMember(input: z.infer<typeof memberInput>, id: string | null) {
   const v = memberInput.parse(input);
-  const row = { ...v, member_number: blank(v.member_number), admission_date: blank(v.admission_date), notes: blank(v.notes) };
+  const { member_number: _legacy, ...rest } = v; void _legacy;
+  const row = { ...rest, admission_date: blank(v.admission_date), notes: blank(v.notes) };
   const { error } = id ? await treasuryClient.from("association_members").update(row).eq("id", id) : await treasuryClient.from("association_members").insert(row);
   fail(error, "Salvataggio socio non riuscito");
 }
@@ -257,7 +262,7 @@ export async function buildExportWrites(data: TreasuryData): Promise<CellWrites>
   members.forEach((m, i) => {
     const r = EXCEL_MAPPING["Quote Soci"].firstRow + i;
     Object.assign(quote, {
-      [`${Q.member_number}${r}`]: m.member_number ?? String(i + 1), [`${Q.full_name}${r}`]: m.full_name, [`${Q.category}${r}`]: m.category,
+      [`${Q.member_number}${r}`]: cardNo(m) ?? String(i + 1), [`${Q.full_name}${r}`]: m.full_name, [`${Q.category}${r}`]: m.category,
       [`${Q.admission_date}${r}`]: date(m.admission_date), [`${Q.last_payment_date}${r}`]: date(dues.get(m.id)?.last ?? null), [`${Q.notes}${r}`]: m.notes,
     });
   });
