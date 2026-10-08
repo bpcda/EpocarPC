@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { TEMPLATE_ACCOUNTS, TEMPLATE_CODES, TEMPLATE_LIMITS, TEMPLATE_MEMBER_CATEGORIES, TEMPLATE_METHODS } from "./treasury-template-lists";
-import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, loadTemplate, type CellWrites } from "./treasury-excel";
+import { TEMPLATE_ACCOUNTS, TEMPLATE_CODES, TEMPLATE_LIMITS, TEMPLATE_METHODS } from "./treasury-template-lists";
+import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, EXCEL_FEE_CELLS, loadTemplate, type CellWrites } from "./treasury-excel";
 
 // External-instance schema (public/setup/treasury.sql); managed types are not edited.
 export const treasuryClient: SupabaseClient = supabase;
@@ -275,9 +275,13 @@ export async function buildExportWrites(data: TreasuryData): Promise<CellWrites>
   const tx = data.transactions, members = data.members.filter((m) => m.active);
   // Capacity is a property of the current template only; data is never truncated.
   if (tx.length > TEMPLATE_LIMITS.movements || members.length > TEMPLATE_LIMITS.members) throw new Error(TEMPLATE_CAPACITY_MESSAGE + ` (presenti: ${tx.length} movimenti, ${members.length} soci).`);
-  // The template computes dues with its own fixed fees: export only if the year's resolved fees match them.
-  const mismatch = TEMPLATE_MEMBER_CATEGORIES.filter((c) => { const f = feeFor(data, c.name); return !f || f.amount !== c.fee; });
-  if (mismatch.length) throw new Error(`Le quote deliberate per l'esercizio non coincidono con quelle del template Excel in uso (${TEMPLATE_MEMBER_CATEGORIES.map((c) => `${c.name} ${c.fee} €`).join(", ")}). Verificare: ${mismatch.map((c) => c.name).join(", ")}. Serve un template aggiornato e validato dal commercialista.`);
+  // The yearly dashboard settings, not the template's examples, drive Excel's lookup formulas.
+  const fees: Record<string, number> = {};
+  for (const category of MEMBER_CATEGORIES) {
+    const fee = feeFor(data, category);
+    if (!fee) throw new Error(`Quota ${category} non deliberata: registrala nelle impostazioni dell'esercizio prima di esportare.`);
+    fees[EXCEL_FEE_CELLS[category]] = fee.exempt ? 0 : fee.amount;
+  }
   const ev = new Map(data.events.map((e) => [e.id, e.title]));
   const M = EXCEL_MAPPING.Movimenti.columns, Q = EXCEL_MAPPING["Quote Soci"].columns;
   const date = (s: string | null) => (s ? new Date(`${s.slice(0, 10)}T00:00:00Z`) : null);
@@ -297,7 +301,7 @@ export async function buildExportWrites(data: TreasuryData): Promise<CellWrites>
   members.forEach((m, i) => {
     const r = EXCEL_MAPPING["Quote Soci"].firstRow + i;
     Object.assign(quote, {
-      [`${Q.member_number}${r}`]: cardNo(m) ?? String(i + 1), [`${Q.full_name}${r}`]: m.full_name, [`${Q.category}${r}`]: m.category,
+      [`${Q.member_number}${r}`]: cardNo(m), [`${Q.full_name}${r}`]: m.full_name, [`${Q.category}${r}`]: m.category,
       [`${Q.admission_date}${r}`]: date(m.admission_date), [`${Q.last_payment_date}${r}`]: date(dues.get(m.id)?.last ?? null), [`${Q.notes}${r}`]: m.notes,
     });
   });
@@ -308,7 +312,7 @@ export async function buildExportWrites(data: TreasuryData): Promise<CellWrites>
     if (!r) throw new Error(`La voce ${b.excel_code} non è prevista nel foglio Budget del template`);
     if (b.planned_amount) budget[`C${r}`] = b.planned_amount;
   }
-  return { Movimenti: mov, "Quote Soci": quote, "Budget Previsionale": budget } as CellWrites;
+  return { Movimenti: mov, "Quote Soci": quote, "Budget Previsionale": budget, Liste: fees } as CellWrites;
 }
 
 export async function exportReport(data: TreasuryData, year: number) {

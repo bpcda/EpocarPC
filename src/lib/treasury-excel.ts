@@ -4,13 +4,15 @@ import { TEMPLATE_LIMITS } from "./treasury-template-lists";
 /**
  * Export engine for the accountant's official workbook.
  * The template is never rebuilt: we copy the original zip and only replace
- * empty input cells (<c r=".." s=".."/>) in the Movimenti, Quote Soci and
- * Budget Previsionale sheets. Every formula is checked before and after.
+ * empty input cells and the four category fee values in Liste in the exported
+ * copy only. Every formula is checked before and after.
  */
 export const TEMPLATE_URL = "/templates/EPOCAR_Tesoreria_Rendiconto_template.xlsx";
 
 export type CellValue = string | number | Date | null | undefined;
 export type CellWrites = Record<string, Record<string, CellValue>>; // sheet name -> ref -> value
+
+export const EXCEL_FEE_CELLS = { Fondatore: "L2", Ordinario: "L3", Sostenitore: "L4", Onorario: "L5" } as const;
 
 // Explicit mapping: database field -> sheet -> column (input columns only).
 export const EXCEL_MAPPING = {
@@ -95,6 +97,17 @@ export function writeCell(xml: string, ref: string, value: CellValue): string {
   return xml.replace(m[0], cell);
 }
 
+/** The only populated cells we may replace: category amounts in the exported copy. */
+function writeFeeCell(xml: string, ref: string, value: CellValue): string {
+  if (!Object.values(EXCEL_FEE_CELLS).some((cell) => cell === ref) || typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`Quota non valida in Liste!${ref}`);
+  }
+  const re = new RegExp(`<c r="${ref}"((?: [a-zA-Z:]+="[^"]*")*)>(<v>[^<]*</v>)</c>`);
+  const match = xml.match(re);
+  if (!match) throw new Error(`Cella quota Liste!${ref} incompatibile con il template`);
+  return xml.replace(match[0], `<c r="${ref}"${match[1]}><v>${value}</v></c>`);
+}
+
 async function sharedStrings(zip: JSZip): Promise<string[]> {
   const f = zip.file("xl/sharedStrings.xml");
   if (!f) return [];
@@ -123,7 +136,7 @@ export async function loadTemplate(): Promise<{ zip: JSZip; bytes: ArrayBuffer }
   return { zip: await JSZip.loadAsync(bytes), bytes };
 }
 
-/** Copies the template, writes only the given input cells and verifies formulas are byte-identical. */
+/** Copies the template, writes inputs/yearly fee values and verifies formulas are byte-identical. */
 export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
   return new Blob([await buildWorkbookBytes(writes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
@@ -136,6 +149,18 @@ export async function buildWorkbookBytes(writes: CellWrites): Promise<ArrayBuffe
   const files = await sheetFiles(copy);
 
   for (const [sheet, cells] of Object.entries(writes)) {
+    if (sheet === "Liste") {
+      const path = files[sheet];
+      const entry = copy.file(path);
+      if (!entry) throw new Error("Foglio Liste non disponibile nel template");
+      let xml = await entry.async("string");
+      for (const [ref, value] of Object.entries(cells)) {
+        if (before.has(`${sheet}!${ref}`)) throw new Error(`${sheet}!${ref} contiene una formula: scrittura rifiutata`);
+        xml = writeFeeCell(xml, ref, value);
+      }
+      copy.file(path, xml);
+      continue;
+    }
     const mapping = EXCEL_MAPPING[sheet as keyof typeof EXCEL_MAPPING];
     if (!mapping) throw new Error(`Il foglio ${sheet} non è un foglio di input`);
     const path = files[sheet];
