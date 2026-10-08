@@ -8,6 +8,7 @@ import {
 import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { CATEGORY_ROLES, BOARD_ROLES } from "@/lib/association";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type Role = "admin" | "staff" | "treasurer" | "user";
+type Role = "admin" | "staff" | "treasurer" | "user" | keyof typeof CATEGORY_ROLES | keyof typeof BOARD_ROLES;
+const SYSTEM_ROLES: [Role, string][] = [["admin","admin"],["staff","staff"],["treasurer","tesoriere"]];
 
 interface UserRow {
   user_id: string;
@@ -91,7 +93,7 @@ export default function UsersTab() {
     setUpdating(`${userId}:${role}`);
     const { error } = await supabase.rpc("admin_set_user_role", {
       _user_id: userId,
-      _role: role as "admin" | "staff" | "user",
+      _role: role as "admin",
       _grant: grant,
     });
     setUpdating(null);
@@ -128,7 +130,7 @@ export default function UsersTab() {
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead className="hidden md:table-cell">Registrato</TableHead>
-              <TableHead className="w-64">Ruoli</TableHead>
+              <TableHead className="min-w-[22rem]">Ruoli</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,9 +148,6 @@ export default function UsersTab() {
               </TableRow>
             ) : (
               rows.map((r) => {
-                const isAdmin = r.roles.includes("admin");
-                const isStaff = r.roles.includes("staff");
-                const isTreasurer = r.roles.includes("treasurer");
                 const isSelf = r.user_id === currentUser?.id;
                 const fullName = [r.first_name, r.last_name].filter(Boolean).join(" ") || "—";
                 return (
@@ -166,49 +165,17 @@ export default function UsersTab() {
                       })}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2 flex-wrap">
-                        <RoleToggle
-                          label="admin"
-                          active={isAdmin}
-                          disabled={isSelf /* non modificare il proprio ruolo admin */}
-                          loading={updating === `${r.user_id}:admin`}
-                          onClick={() =>
-                            setPending({
-                              userId: r.user_id,
-                              role: "admin",
-                              grant: !isAdmin,
-                              label: fullName,
-                            })
-                          }
-                        />
-                        <RoleToggle
-                          label="staff"
-                          active={isStaff}
-                          disabled={isSelf}
-                          loading={updating === `${r.user_id}:staff`}
-                          onClick={() =>
-                            setPending({
-                              userId: r.user_id,
-                              role: "staff",
-                              grant: !isStaff,
-                              label: fullName,
-                            })
-                          }
-                        />
-                        <RoleToggle
-                          label="tesoriere"
-                          active={isTreasurer}
-                          disabled={isSelf}
-                          loading={updating === `${r.user_id}:treasurer`}
-                          onClick={() =>
-                            setPending({
-                              userId: r.user_id,
-                              role: "treasurer",
-                              grant: !isTreasurer,
-                              label: fullName,
-                            })
-                          }
-                        />
+                      <div className="space-y-2">
+                        {([["Sistema", SYSTEM_ROLES, true], ["Socio", Object.entries(CATEGORY_ROLES), false], ["Consiglio", Object.entries(BOARD_ROLES), false]] as [string, [Role, string][], boolean][]).map(([group, list, lockSelf]) => {
+                          const categoryTaken = group === "Socio" ? list.find(([role]) => r.roles.includes(role))?.[0] : undefined;
+                          return <div key={group} className="flex gap-2 flex-wrap items-center">
+                            <span className="text-[10px] uppercase text-muted-foreground w-16">{group}</span>
+                            {list.map(([role, label]) => { const active = r.roles.includes(role); return <RoleToggle key={role} label={label.toLowerCase()} active={active}
+                              disabled={(lockSelf && isSelf) || (!!categoryTaken && categoryTaken !== role)}
+                              loading={updating === `${r.user_id}:${role}`}
+                              onClick={() => setPending({ userId: r.user_id, role, grant: !active, label: fullName })} />; })}
+                          </div>;
+                        })}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -284,7 +251,7 @@ function RoleToggle({
       type="button"
       disabled={disabled || loading}
       onClick={onClick}
-      title={disabled ? "Non puoi modificare il tuo stesso ruolo" : active ? "Clicca per revocare" : "Clicca per assegnare"}
+      title={disabled ? "Non modificabile: è il tuo ruolo di sistema o c’è già un’altra categoria socio" : active ? "Clicca per revocare" : "Clicca per assegnare"}
       className={`text-xs uppercase tracking-wider px-2 py-1 border transition-colors ${
         active
           ? "bg-accent text-accent-foreground border-accent"
