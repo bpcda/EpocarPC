@@ -22,7 +22,27 @@ export async function loadPeople() {
 export type PersonWithPhoto = Person & { photo: string | null };
 export type AssociationDocument = z.infer<typeof documentSchema>;
 export const membershipSchema = z.object({ full_name: z.string().trim().min(2, "Inserisci nome e cognome").max(100), email: z.string().trim().email("Email non valida").max(255), acknowledged: z.literal(true, { errorMap: () => ({ message: "Conferma di aver preso visione dello statuto" }) }) });
-export const submissionSchema = z.object({ id: z.string().uuid(), user_id: z.string().uuid(), full_name: z.string(), email: z.string(), file_path: z.string(), filename: z.string(), created_at: z.string() });
+export const APPLICATION_STATUS = { draft: "Bozza", submitted: "Inviata", review: "In valutazione", approved: "Approvata dal Consiglio Direttivo", rejected: "Respinta" } as const;
+export type ApplicationStatus = keyof typeof APPLICATION_STATUS;
+export const submissionSchema = z.object({
+  id: z.string().uuid(), user_id: z.string().uuid(), full_name: z.string(), email: z.string(), file_path: z.string().nullable(), filename: z.string().nullable(), created_at: z.string(),
+  status: z.enum(["draft", "submitted", "review", "approved", "rejected"]).default("submitted"),
+  resolution_ref: z.string().nullable().optional(), resolution_date: z.string().nullable().optional(), decision_notes: z.string().nullable().optional(), member_id: z.string().nullable().optional(),
+});
+export const decisionSchema = z.object({
+  decision: z.enum(["review", "approved", "rejected"]),
+  category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]).optional(),
+  admission_date: z.string().optional(), resolution_ref: z.string().trim().max(80).optional(), resolution_date: z.string().optional(), notes: z.string().trim().max(1000).optional(),
+});
+/** Registers a Board decision. Approval creates/links the register entry and assigns the card number server-side. */
+export async function decideApplication(id: string, input: z.infer<typeof decisionSchema>) {
+  const v = decisionSchema.parse(input);
+  const { error } = await associationClient.rpc("membership_decide", {
+    _application: id, _decision: v.decision, _category: v.category ?? null, _admission_date: v.admission_date || null,
+    _resolution_ref: v.resolution_ref || null, _resolution_date: v.resolution_date || null, _notes: v.notes || null,
+  });
+  if (error) throw new Error(error.message.includes("function") ? "Esegui prima lo script treasury-v5.sql" : error.message);
+}
 export type Submission = z.infer<typeof submissionSchema>;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const types: Record<string, string> = { pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };

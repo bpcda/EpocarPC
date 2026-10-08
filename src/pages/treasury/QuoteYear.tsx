@@ -42,7 +42,7 @@ export default function QuoteYear() {
         </>} />
       {data.fees === null && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per le quote deliberate esegui <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL</a>.</p>}
       {data.members.length > 0 && data.members.every((m) => m.email === undefined) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per l’anagrafica soci unica con collegamento agli account esegui <a className="underline" href="/setup/treasury-v4.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
-      {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per assegnare il numero tessera progressivo esegui <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
+      {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Il numero tessera si assegna solo con l’ammissione deliberata dal Consiglio Direttivo. Se non lo hai ancora fatto esegui <a className="underline" href="/setup/treasury-v5.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL v5</a>.</p>}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <Kpi label="Dovuto" value={euro(s.duesTotal)} /><Kpi label="Incassato" value={euro(s.duesPaid)} /><Kpi label="Residuo" value={euro(s.duesOpen)} warn={s.duesOpen > 0} />
       </div>
@@ -59,7 +59,7 @@ export default function QuoteYear() {
             <Link to={edit(d.member.id)} className="flex items-center gap-3 p-4">
               <div className="flex-1 min-w-0 space-y-1">
                 <p className="font-medium text-foreground truncate">{d.member.full_name}</p>
-                <p className="text-xs text-muted-foreground">{d.member.category}{cardNo(d.member) ? ` · Tessera n. ${cardNo(d.member)}` : ""}</p>
+                <p className="text-xs text-muted-foreground">{d.member.category} · {cardNo(d.member) ? `Tessera n. ${cardNo(d.member)}` : "Tessera non assegnata"}</p>
                 <p className="text-sm">Versato {euro(d.paid)} di {euro(d.due)}</p>
                 <StatusBadge status={d.status} />
               </div>
@@ -77,7 +77,7 @@ export default function QuoteYear() {
             {dues.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Nessun socio.</TableCell></TableRow>}
             {dues.map((d) => (
               <TableRow key={d.member.id} className="cursor-pointer" onClick={() => navigate(edit(d.member.id))}>
-                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{cardNo(d.member) || "—"}</TableCell><TableCell>{d.member.category}</TableCell>
+                <TableCell className="font-medium">{d.member.full_name}</TableCell><TableCell>{cardNo(d.member) || <span className="text-muted-foreground">Non assegnato</span>}</TableCell><TableCell>{d.member.category}</TableCell>
                 <TableCell className="text-right">{euro(d.due)}</TableCell><TableCell className="text-right">{euro(d.paid)}</TableCell><TableCell className="text-right">{euro(d.residual)}</TableCell>
                 <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{d.last ? `${fmtDate(d.last)} · ${d.method}` : "—"}</TableCell>
                 <TableCell><StatusBadge status={d.status} /></TableCell>

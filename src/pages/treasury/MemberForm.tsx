@@ -55,7 +55,7 @@ export default function MemberForm() {
           <Panel title="Anagrafica">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1.5 sm:col-span-2"><Label>Cognome e nome *</Label><Input className={inp} required maxLength={120} value={v.full_name} onChange={(e) => set({ full_name: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>Numero tessera</Label><Input className={inp} readOnly disabled value={m && cardNo(m) ? cardNo(m)! : "Assegnato automaticamente al salvataggio"} /></div>
+              <div className="space-y-1.5"><Label>Numero tessera</Label><Input className={inp} readOnly disabled value={m && cardNo(m) ? cardNo(m)! : "Non assegnato (si assegna con l’ammissione deliberata dal CD)"} /></div>
               <div className="space-y-1.5"><Label>Categoria *</Label><select className={selectCls} value={v.category} onChange={(e) => set({ category: e.target.value as Form["category"] })}>{MEMBER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Email (facoltativa)</Label><Input className={inp} type="email" maxLength={254} value={v.email} onChange={(e) => set({ email: e.target.value })} />
                 <p className="text-xs text-muted-foreground">{m?.user_id ? "Account del sito collegato: riceve automaticamente il ruolo della categoria." : "Se esiste un account del sito con questa email viene collegato al salvataggio. Senza account il socio resta comunque in anagrafica."}</p></div>

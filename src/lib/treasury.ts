@@ -25,7 +25,7 @@ export type Transaction = z.infer<typeof transactionSchema>;
 export const memberSchema = z.object({
   id: z.string().uuid(), user_id: z.string().nullable(), full_name: z.string(), member_number: z.string().nullable(), card_number: z.number().nullable().optional(),
   category: z.string(), admission_date: z.string().nullable(), notes: z.string().nullable(), active: z.boolean(),
-  email: z.string().nullable().optional(),
+  email: z.string().nullable().optional(), resolution_ref: z.string().nullable().optional(), resolution_date: z.string().nullable().optional(), ceased_on: z.string().nullable().optional(),
 });
 export type Member = z.infer<typeof memberSchema>;
 /** Card number shown to users: server-assigned progressive number, legacy text number as fallback. */
@@ -167,6 +167,32 @@ export async function syncMembers(): Promise<number> {
   const { data, error } = await treasuryClient.rpc("treasury_sync_members");
   fail(error, "Sincronizzazione non riuscita (serve lo script treasury-v4.sql)");
   return Number(data) || 0;
+}
+
+export const MEMBER_EVENT_LABELS: Record<string, string> = {
+  application_submitted: "Domanda presentata", application_review: "Domanda in valutazione", approved: "Ammissione deliberata dal CD", rejected: "Domanda respinta dal CD",
+  card_assigned: "Numero tessera assegnato", card_corrected: "Correzione numero tessera", category_changed: "Variazione di categoria", ceased: "Cessazione", reinstated: "Riammissione",
+};
+export const memberEventSchema = z.object({
+  id: z.string(), member_id: z.string().nullable(), application_id: z.string().nullable(), event_type: z.string(), category: z.string().nullable(), card_number: z.number().nullable(),
+  resolution_ref: z.string().nullable(), resolution_date: z.string().nullable(), notes: z.string().nullable(), created_at: z.string(),
+});
+export type MemberEvent = z.infer<typeof memberEventSchema>;
+/** Association history of a member (libro degli associati), including the events of its application. Null if treasury-v5.sql is not installed. */
+export async function loadMemberEvents(memberId: string): Promise<MemberEvent[] | null> {
+  const apps = await treasuryClient.from("membership_applications").select("id").eq("member_id", memberId);
+  const ids = (apps.data ?? []).map((a: { id: string }) => a.id);
+  const filter = ids.length ? `member_id.eq.${memberId},application_id.in.(${ids.join(",")})` : `member_id.eq.${memberId}`;
+  const { data, error } = await treasuryClient.from("association_member_events").select("*").or(filter).order("created_at", { ascending: true });
+  if (error) return null;
+  return z.array(memberEventSchema).parse(data);
+}
+/** Registers the Board admission of a member entered directly in the register; the server assigns the card number. */
+export async function registerAdmission(memberId: string, admissionDate: string, resolutionRef: string, resolutionDate: string): Promise<number> {
+  if (!admissionDate || !resolutionDate) throw new Error("Indica data della delibera e data di ammissione");
+  const { data, error } = await treasuryClient.rpc("member_register_admission", { _member: memberId, _admission_date: admissionDate, _resolution_ref: resolutionRef.trim() || null, _resolution_date: resolutionDate });
+  fail(error, "Registrazione ammissione non riuscita (serve lo script treasury-v5.sql)");
+  return Number(data);
 }
 
 export async function saveBudget(year: number, code: string, planned: number, description: string) {
