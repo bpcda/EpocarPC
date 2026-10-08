@@ -37,6 +37,24 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- Fix for instances that already ran treasury.sql: treasury_audit() referenced
+-- NEW.deleted_at directly and failed on tables without that column. Safe to re-run.
+CREATE OR REPLACE FUNCTION public.treasury_audit()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE _op text;
+BEGIN
+  _op := CASE TG_OP WHEN 'INSERT' THEN 'create' WHEN 'DELETE' THEN 'delete' ELSE 'update' END;
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'treasury_transactions'
+     AND (to_jsonb(NEW) ->> 'deleted_at') IS NOT NULL AND (to_jsonb(OLD) ->> 'deleted_at') IS NULL THEN _op := 'delete'; END IF;
+  INSERT INTO public.treasury_audit_log (table_name, record_id, operation, old_data, new_data, changed_by)
+  VALUES (TG_TABLE_NAME,
+          CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END, _op,
+          CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END,
+          CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END,
+          auth.uid());
+  RETURN COALESCE(NEW, OLD);
+END $$;
+
 -- 2) Fees per fiscal year and category (never overwritten: a change supersedes the previous row).
 CREATE TABLE IF NOT EXISTS public.treasury_fee_schedules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

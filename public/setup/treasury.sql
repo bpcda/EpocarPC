@@ -145,7 +145,10 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE _op text;
 BEGIN
   _op := CASE TG_OP WHEN 'INSERT' THEN 'create' WHEN 'DELETE' THEN 'delete' ELSE 'update' END;
-  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'treasury_transactions' AND NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN _op := 'delete'; END IF;
+  -- deleted_at exists only on treasury_transactions: read it via to_jsonb so this
+  -- function also compiles on tables without that column (budgets, members, years).
+  IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'treasury_transactions'
+     AND (to_jsonb(NEW) ->> 'deleted_at') IS NOT NULL AND (to_jsonb(OLD) ->> 'deleted_at') IS NULL THEN _op := 'delete'; END IF;
   INSERT INTO public.treasury_audit_log (table_name, record_id, operation, old_data, new_data, changed_by)
   VALUES (TG_TABLE_NAME,
           CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END, _op,
