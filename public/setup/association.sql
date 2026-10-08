@@ -65,10 +65,13 @@ CREATE POLICY association_assets_insert ON storage.objects FOR INSERT TO authent
  (bucket_id='association-media' AND name ~ '^founders/[0-9a-f-]+\.(jpg|jpeg|png|webp)$')));
 CREATE POLICY association_assets_delete ON storage.objects FOR DELETE TO authenticated USING (bucket_id IN ('association-documents','association-media') AND public.has_role(auth.uid(),'admin'));
 CREATE POLICY membership_files_read ON storage.objects FOR SELECT TO authenticated USING (bucket_id='membership-submissions' AND ((storage.foldername(name))[1]=auth.uid()::text OR public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'staff')));
+CREATE OR REPLACE FUNCTION public.membership_upload_count(_uid uuid)
+RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, storage AS $$
+  SELECT count(*) FROM storage.objects WHERE bucket_id='membership-submissions' AND (storage.foldername(name))[1]=_uid::text $$;
 CREATE POLICY membership_files_insert ON storage.objects FOR INSERT TO authenticated WITH CHECK (
  bucket_id='membership-submissions' AND (storage.foldername(name))[1]=auth.uid()::text
  AND name ~ '^[0-9a-f-]+/[0-9a-f-]+\.(pdf|docx|jpg|jpeg|png|webp)$'
- AND (SELECT count(*) FROM storage.objects o WHERE o.bucket_id='membership-submissions' AND (storage.foldername(o.name))[1]=auth.uid()::text) < 3
+ AND public.membership_upload_count(auth.uid()) < 3
  AND NOT EXISTS (SELECT 1 FROM public.membership_applications WHERE user_id=auth.uid())
  AND EXISTS (SELECT 1 FROM public.association_documents WHERE kind='statute')
  AND EXISTS (SELECT 1 FROM public.association_documents WHERE kind='membership_form'));
