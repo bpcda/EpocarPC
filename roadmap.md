@@ -6,6 +6,7 @@
 - [ ] Activate and test live submissions on external instance — blocked by user installing SQL and supplying approved statute/membership form.
 - [ ] Publish actual founder identities/photos — waiting for user materials.
 # Tesoreria
+- [x] Make dashboard fee totals immediately visible in exported Excel viewers while preserving every workbook formula.
 - [x] Align exported category fees with dashboard settings without changing formulas or the original workbook (4 tests passed).
 - [x] Dashboard, Movimenti, Quote soci, Budget, Rendiconto, Documenti with admin/treasurer roles.
 - [x] Excel export into the official template with formula integrity check (tested).
