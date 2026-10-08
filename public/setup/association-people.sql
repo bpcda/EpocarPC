@@ -38,7 +38,7 @@ ALTER TABLE public.association_people_order ENABLE ROW LEVEL SECURITY;
 CREATE POLICY people_order_admin ON public.association_people_order FOR ALL TO authenticated
   USING (public.has_role(auth.uid(),'admin')) WITH CHECK (public.has_role(auth.uid(),'admin'));
 
--- Public list: only name, avatar path and association roles of people holding an association role.
+-- Public list (founders and board members only): name, avatar path and association roles of people holding an association role.
 CREATE OR REPLACE FUNCTION public.list_association_people()
 RETURNS TABLE(user_id uuid, first_name text, last_name text, avatar_url text, roles text[], sort_order integer)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -50,6 +50,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   LEFT JOIN public.association_people_order o ON o.user_id = ur.user_id
   WHERE ur.role::text IN ('founder','ordinary','supporter','president','vice_president','secretary','councillor')
   GROUP BY ur.user_id, p.first_name, p.last_name, p.avatar_url, o.sort_order
+  HAVING bool_or(ur.role::text IN ('founder','president','vice_president','secretary','councillor'))
   ORDER BY COALESCE(o.sort_order, 0), p.last_name NULLS LAST, p.first_name NULLS LAST
 $$;
 REVOKE ALL ON FUNCTION public.list_association_people() FROM PUBLIC;
