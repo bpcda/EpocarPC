@@ -31,6 +31,7 @@ export default function QuoteYear() {
           <Button asChild className="h-11"><Link to={`/tesoreria/quote/${year}/soci/nuovo`}><Plus className="h-4 w-4 mr-1" />Nuovo socio</Link></Button>
         </>} />
       {data.fees === null && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per le quote deliberate esegui <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL</a>.</p>}
+      {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per assegnare il numero tessera progressivo esegui <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <Kpi label="Dovuto" value={euro(s.duesTotal)} /><Kpi label="Incassato" value={euro(s.duesPaid)} /><Kpi label="Residuo" value={euro(s.duesOpen)} warn={s.duesOpen > 0} />
       </div>
@@ -60,7 +61,7 @@ export default function QuoteYear() {
 
       <div className="hidden md:block border border-border bg-card overflow-x-auto">
         <Table>
-          <TableHeader><TableRow><TableHead>Socio</TableHead><TableHead>N.</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Dovuta</TableHead><TableHead className="text-right">Versato</TableHead><TableHead className="text-right">Residuo</TableHead><TableHead className="hidden lg:table-cell">Ultimo pagamento</TableHead><TableHead>Stato</TableHead><TableHead /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Socio</TableHead><TableHead>Tessera</TableHead><TableHead>Categoria</TableHead><TableHead className="text-right">Dovuta</TableHead><TableHead className="text-right">Versato</TableHead><TableHead className="text-right">Residuo</TableHead><TableHead className="hidden lg:table-cell">Ultimo pagamento</TableHead><TableHead>Stato</TableHead><TableHead /></TableRow></TableHeader>
           <TableBody>
             {dues.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">Nessun socio.</TableCell></TableRow>}
             {dues.map((d) => (
