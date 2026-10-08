@@ -10,7 +10,7 @@ export const BUCKET = "treasury-documents";
 
 export const CODES = TEMPLATE_CODES;
 export const codeLabel = (code: string) => CODES.find((c) => c.code === code)?.label ?? "";
-export const feeFor = (category: string) => TEMPLATE_MEMBER_CATEGORIES.find((c) => c.name === category)?.fee ?? 0;
+export const MEMBER_CATEGORIES = ["Fondatore", "Ordinario", "Sostenitore", "Onorario"] as const;
 
 const num = z.union([z.number(), z.string()]).transform(Number);
 export const transactionSchema = z.object({
@@ -28,6 +28,12 @@ export const memberSchema = z.object({
 export type Member = z.infer<typeof memberSchema>;
 export const budgetSchema = z.object({ id: z.string().uuid(), fiscal_year: z.number(), excel_code: z.string(), description: z.string().nullable(), planned_amount: num });
 export type Budget = z.infer<typeof budgetSchema>;
+export const feeSchema = z.object({
+  id: z.string().uuid(), fiscal_year: z.number(), category: z.string(), amount: num, exempt: z.boolean(),
+  resolution_number: z.string().nullable(), resolution_date: z.string().nullable(), document_path: z.string().nullable(),
+  document_name: z.string().nullable(), notes: z.string().nullable(), created_by: z.string(), created_at: z.string(), superseded_at: z.string().nullable(),
+});
+export type Fee = z.infer<typeof feeSchema>;
 export type FiscalYear = { year: number; status: "open" | "closed" };
 
 export const transactionInput = z.object({
@@ -65,13 +71,26 @@ export function validateReceipt(file: File) {
 
 const fail = (e: { message: string } | null, msg: string) => { if (e) throw new Error(`${msg}: ${e.message}`); };
 
+// The database has no row cap: read every page (the API returns at most 1000 rows per request).
+const PAGE = 1000;
+async function fetchAll<T>(q: () => { range: (a: number, b: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }> }) {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await q().range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out.push(...(data ?? []));
+    if (!data || data.length < PAGE) return { data: out, error: null };
+  }
+}
+
 export async function loadTreasury(year: number) {
-  const [years, tx, members, budgets, events] = await Promise.all([
+  const [years, tx, members, budgets, events, fees] = await Promise.all([
     treasuryClient.from("treasury_fiscal_years").select("year,status").order("year"),
-    treasuryClient.from("treasury_transactions").select("*").eq("fiscal_year", year).is("deleted_at", null).order("transaction_date").order("created_at"),
-    treasuryClient.from("association_members").select("*").order("full_name"),
+    fetchAll(() => treasuryClient.from("treasury_transactions").select("*").eq("fiscal_year", year).is("deleted_at", null).order("transaction_date").order("created_at").order("id")),
+    fetchAll(() => treasuryClient.from("association_members").select("*").order("full_name").order("id")),
     treasuryClient.from("treasury_budgets").select("*").eq("fiscal_year", year),
     supabase.from("events").select("id,title").order("date", { ascending: false }),
+    treasuryClient.from("treasury_fee_schedules").select("*").eq("fiscal_year", year).order("created_at", { ascending: false }),
   ]);
   if (years.error || tx.error || members.error || budgets.error) throw new Error("Tesoreria non installata: esegui lo script SQL sulla tua istanza.");
   return {
@@ -80,6 +99,8 @@ export async function loadTreasury(year: number) {
     members: z.array(memberSchema).parse(members.data),
     budgets: z.array(budgetSchema).parse(budgets.data),
     events: (events.data ?? []) as { id: string; title: string }[],
+    // Missing v2 script → no fees yet; the UI asks to install it.
+    fees: fees.error ? null : z.array(feeSchema).parse(fees.data),
   };
 }
 export type TreasuryData = Awaited<ReturnType<typeof loadTreasury>>;
@@ -147,13 +168,45 @@ export async function setYearStatus(year: number, status: "open" | "closed") {
   fail(error, "Aggiornamento esercizio non riuscito");
 }
 
+/* ── Fees resolved by the Board, per fiscal year ── */
+export const currentFees = (data: TreasuryData) => (data.fees ?? []).filter((f) => !f.superseded_at);
+export const feeFor = (data: TreasuryData, category: string) => currentFees(data).find((f) => f.category === category) ?? null;
+export const resolutionLabel = (f: Pick<Fee, "resolution_number" | "resolution_date">) =>
+  f.resolution_number ? `Delibera CD n. ${f.resolution_number}${f.resolution_date ? ` del ${new Date(`${f.resolution_date}T00:00:00`).toLocaleDateString("it-IT")}` : ""}` : null;
+
+export const feeInput = z.object({
+  category: z.enum(MEMBER_CATEGORIES),
+  amount: z.number({ invalid_type_error: "Importo non valido" }).min(0, "Importo non valido").max(100_000),
+  exempt: z.boolean(),
+  resolution_number: z.string().trim().max(50),
+  resolution_date: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "Data non valida"),
+  notes: z.string().trim().max(1000),
+});
+export async function saveFee(year: number, input: z.infer<typeof feeInput>, file: File | null) {
+  const v = feeInput.parse(input);
+  let path: string | null = null;
+  if (file) {
+    const { ext, contentType } = validateReceipt(file);
+    path = `delibere/${year}/${crypto.randomUUID()}.${ext}`;
+    const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType, upsert: false });
+    fail(up.error, "Caricamento delibera non riuscito");
+  }
+  const { error } = await treasuryClient.rpc("treasury_set_fee", {
+    _year: year, _category: v.category, _amount: v.exempt ? 0 : v.amount, _exempt: v.exempt,
+    _resolution_number: v.resolution_number, _resolution_date: v.resolution_date || null,
+    _document_path: path, _document_name: file?.name.slice(0, 255) ?? null, _notes: v.notes,
+  });
+  fail(error, "Registrazione quota non riuscita");
+}
+
 /* ── Derived figures for the web dashboard (the Excel file computes its own) ── */
 export function memberDues(data: TreasuryData, year: number) {
   return data.members.filter((m) => m.active).map((m) => {
     const pays = data.transactions.filter((t) => t.member_id === m.id && t.excel_code === "A.E.1" && t.type === "Entrata");
-    const due = feeFor(m.category), paid = pays.reduce((s, t) => s + t.amount, 0);
+    const fee = feeFor(data, m.category);
+    const due = fee ? fee.amount : 0, paid = pays.reduce((s, t) => s + t.amount, 0);
     const last = pays.map((t) => t.transaction_date).sort().pop() ?? null;
-    const status = due === 0 ? "Esente" : paid >= due ? "Pagato" : paid > 0 ? "Parzialmente pagato" : "Da pagare";
+    const status = !fee ? "Quota non deliberata" : fee.exempt || due === 0 ? "Esente" : paid >= due ? "Pagato" : paid > 0 ? "Parzialmente pagato" : "Da pagare";
     return { member: m, due, paid, residual: Math.max(0, due - paid), last, method: pays.at(-1)?.payment_method ?? null, status, year };
   });
 }
@@ -173,11 +226,16 @@ export function summary(data: TreasuryData, year: number) {
 }
 export const euro = (n: number) => n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 
+export const TEMPLATE_CAPACITY_MESSAGE = `Il template Excel ufficiale attualmente in uso supporta fino a ${TEMPLATE_LIMITS.movements} movimenti e ${TEMPLATE_LIMITS.members} soci per esercizio. I dati presenti nel gestionale sono integri, ma non possono essere esportati integralmente in questo modello. È necessario utilizzare un template aggiornato e validato`;
+
 /* ── Excel export: database → input cells of the official template ── */
 export async function buildExportWrites(data: TreasuryData): Promise<CellWrites> {
   const tx = data.transactions, members = data.members.filter((m) => m.active);
-  if (tx.length > TEMPLATE_LIMITS.movements) throw new Error(`Il template accetta al massimo ${TEMPLATE_LIMITS.movements} movimenti (presenti: ${tx.length}).`);
-  if (members.length > TEMPLATE_LIMITS.members) throw new Error(`Il template accetta al massimo ${TEMPLATE_LIMITS.members} soci.`);
+  // Capacity is a property of the current template only; data is never truncated.
+  if (tx.length > TEMPLATE_LIMITS.movements || members.length > TEMPLATE_LIMITS.members) throw new Error(TEMPLATE_CAPACITY_MESSAGE + ` (presenti: ${tx.length} movimenti, ${members.length} soci).`);
+  // The template computes dues with its own fixed fees: export only if the year's resolved fees match them.
+  const mismatch = TEMPLATE_MEMBER_CATEGORIES.filter((c) => { const f = feeFor(data, c.name); return !f || f.amount !== c.fee; });
+  if (mismatch.length) throw new Error(`Le quote deliberate per l'esercizio non coincidono con quelle del template Excel in uso (${TEMPLATE_MEMBER_CATEGORIES.map((c) => `${c.name} ${c.fee} €`).join(", ")}). Verificare: ${mismatch.map((c) => c.name).join(", ")}. Serve un template aggiornato e validato dal commercialista.`);
   const ev = new Map(data.events.map((e) => [e.id, e.title]));
   const M = EXCEL_MAPPING.Movimenti.columns, Q = EXCEL_MAPPING["Quote Soci"].columns;
   const date = (s: string | null) => (s ? new Date(`${s.slice(0, 10)}T00:00:00Z`) : null);

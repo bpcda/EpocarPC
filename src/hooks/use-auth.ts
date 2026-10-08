@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin,
     isStaff,
     isTreasurer,
-    canAccessTreasury: isAdmin || isTreasurer,
+    canAccessTreasury: isTreasurer, // accounting role only; admin/staff/president never imply it
     canAccessDashboard: isAdmin || isStaff || isTreasurer,
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),

@@ -19,7 +19,7 @@ function Kpi({ label, value, warn }: { label: string; value: string; warn?: bool
 }
 
 export default function TreasuryTab() {
-  const { isAdmin } = useAuth();
+  const { isTreasurer } = useAuth();
   const [year, setYear] = useState(new Date().getFullYear() < 2026 ? 2026 : new Date().getFullYear());
   const [data, setData] = useState<TreasuryData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function TreasuryTab() {
   const locked = !fy || fy.status === "closed";
   const s = useMemo(() => (data ? summary(data, year) : null), [data, year]);
 
-  if (error) return <div className="border border-border bg-card p-8 space-y-2"><p className="font-medium text-foreground">{error}</p><p className="text-sm text-muted-foreground">Installa <a className="underline" href="/setup/treasury.sql" target="_blank" rel="noreferrer">questo script SQL</a> sulla tua istanza, poi assegna il ruolo “treasurer” ai tesorieri.</p></div>;
+  if (error) return <div className="border border-border bg-card p-8 space-y-2"><p className="font-medium text-foreground">{error}</p><p className="text-sm text-muted-foreground">Installa <a className="underline" href="/setup/treasury.sql" target="_blank" rel="noreferrer">questo script SQL</a> e poi <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento</a> sulla tua istanza, poi assegna il ruolo “treasurer” ai tesorieri.</p></div>;
   if (!data || !s) return <p className="text-muted-foreground py-12 text-center">Caricamento tesoreria…</p>;
 
   const monthly = MONTHS.map((m, i) => ({ m, Entrate: 0, Uscite: 0, i }));
@@ -65,7 +65,7 @@ export default function TreasuryTab() {
         </select>
         {!fy && <Button size="sm" onClick={() => ensureYear(year).then(reload).catch((e) => toast.error(e.message))}>Apri esercizio {year}</Button>}
         {fy && <span className="text-xs uppercase tracking-widest border border-border px-2 py-1 text-muted-foreground">{fy.status === "open" ? "Esercizio aperto" : "Esercizio chiuso"}</span>}
-        {fy && isAdmin && <Button size="sm" variant="outline" onClick={() => { if (confirm(fy.status === "open" ? `Chiudere l'esercizio ${year}? Non sarà più possibile modificare i movimenti.` : `Riaprire l'esercizio ${year}?`)) setYearStatus(year, fy.status === "open" ? "closed" : "open").then(reload).catch((e) => toast.error(e.message)); }}>{fy.status === "open" ? <><Lock className="h-4 w-4 mr-1" />Chiudi</> : <><Unlock className="h-4 w-4 mr-1" />Riapri</>}</Button>}
+        {fy && isTreasurer && <Button size="sm" variant="outline" onClick={() => { if (confirm(fy.status === "open" ? `Chiudere l'esercizio ${year}? Non sarà più possibile modificare i movimenti.` : `Riaprire l'esercizio ${year}?`)) setYearStatus(year, fy.status === "open" ? "closed" : "open").then(reload).catch((e) => toast.error(e.message)); }}>{fy.status === "open" ? <><Lock className="h-4 w-4 mr-1" />Chiudi</> : <><Unlock className="h-4 w-4 mr-1" />Riapri</>}</Button>}
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -113,6 +113,7 @@ export default function TreasuryTab() {
         <TabsContent value="report" className="space-y-6">
           <div className="border border-border bg-card p-6 space-y-4">
             <p className="text-sm text-muted-foreground">Il file ufficiale viene creato copiando il modello del commercialista e compilando solo le celle di inserimento (Movimenti, Quote Soci, Preventivo del Budget). Le formule non vengono toccate: prima del download il sistema verifica che siano identiche al modello, altrimenti l’export si blocca.</p>
+            <p className="text-xs text-muted-foreground">Il gestionale non ha limiti di movimenti o soci. Il modello Excel attuale ne accetta fino a 500 e 100 per esercizio: oltre, solo l’export viene bloccato, senza perdere dati.</p>
             <Button size="lg" onClick={doExport} disabled={exporting}><FileSpreadsheet className="h-5 w-5 mr-2" />{exporting ? "Generazione…" : "ESPORTA RENDICONTO EXCEL"}</Button>
           </div>
           <div className="grid md:grid-cols-2 gap-4">

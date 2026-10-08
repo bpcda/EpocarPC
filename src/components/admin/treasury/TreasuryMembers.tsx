@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pencil, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { euro, memberDues, saveMember, type Member, type TreasuryData } from "@/lib/treasury";
-import { TEMPLATE_MEMBER_CATEGORIES } from "@/lib/treasury-template-lists";
+import { MEMBER_CATEGORIES } from "@/lib/treasury";
+import TreasuryFees from "./TreasuryFees";
 import { selectCls } from "./TreasuryMovements";
 
 type Form = { full_name: string; member_number: string; category: "Fondatore" | "Ordinario" | "Sostenitore" | "Onorario"; admission_date: string; notes: string };
@@ -22,12 +23,13 @@ export default function TreasuryMembers({ data, year, locked, reload, onPay }: {
     try { await saveMember(edit.v, edit.id); toast.success("Socio salvato"); setEdit(null); reload(); }
     catch (e) { toast.error(e instanceof Error && !e.message.startsWith("[") ? e.message : "Controlla i campi"); } finally { setBusy(false); }
   };
-  const badge: Record<string, string> = { Pagato: "bg-accent/10 text-accent", Esente: "bg-muted text-muted-foreground", "Parzialmente pagato": "bg-secondary text-secondary-foreground", "Da pagare": "bg-destructive/10 text-destructive" };
+  const badge: Record<string, string> = { Pagato: "bg-accent/10 text-accent", Esente: "bg-muted text-muted-foreground", "Parzialmente pagato": "bg-secondary text-secondary-foreground", "Da pagare": "bg-destructive/10 text-destructive", "Quota non deliberata": "bg-destructive/10 text-destructive" };
 
   return (
     <div className="space-y-4">
+      <TreasuryFees data={data} year={year} locked={locked} reload={reload} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Quote {year} secondo le categorie del modello: {TEMPLATE_MEMBER_CATEGORIES.map((c) => `${c.name} ${euro(c.fee)}`).join(" · ")}. Registrando un pagamento si crea il movimento in entrata (voce A.E.1).</p>
+        <p className="text-sm text-muted-foreground">Quota dovuta secondo la delibera CD dell'esercizio {year}. Registrando un pagamento si crea il movimento in entrata (voce A.E.1).</p>
         <Button onClick={() => open()}><Plus className="h-4 w-4 mr-1" />Nuovo socio</Button>
       </div>
       <div className="border border-border bg-card overflow-x-auto">
@@ -64,7 +66,7 @@ export default function TreasuryMembers({ data, year, locked, reload, onPay }: {
           {edit && <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2"><Label>Cognome e nome *</Label><Input maxLength={120} value={edit.v.full_name} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, full_name: e.target.value } })} /></div>
             <div><Label>Numero socio</Label><Input maxLength={20} value={edit.v.member_number} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, member_number: e.target.value } })} /></div>
-            <div><Label>Categoria *</Label><select className={selectCls} value={edit.v.category} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, category: e.target.value as Form["category"] } })}>{TEMPLATE_MEMBER_CATEGORIES.map((c) => <option key={c.name}>{c.name}</option>)}</select></div>
+            <div><Label>Categoria *</Label><select className={selectCls} value={edit.v.category} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, category: e.target.value as Form["category"] } })}>{MEMBER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
             <div><Label>Data ammissione</Label><Input type="date" value={edit.v.admission_date} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, admission_date: e.target.value } })} /></div>
             <div className="sm:col-span-2"><Label>Note</Label><Input maxLength={1000} value={edit.v.notes} onChange={(e) => setEdit({ ...edit, v: { ...edit.v, notes: e.target.value } })} /></div>
           </div>}

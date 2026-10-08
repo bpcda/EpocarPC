@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, Eye, Paperclip, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { CODES, codeLabel, euro, openReceipt, saveTransaction, softDeleteTransaction, attachReceipt, type Transaction, type TreasuryData, type TransactionInput } from "@/lib/treasury";
+import { memberDues, CODES, codeLabel, euro, openReceipt, saveTransaction, softDeleteTransaction, attachReceipt, type Transaction, type TreasuryData, type TransactionInput } from "@/lib/treasury";
 import { TEMPLATE_ACCOUNTS, TEMPLATE_METHODS } from "@/lib/treasury-template-lists";
 
 export const selectCls = "h-10 w-full border border-input bg-background px-3 text-sm text-foreground [&>option]:bg-background [&>option]:text-foreground";
@@ -29,7 +29,7 @@ export default function TreasuryMovements({ data, year, locked, reload, presetMe
   useEffect(() => {
     if (!presetMember) return;
     const m = data.members.find((x) => x.id === presetMember);
-    const due = m ? Math.max(0, ({ Fondatore: 100, Ordinario: 50, Sostenitore: 250, Onorario: 0 } as Record<string, number>)[m.category] ?? 0) : 0;
+    const due = memberDues(data, year).find((d) => d.member.id === presetMember)?.residual ?? 0;
     setFile(null);
     setEdit({ id: null, v: { ...empty(year), type: "Entrata", excel_code: "A.E.1", member_id: presetMember, subject: m?.full_name ?? "", amount: due, description: `Quota associativa ${year}` } });
     onPresetUsed?.();
