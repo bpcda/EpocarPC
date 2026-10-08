@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { FileSpreadsheet, Lock, Unlock, Download, Eye } from "lucide-react";
+import { FileText, FileSpreadsheet, Lock, Unlock, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { CODES, codeLabel, ensureYear, euro, exportReport, loadTreasury, openReceipt, saveBudget, setYearStatus, summary, type TreasuryData } from "@/lib/treasury";
 import TreasuryMovements, { ReceiptReplace, selectCls } from "./TreasuryMovements";
 import TreasuryMembers from "./TreasuryMembers";
+import { exportReportPdf } from "@/lib/treasury-pdf";
 
 const MONTHS = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
 const PIE = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--muted-foreground))", "hsl(var(--secondary))", "hsl(var(--destructive))", "hsl(var(--foreground))"];
@@ -52,6 +53,10 @@ export default function TreasuryTab() {
     try { const name = await exportReport(data, year); toast.success(`Rendiconto generato: ${name}`); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Export non riuscito", { duration: 12000 }); }
     finally { setExporting(false); }
+  };
+  const doPdf = () => {
+    try { toast.success(`PDF generato: ${exportReportPdf(data, year)}`); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "PDF non generato"); }
   };
   const years = [...new Set([...data.years.map((y) => y.year), year])].sort();
 
@@ -115,6 +120,7 @@ export default function TreasuryTab() {
             <p className="text-sm text-muted-foreground">Il file ufficiale viene creato copiando il modello del commercialista e compilando solo le celle di inserimento (Movimenti, Quote Soci, Preventivo del Budget). Le formule non vengono toccate: prima del download il sistema verifica che siano identiche al modello, altrimenti l’export si blocca.</p>
             <p className="text-xs text-muted-foreground">Il gestionale non ha limiti di movimenti o soci. Il modello Excel attuale ne accetta fino a 500 e 100 per esercizio: oltre, solo l’export viene bloccato, senza perdere dati.</p>
             <Button size="lg" onClick={doExport} disabled={exporting}><FileSpreadsheet className="h-5 w-5 mr-2" />{exporting ? "Generazione…" : "ESPORTA RENDICONTO EXCEL"}</Button>
+            <Button size="lg" variant="outline" onClick={doPdf}><FileText className="h-5 w-5 mr-2" />ESPORTA PDF CONSIGLIO</Button>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             {(["Entrata", "Uscita"] as const).map((ty) => (
