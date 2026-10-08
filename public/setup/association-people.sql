@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.association_people_order (
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.association_people_order TO authenticated;
 GRANT ALL ON public.association_people_order TO service_role;
 ALTER TABLE public.association_people_order ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS people_order_admin ON public.association_people_order;
 CREATE POLICY people_order_admin ON public.association_people_order FOR ALL TO authenticated
   USING (public.has_role(auth.uid(),'admin')) WITH CHECK (public.has_role(auth.uid(),'admin'));
 
@@ -58,6 +59,7 @@ GRANT EXECUTE ON FUNCTION public.list_association_people() TO anon, authenticate
 
 -- Profile photos of founders and board members become readable to show them publicly.
 -- Ordinary/supporter members without a board role stay private.
+DROP POLICY IF EXISTS association_people_avatars_read ON storage.objects;
 CREATE POLICY association_people_avatars_read ON storage.objects FOR SELECT TO anon, authenticated USING (
   bucket_id = 'avatars' AND EXISTS (
     SELECT 1 FROM public.user_roles ur
