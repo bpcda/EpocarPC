@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Plus, Settings, Wallet } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronRight, Plus, RefreshCw, Settings, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cardNo, euro, memberDues, summary } from "@/lib/treasury";
-import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
+import { cardNo, euro, memberDues, summary, syncMembers } from "@/lib/treasury";
+import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useRefreshTreasury, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
 
 const STATI = ["Pagato", "Parzialmente pagato", "Da pagare", "Esente", "Quota non deliberata"];
 
@@ -12,6 +14,13 @@ export default function QuoteYear() {
   const { data, error, isLoading } = useTreasuryData(year);
   const [sp, set] = useQueryState();
   const navigate = useNavigate();
+  const refresh = useRefreshTreasury();
+  const [syncing, setSyncing] = useState(false);
+  const sync = async () => {
+    setSyncing(true);
+    try { const n = await syncMembers(); await refresh(); toast.success(n ? `${n} soci aggiunti all'anagrafica dal sito` : "Anagrafica già allineata"); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Sincronizzazione non riuscita"); } finally { setSyncing(false); }
+  };
   if (error) return <ErrorBox error={error} />;
   if (isLoading || !data) return <Loading />;
   const s = summary(data, year);
