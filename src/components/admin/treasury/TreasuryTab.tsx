@@ -113,6 +113,7 @@ export default function TreasuryTab() {
         <TabsContent value="report" className="space-y-6">
           <div className="border border-border bg-card p-6 space-y-4">
             <p className="text-sm text-muted-foreground">Il file ufficiale viene creato copiando il modello del commercialista e compilando solo le celle di inserimento (Movimenti, Quote Soci, Preventivo del Budget). Le formule non vengono toccate: prima del download il sistema verifica che siano identiche al modello, altrimenti l’export si blocca.</p>
+            <p className="text-xs text-muted-foreground">Il gestionale non ha limiti di movimenti o soci. Il modello Excel attuale ne accetta fino a 500 e 100 per esercizio: oltre, solo l’export viene bloccato, senza perdere dati.</p>
             <Button size="lg" onClick={doExport} disabled={exporting}><FileSpreadsheet className="h-5 w-5 mr-2" />{exporting ? "Generazione…" : "ESPORTA RENDICONTO EXCEL"}</Button>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
