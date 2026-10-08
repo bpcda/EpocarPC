@@ -19,7 +19,7 @@ export function useTreasuryYear() {
 }
 
 export function useTreasuryData(year: number) {
-  return useQuery({ queryKey: ["treasury", year], queryFn: () => loadTreasury(year), staleTime: 30_000, retry: false });
+  return useQuery({ queryKey: ["treasury", year], queryFn: () => loadTreasury(year), staleTime: 30_000, retry: false, enabled: validYear(year) });
 }
 export function useRefreshTreasury() {
   const qc = useQueryClient();

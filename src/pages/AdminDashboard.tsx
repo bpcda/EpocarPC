@@ -18,7 +18,6 @@ import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
 import RoleAuditTab from "@/components/admin/RoleAuditTab";
 import AssociationTab from "@/components/admin/AssociationTab";
-import TreasuryTab from "@/components/admin/treasury/TreasuryTab";
 
 interface Event {
   id: string;
@@ -120,7 +119,12 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue={onlyTreasury ? "treasury" : "events"}>
+        {canAccessTreasury && (
+          <Link to="/tesoreria" className="mb-6 flex items-center justify-between border border-border bg-card px-5 min-h-14 font-headline text-lg tracking-[0.15em] uppercase text-foreground hover:bg-muted/40">
+            Apri la Tesoreria <span aria-hidden>→</span>
+          </Link>
+        )}
+        <Tabs defaultValue="events">
           <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
             {!onlyTreasury && <>
             <TabsTrigger value="events">Eventi</TabsTrigger>
@@ -129,7 +133,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
             <TabsTrigger value="association">Associazione</TabsTrigger>
             </>}
-            {canAccessTreasury && <TabsTrigger value="treasury">Tesoreria</TabsTrigger>}
             {isAdmin && <TabsTrigger value="users">Utenti</TabsTrigger>}
             {isAdmin && <TabsTrigger value="role-audit">Audit ruoli</TabsTrigger>}
           </TabsList>
@@ -286,11 +289,6 @@ export default function AdminDashboard() {
             <AssociationTab />
           </TabsContent>
 
-          {canAccessTreasury && (
-            <TabsContent value="treasury">
-              <TreasuryTab />
-            </TabsContent>
-          )}
 
           {isAdmin && (
             <TabsContent value="users">
