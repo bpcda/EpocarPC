@@ -28,9 +28,11 @@ export default function QuoteYear() {
       <PageHeader crumbs={[{ label: "Quote", to: "/tesoreria/quote" }, { label: String(year) }]} title="Quote soci" subtitle={`Esercizio ${year} · quote secondo la delibera del Consiglio Direttivo`}
         actions={<>
           <Button asChild variant="outline" className="h-11"><Link to={`/tesoreria/quote/${year}/impostazioni`}><Settings className="h-4 w-4 mr-1" />Quote deliberate</Link></Button>
+          <Button variant="outline" className="h-11" disabled={syncing} onClick={sync}><RefreshCw className="h-4 w-4 mr-1" />{syncing ? "Sincronizzo…" : "Sincronizza soci dal sito"}</Button>
           <Button asChild className="h-11"><Link to={`/tesoreria/quote/${year}/soci/nuovo`}><Plus className="h-4 w-4 mr-1" />Nuovo socio</Link></Button>
         </>} />
       {data.fees === null && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per le quote deliberate esegui <a className="underline" href="/setup/treasury-v2.sql" target="_blank" rel="noreferrer">l’aggiornamento SQL</a>.</p>}
+      {data.members.length > 0 && data.members.every((m) => m.email === undefined) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per l’anagrafica soci unica con collegamento agli account esegui <a className="underline" href="/setup/treasury-v4.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       {data.members.some((m) => m.card_number == null) && <p className="mb-4 border border-border bg-card p-3 text-sm text-muted-foreground">Per assegnare il numero tessera progressivo esegui <a className="underline" href="/setup/treasury-v3.sql" target="_blank" rel="noreferrer">questo aggiornamento SQL</a>.</p>}
       <div className="grid grid-cols-3 gap-3 mb-3">
         <Kpi label="Dovuto" value={euro(s.duesTotal)} /><Kpi label="Incassato" value={euro(s.duesPaid)} /><Kpi label="Residuo" value={euro(s.duesOpen)} warn={s.duesOpen > 0} />

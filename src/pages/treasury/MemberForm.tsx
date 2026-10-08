@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MEMBER_CATEGORIES, cardNo, euro, memberDues, saveMember } from "@/lib/treasury";
 import { ErrorBox, Loading, PageHeader, Panel, StatusBadge, fmtDate, selectCls, useRefreshTreasury, useSessionDraft, useTreasuryData, useTreasuryYear, useUnsavedGuard } from "@/components/treasury/shared";
 
-type Form = { full_name: string; member_number: string; category: (typeof MEMBER_CATEGORIES)[number]; admission_date: string; notes: string };
+type Form = { full_name: string; member_number: string; email: string; category: (typeof MEMBER_CATEGORIES)[number]; admission_date: string; notes: string };
 const inp = "h-11 text-base md:text-sm";
 
 export default function MemberForm() {
@@ -26,7 +26,7 @@ export default function MemberForm() {
 
   useEffect(() => {
     if (v || !data) return;
-    const base: Form = { full_name: m?.full_name ?? "", member_number: m?.member_number ?? "", category: (m?.category as Form["category"]) ?? "Ordinario", admission_date: m?.admission_date ?? "", notes: m?.notes ?? "" };
+    const base: Form = { full_name: m?.full_name ?? "", member_number: m?.member_number ?? "", email: m?.email ?? "", category: (m?.category as Form["category"]) ?? "Ordinario", admission_date: m?.admission_date ?? "", notes: m?.notes ?? "" };
     setInitial(JSON.stringify(base));
     setV(draft.read() ?? base);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -57,6 +57,8 @@ export default function MemberForm() {
               <div className="space-y-1.5 sm:col-span-2"><Label>Cognome e nome *</Label><Input className={inp} required maxLength={120} value={v.full_name} onChange={(e) => set({ full_name: e.target.value })} /></div>
               <div className="space-y-1.5"><Label>Numero tessera</Label><Input className={inp} readOnly disabled value={m && cardNo(m) ? cardNo(m)! : "Assegnato automaticamente al salvataggio"} /></div>
               <div className="space-y-1.5"><Label>Categoria *</Label><select className={selectCls} value={v.category} onChange={(e) => set({ category: e.target.value as Form["category"] })}>{MEMBER_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
+              <div className="space-y-1.5 sm:col-span-2"><Label>Email (facoltativa)</Label><Input className={inp} type="email" maxLength={254} value={v.email} onChange={(e) => set({ email: e.target.value })} />
+                <p className="text-xs text-muted-foreground">{m?.user_id ? "Account del sito collegato: riceve automaticamente il ruolo della categoria." : "Se esiste un account del sito con questa email viene collegato al salvataggio. Senza account il socio resta comunque in anagrafica."}</p></div>
               <div className="space-y-1.5"><Label>Data ammissione</Label><Input className={inp} type="date" value={v.admission_date} onChange={(e) => set({ admission_date: e.target.value })} /></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Note</Label><Textarea className="text-base md:text-sm" maxLength={1000} value={v.notes} onChange={(e) => set({ notes: e.target.value })} /></div>
             </div>
