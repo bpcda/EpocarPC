@@ -21,7 +21,7 @@ export default function QuoteYear() {
   const count = (st: string) => all.filter((d) => d.status === st).length;
   const open = data.years.find((y) => y.year === year)?.status === "open";
   const pay = (id: string) => `/tesoreria/movimenti/nuovo?anno=${year}&socio=${id}`;
-  const edit = (id: string) => `/tesoreria/quote/${year}/soci/${id}`;
+  const edit = (id: string) => `/tesoreria/quote/${year}/socio/${id}`;
 
   return (
     <>

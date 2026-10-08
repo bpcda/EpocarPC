@@ -74,7 +74,8 @@ export default function MovementForm() {
 
   const locked = data.years.find((y) => y.year === year)?.status !== "open";
   const set = (p: Partial<TransactionInput>) => setV((x) => (x ? { ...x, ...p } : x));
-  const back = id ? `/tesoreria/movimenti/${id}` : `/tesoreria/movimenti?anno=${year}`;
+  const ret = sp.get("ritorno"); const safeRet = ret && /^\/tesoreria\/quote\/\d{4}\/socio\/[0-9a-f-]{36}$/.test(ret) ? ret : null;
+  const back = safeRet ?? (id ? `/tesoreria/movimenti/${id}` : `/tesoreria/movimenti?anno=${year}`);
   const cancel = () => { if (canLeave()) { draft.clear(); setV(null); navigate(back); } };
   const submit = async () => {
     setBusy(true);
@@ -83,7 +84,7 @@ export default function MovementForm() {
       draft.clear(); setInitial(JSON.stringify(v)); setFile(null);
       await refresh();
       toast.success("Movimento salvato");
-      navigate(`/tesoreria/movimenti/${newId ?? id}`, { replace: true });
+      navigate(safeRet ?? `/tesoreria/movimenti/${newId ?? id}`, { replace: true });
     } catch (e) { toast.error(e instanceof Error ? (e.message.includes("[") ? "Controlla i campi del modulo" : e.message) : "Errore"); }
     finally { setBusy(false); }
   };

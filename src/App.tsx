@@ -31,6 +31,7 @@ import Movements from "./pages/treasury/Movements.tsx";
 import MovementForm from "./pages/treasury/MovementForm.tsx";
 import MovementDetail from "./pages/treasury/MovementDetail.tsx";
 import QuoteYear from "./pages/treasury/QuoteYear.tsx";
+import MemberDetail from "./pages/treasury/MemberDetail";
 import MemberForm from "./pages/treasury/MemberForm.tsx";
 import FeeSettings from "./pages/treasury/FeeSettings.tsx";
 import BudgetYear from "./pages/treasury/BudgetYear.tsx";
@@ -107,6 +108,7 @@ const App = () => (
             <Route path="quote/:anno" element={<QuoteYear />} />
             <Route path="quote/:anno/impostazioni" element={<FeeSettings />} />
             <Route path="quote/:anno/soci/:id" element={<MemberForm />} />
+            <Route path="quote/:anno/socio/:id" element={<MemberDetail />} />
             <Route path="budget" element={<YearPicker section="budget" title="Budget" />} />
             <Route path="budget/:anno" element={<BudgetYear />} />
             <Route path="rendiconto" element={<YearPicker section="rendiconto" title="Rendiconto" />} />

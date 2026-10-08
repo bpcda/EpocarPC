@@ -43,7 +43,7 @@ export default function MemberForm() {
   const set = (p: Partial<Form>) => setV({ ...v, ...p });
   const submit = async () => {
     setBusy(true);
-    try { await saveMember(v, isNew ? null : id!); draft.clear(); setInitial(JSON.stringify(v)); await refresh(); toast.success("Socio salvato"); navigate(back, { replace: true }); }
+    try { await saveMember(v, isNew ? null : id!); draft.clear(); setInitial(JSON.stringify(v)); await refresh(); toast.success("Socio salvato"); navigate(isNew ? back : `/tesoreria/quote/${year}/socio/${id}`, { replace: true }); }
     catch (e) { toast.error(e instanceof Error && !e.message.startsWith("[") ? e.message : "Controlla i campi"); } finally { setBusy(false); }
   };
 
