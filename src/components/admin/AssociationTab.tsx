@@ -1,37 +1,31 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Download, Upload, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Upload, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { associationClient, loadAssociation, publicAssociationFile, validateAssociationFile, submissionSchema, downloadMembership, type AssociationDocument, type Founder, type Submission } from "@/lib/association";
+import { associationClient, loadAssociation, loadPeople, personName, boardRole, BOARD_ROLES, publicAssociationFile, validateAssociationFile, submissionSchema, downloadMembership, type AssociationDocument, type PersonWithPhoto, type Submission } from "@/lib/association";
 
-const founderInput = z.object({ name: z.string().trim().min(1, "Inserisci un nome").max(100), biography: z.string().trim().max(1000), sort_order: z.coerce.number().int().min(0).max(10000) });
 export default function AssociationTab() {
   const { isAdmin } = useAuth();
   const [docs, setDocs] = useState<AssociationDocument[]>([]);
-  const [founders, setFounders] = useState<Founder[]>([]);
+  const [people, setPeople] = useState<PersonWithPhoto[]>([]);
+  const [orders, setOrders] = useState<Record<string,string>>({});
   const [applications, setApplications] = useState<Submission[]>([]);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Founder | null>(null);
-  const [name, setName] = useState("");
-  const [biography, setBiography] = useState("");
-  const [order, setOrder] = useState("0");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoKey, setPhotoKey] = useState(0);
-  const loadMaterials = async () => { const data = await loadAssociation(); setDocs(data.documents); setFounders(data.founders); };
+  const loadMaterials = async () => { const data = await loadAssociation(); setDocs(data.documents); };
+  const loadAllPeople = async () => { try { const list = await loadPeople(); setPeople(list); setOrders(Object.fromEntries(list.map(p=>[p.user_id,String(p.sort_order)]))); } catch { setPeople([]); } };
+  useEffect(() => { void loadAllPeople(); }, []);
   useEffect(() => { let active=true; setLoading(true); setError(false);
     Promise.all([loadAssociation(), associationClient.from("membership_applications").select("*", { count: "exact" }).order("created_at", { ascending:false }).order("id").range(page*20,page*20+19)])
-      .then(([data,result]) => { if (!active) return; if (result.error) throw result.error; setDocs(data.documents);setFounders(data.founders);setApplications(z.array(submissionSchema).parse(result.data));setTotal(result.count || 0); })
+      .then(([data,result]) => { if (!active) return; if (result.error) throw result.error; setDocs(data.documents);setApplications(z.array(submissionSchema).parse(result.data));setTotal(result.count || 0); })
       .catch(() => { if(active) setError(true); }).finally(() => {if(active)setLoading(false);});return () => {active=false;};
   }, [page]);
   async function uploadDocument(kind: "statute" | "membership_form", file: File) {
@@ -49,21 +43,10 @@ export default function AssociationTab() {
     if(!isAdmin || busy || !confirm("Ritirare il documento pubblico? Le nuove adesioni saranno sospese. Le richieste già ricevute resteranno disponibili."))return;
     setBusy(true);try {const result=await associationClient.from("association_documents").delete().eq("kind",doc.kind);if(result.error)throw result.error;await loadMaterials();toast.success("Documento ritirato");}catch {toast.error("Rimozione non completata");}finally{setBusy(false);}
   }
-  function resetFounder() {setEditing(null);setName("");setBiography("");setOrder("0");setPhoto(null);setPhotoKey(k=>k+1);}
-  async function saveFounder(event: FormEvent) {
-    event.preventDefault();if(!isAdmin || busy)return;const parsed=founderInput.safeParse({name,biography,sort_order:order});if(!parsed.success){toast.error(parsed.error.issues[0]?.message);return;}
-    setBusy(true);let uploaded:string|null=null;let saved=false;
-    try {let photo_path=editing?.photo_path || null;
-      if(photo){const {ext,contentType}=validateAssociationFile(photo,true);uploaded=`founders/${crypto.randomUUID()}.${ext}`;const upload=await supabase.storage.from("association-media").upload(uploaded,photo,{contentType});if(upload.error)throw upload.error;photo_path=uploaded;}
-      const payload={...parsed.data,photo_path};const result=editing ? await associationClient.from("association_founders").update(payload).eq("id",editing.id) : await associationClient.from("association_founders").insert(payload);
-      if(result.error)throw result.error;saved=true;
-      if(uploaded && editing?.photo_path)await supabase.storage.from("association-media").remove([editing.photo_path]);
-      resetFounder();await loadMaterials();setError(false);toast.success("Fondatore salvato");
-    }catch {if(uploaded && !saved)await supabase.storage.from("association-media").remove([uploaded]);toast.error("Salvataggio non completato");}finally{setBusy(false);}
-  }
-  async function removeFounder(founder:Founder){
-    if(!isAdmin || busy || !confirm(`Rimuovere ${founder.name} dalla pagina dei fondatori?`))return;setBusy(true);
-    try{const result=await associationClient.from("association_founders").delete().eq("id",founder.id);if(result.error)throw result.error;if(founder.photo_path)await supabase.storage.from("association-media").remove([founder.photo_path]);if(editing?.id===founder.id)resetFounder();await loadMaterials();toast.success("Fondatore rimosso");}catch{toast.error("Rimozione non completata");}finally{setBusy(false);}
+  async function saveOrder(person: PersonWithPhoto) {
+    const value=Number(orders[person.user_id]);if(!isAdmin||busy)return;
+    if(!Number.isInteger(value)||value<0||value>10000){toast.error("Ordine tra 0 e 10000");return;}
+    setBusy(true);try{const r=await associationClient.from("association_people_order").upsert({user_id:person.user_id,sort_order:value,updated_at:new Date().toISOString()});if(r.error)throw r.error;await loadAllPeople();toast.success("Ordine salvato");}catch{toast.error("Salvataggio non completato");}finally{setBusy(false);}
   }
   return <div className="space-y-10">
     <div><h2 className="text-3xl mb-2">Associazione</h2><p className="text-sm text-muted-foreground">Percorso ETS in preparazione · le adesioni si aprono quando statuto e modulo sono pubblicati.</p></div>
@@ -75,10 +58,13 @@ export default function AssociationTab() {
       </div>;})}</div>
       {isAdmin && <p className="text-xs text-muted-foreground mt-3">Pubblica soltanto documenti approvati. Il modulo deve contenere l’informativa sul trattamento dei dati personali. Massimo 10 MB per file.</p>}
     </section>
-    <section className="border-t border-border pt-6"><h3 className="text-2xl mb-4">I fondatori</h3>
-      {founders.length===0 && <p className="text-sm text-muted-foreground mb-5">Nessun fondatore pubblicato.</p>}
-      {founders.map(f=><div key={f.id} className="flex items-center gap-3 py-3 border-b border-border"><p className="flex-1 break-words">{f.name}</p>{isAdmin && <><Button variant="ghost" size="icon" title={`Modifica ${f.name}`} aria-label={`Modifica ${f.name}`} disabled={busy} onClick={()=>{setEditing(f);setName(f.name);setBiography(f.biography);setOrder(String(f.sort_order));setPhoto(null);setPhotoKey(k=>k+1);}}><Pencil /></Button><Button variant="ghost" size="icon" title={`Rimuovi ${f.name}`} aria-label={`Rimuovi ${f.name}`} disabled={busy} onClick={()=>removeFounder(f)}><Trash2 /></Button></>}</div>)}
-      {isAdmin && <form onSubmit={saveFounder} className="mt-6 max-w-2xl space-y-4"><h4 className="text-xl">{editing ? "Modifica fondatore" : "Aggiungi fondatore"}</h4><div className="grid sm:grid-cols-[1fr_100px] gap-4"><div><Label htmlFor="founder-name">Nome e cognome</Label><Input id="founder-name" required maxLength={100} value={name} onChange={e=>setName(e.target.value)} /></div><div><Label htmlFor="founder-order">Ordine</Label><Input id="founder-order" type="number" min={0} max={10000} value={order} onChange={e=>setOrder(e.target.value)} /></div></div><div><Label htmlFor="founder-bio">Presentazione</Label><Textarea id="founder-bio" maxLength={1000} value={biography} onChange={e=>setBiography(e.target.value)} /></div><div><Label htmlFor="founder-photo">Foto (facoltativa)</Label><Input key={photoKey} id="founder-photo" type="file" accept=".jpg,.jpeg,.png,.webp" onChange={e=>setPhoto(e.target.files?.[0] || null)} /></div><div className="flex gap-3"><Button disabled={busy} type="submit">{busy ? "Salvataggio…" : "Salva fondatore"}</Button>{editing && <Button disabled={busy} variant="outline" type="button" onClick={resetFounder}>Annulla</Button>}</div></form>}
+    <section className="border-t border-border pt-6"><h3 className="text-2xl mb-2">Fondatori e consiglio direttivo</h3>
+      <p className="text-sm text-muted-foreground mb-4">Le persone arrivano dai ruoli assegnati in Utenti (fondatore, presidente, vicepresidente, segretario, consigliere). Qui puoi cambiare solo l’ordine di visualizzazione: numero più basso, prima posizione.</p>
+      {people.length===0 && <p className="text-sm text-muted-foreground">Nessuna persona con questi ruoli.</p>}
+      {people.map(p=>{const board=boardRole(p);return <div key={p.user_id} className="flex flex-wrap items-center gap-3 py-3 border-b border-border">
+        <div className="flex-1 min-w-[180px]"><p className="break-words">{personName(p)}</p><p className="text-xs text-muted-foreground">{[p.roles.includes("founder")?"Fondatore":null,board?BOARD_ROLES[board]:null].filter(Boolean).join(" · ")}</p></div>
+        {isAdmin ? <><Input aria-label={`Ordine di ${personName(p)}`} type="number" min={0} max={10000} className="w-24" value={orders[p.user_id] ?? "0"} onChange={e=>setOrders(o=>({...o,[p.user_id]:e.target.value}))} /><Button size="sm" variant="outline" disabled={busy || orders[p.user_id]===String(p.sort_order)} onClick={()=>saveOrder(p)}>Salva</Button></> : <span className="text-sm text-muted-foreground">Ordine {p.sort_order}</span>}
+      </div>;})}
     </section>
     <section className="border-t border-border pt-6"><h3 className="text-2xl mb-4">Richieste di adesione <span className="text-muted-foreground">({total})</span></h3>
       {loading ? <p role="status">Caricamento…</p> : !applications.length ? <p className="text-muted-foreground text-sm">{error ? "Richieste non disponibili." : "Nessuna richiesta ricevuta."}</p> : <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Ricevuta il</TableHead><TableHead>Modulo</TableHead></TableRow></TableHeader><TableBody>{applications.map(a=><TableRow key={a.id}><TableCell>{a.full_name}</TableCell><TableCell>{a.email}</TableCell><TableCell>{new Date(a.created_at).toLocaleDateString("it-IT")}</TableCell><TableCell><Button size="sm" variant="outline" onClick={()=>downloadMembership(a.file_path,a.filename).catch(e=>toast.error(e.message))}><Download /> Scarica</Button></TableCell></TableRow>)}</TableBody></Table>}
