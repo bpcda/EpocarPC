@@ -95,21 +95,7 @@ DROP TRIGGER IF EXISTS ame_immutable ON public.association_member_events;
 CREATE TRIGGER ame_immutable BEFORE UPDATE OR DELETE ON public.association_member_events
   FOR EACH ROW EXECUTE FUNCTION public.association_member_events_immutable();
 
--- Application submitted -> history
-CREATE OR REPLACE FUNCTION public.membership_applications_history()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  IF NEW.status = 'submitted' AND (TG_OP = 'INSERT' OR OLD.status = 'draft') THEN
-    NEW.submitted_at := now();
-    INSERT INTO public.association_member_events (application_id, event_type, category, created_by)
-    VALUES (NEW.id, 'application_submitted', NEW.requested_category, auth.uid());
-  END IF;
-  RETURN NEW;
-END $$;
-DROP TRIGGER IF EXISTS membership_applications_history ON public.membership_applications;
-CREATE TRIGGER membership_applications_history BEFORE INSERT OR UPDATE OF status ON public.membership_applications
-  FOR EACH ROW EXECUTE FUNCTION public.membership_applications_history();
--- BEFORE INSERT cannot reference the row id in a FK yet: move insert history to AFTER for inserts.
+-- Application submitted -> history (AFTER INSERT for new rows, BEFORE UPDATE for draft -> submitted)
 CREATE OR REPLACE FUNCTION public.membership_applications_history_ins()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
