@@ -125,6 +125,7 @@ export async function saveTransaction(year: number, input: TransactionInput, id:
     txId = data!.id;
   }
   if (file && txId) await attachReceipt(year, txId, file);
+  return txId;
 }
 
 export async function attachReceipt(year: number, txId: string, file: File) {
