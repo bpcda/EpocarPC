@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CODES, euro, loadTransaction, memberDues, saveTransaction, type TransactionInput } from "@/lib/treasury";
+import { CODES, euro, loadTransaction, memberLabel, memberDues, saveTransaction, type TransactionInput } from "@/lib/treasury";
 import { TEMPLATE_ACCOUNTS, TEMPLATE_METHODS } from "@/lib/treasury-template-lists";
 import { ErrorBox, Loading, PageHeader, selectCls, useRefreshTreasury, useSessionDraft, useTreasuryData, useUnsavedGuard } from "@/components/treasury/shared";
 

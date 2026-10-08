@@ -6,7 +6,7 @@ import { Download, Eye, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { codeLabel, euro, loadAudit, loadTransaction, openReceipt, softDeleteTransaction } from "@/lib/treasury";
+import { codeLabel, euro, loadAudit, memberLabel, loadTransaction, openReceipt, softDeleteTransaction } from "@/lib/treasury";
 import { AuditList } from "@/components/treasury/AuditList";
 import { ErrorBox, Loading, PageHeader, Panel, StatusBadge, fmtDate, fmtDateTime, useRefreshTreasury, useTreasuryData } from "@/components/treasury/shared";
 

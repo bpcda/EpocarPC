@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, FileText, Pencil, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { euro, feeFor, loadAudit, memberDues, openReceipt, resolutionLabel } from "@/lib/treasury";
+import { cardNo, euro, feeFor, loadAudit, memberDues, openReceipt, resolutionLabel } from "@/lib/treasury";
 import { AuditList } from "@/components/treasury/AuditList";
 import { ErrorBox, Kpi, Loading, PageHeader, Panel, StatusBadge, fmtDate, fmtDateTime, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
 

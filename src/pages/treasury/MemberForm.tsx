@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MEMBER_CATEGORIES, euro, memberDues, saveMember } from "@/lib/treasury";
+import { MEMBER_CATEGORIES, cardNo, euro, memberDues, saveMember } from "@/lib/treasury";
 import { ErrorBox, Loading, PageHeader, Panel, StatusBadge, fmtDate, selectCls, useRefreshTreasury, useSessionDraft, useTreasuryData, useTreasuryYear, useUnsavedGuard } from "@/components/treasury/shared";
 
 type Form = { full_name: string; member_number: string; category: (typeof MEMBER_CATEGORIES)[number]; admission_date: string; notes: string };

@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Plus, Settings, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { euro, memberDues, summary } from "@/lib/treasury";
+import { cardNo, euro, memberDues, summary } from "@/lib/treasury";
 import { ErrorBox, Kpi, Loading, PageHeader, StatusBadge, fmtDate, useQueryState, useTreasuryData, useTreasuryYear } from "@/components/treasury/shared";
 
 const STATI = ["Pagato", "Parzialmente pagato", "Da pagare", "Esente", "Quota non deliberata"];
