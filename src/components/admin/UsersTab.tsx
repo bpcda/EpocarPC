@@ -148,9 +148,6 @@ export default function UsersTab() {
               </TableRow>
             ) : (
               rows.map((r) => {
-                const isAdmin = r.roles.includes("admin");
-                const isStaff = r.roles.includes("staff");
-                const isTreasurer = r.roles.includes("treasurer");
                 const isSelf = r.user_id === currentUser?.id;
                 const fullName = [r.first_name, r.last_name].filter(Boolean).join(" ") || "—";
                 return (
