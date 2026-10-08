@@ -7,3 +7,4 @@
 - Template row capacity is enforced only at Excel export; the database and dashboard read all rows via pagination and never truncate.
 
 - Founders and board members are derived from user roles assigned in user management; the association tab only stores display order, and the public list exposes only founders/board members via a security-definer function.
+- Treasury is a standalone routed app under /tesoreria (guarded layout + one page per entity, filters/year in the URL); modals only for confirmations, so state survives refresh and deep links.

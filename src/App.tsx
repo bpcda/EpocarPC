@@ -25,6 +25,21 @@ import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth.ts";
+import { TreasuryGuard } from "./components/treasury/TreasuryLayout.tsx";
+import TreasuryDashboard from "./pages/treasury/TreasuryDashboard.tsx";
+import Movements from "./pages/treasury/Movements.tsx";
+import MovementForm from "./pages/treasury/MovementForm.tsx";
+import MovementDetail from "./pages/treasury/MovementDetail.tsx";
+import QuoteYear from "./pages/treasury/QuoteYear.tsx";
+import MemberForm from "./pages/treasury/MemberForm.tsx";
+import FeeSettings from "./pages/treasury/FeeSettings.tsx";
+import BudgetYear from "./pages/treasury/BudgetYear.tsx";
+import ReportYear from "./pages/treasury/ReportYear.tsx";
+import Documents from "./pages/treasury/Documents.tsx";
+import DocumentDetail from "./pages/treasury/DocumentDetail.tsx";
+import Audit from "./pages/treasury/Audit.tsx";
+import { Years, YearDetail } from "./pages/treasury/Years.tsx";
+import YearPicker from "./components/treasury/YearPicker.tsx";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +97,27 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          <Route path="/tesoreria" element={<TreasuryGuard />}>
+            <Route index element={<TreasuryDashboard />} />
+            <Route path="movimenti" element={<Movements />} />
+            <Route path="movimenti/nuovo" element={<MovementForm />} />
+            <Route path="movimenti/:id" element={<MovementDetail />} />
+            <Route path="movimenti/:id/modifica" element={<MovementForm key="edit" />} />
+            <Route path="quote" element={<YearPicker section="quote" title="Quote soci" />} />
+            <Route path="quote/:anno" element={<QuoteYear />} />
+            <Route path="quote/:anno/impostazioni" element={<FeeSettings />} />
+            <Route path="quote/:anno/soci/:id" element={<MemberForm />} />
+            <Route path="budget" element={<YearPicker section="budget" title="Budget" />} />
+            <Route path="budget/:anno" element={<BudgetYear />} />
+            <Route path="rendiconto" element={<YearPicker section="rendiconto" title="Rendiconto" />} />
+            <Route path="rendiconto/:anno" element={<ReportYear />} />
+            <Route path="documenti" element={<Documents />} />
+            <Route path="documenti/:id" element={<DocumentDetail />} />
+            <Route path="audit" element={<Audit />} />
+            <Route path="esercizi" element={<Years />} />
+            <Route path="esercizi/:anno" element={<YearDetail />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
