@@ -142,19 +142,19 @@ CREATE POLICY tal_read ON public.treasury_audit_log FOR SELECT TO authenticated 
 
 CREATE OR REPLACE FUNCTION public.treasury_audit()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE _op text;
+DECLARE _op text; _new jsonb; _old jsonb;
 BEGIN
+  -- Columns are read only through jsonb: this function is shared by tables with
+  -- different shapes (deleted_at exists only on movements, fiscal years have no id).
+  _new := CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END;
+  _old := CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END;
   _op := CASE TG_OP WHEN 'INSERT' THEN 'create' WHEN 'DELETE' THEN 'delete' ELSE 'update' END;
-  -- deleted_at exists only on treasury_transactions: read it via to_jsonb so this
-  -- function also compiles on tables without that column (budgets, members, years).
   IF TG_OP = 'UPDATE' AND TG_TABLE_NAME = 'treasury_transactions'
-     AND (to_jsonb(NEW) ->> 'deleted_at') IS NOT NULL AND (to_jsonb(OLD) ->> 'deleted_at') IS NULL THEN _op := 'delete'; END IF;
+     AND (_new ->> 'deleted_at') IS NOT NULL AND (_old ->> 'deleted_at') IS NULL THEN
+    _op := 'delete';
+  END IF;
   INSERT INTO public.treasury_audit_log (table_name, record_id, operation, old_data, new_data, changed_by)
-  VALUES (TG_TABLE_NAME,
-          CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END, _op,
-          CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE to_jsonb(OLD) END,
-          CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE to_jsonb(NEW) END,
-          auth.uid());
+  VALUES (TG_TABLE_NAME, NULLIF(COALESCE(_new, _old) ->> 'id', '')::uuid, _op, _old, _new, auth.uid());
   RETURN COALESCE(NEW, OLD);
 END $$;
 CREATE TRIGGER treasury_tx_audit AFTER INSERT OR UPDATE ON public.treasury_transactions FOR EACH ROW EXECUTE FUNCTION public.treasury_audit();
