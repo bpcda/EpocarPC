@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.treasury_fee_schedules (
   created_by uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   superseded_at timestamptz,
-  superseded_by uuid REFERENCES public.treasury_fee_schedules(id),
+  superseded_by uuid REFERENCES public.treasury_fee_schedules(id) DEFERRABLE INITIALLY DEFERRED,
   CHECK (NOT exempt OR amount = 0)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS treasury_fee_current_uq ON public.treasury_fee_schedules (fiscal_year, category) WHERE superseded_at IS NULL;
@@ -91,16 +91,11 @@ BEGIN
   SELECT id INTO _old FROM public.treasury_fee_schedules WHERE fiscal_year = _year AND category = _category AND superseded_at IS NULL FOR UPDATE;
   _new := gen_random_uuid();
   IF _old IS NOT NULL THEN
-    UPDATE public.treasury_fee_schedules SET superseded_at = now(), superseded_by = NULL WHERE id = _old;
+    UPDATE public.treasury_fee_schedules SET superseded_at = now(), superseded_by = _new WHERE id = _old;
   END IF;
   INSERT INTO public.treasury_fee_schedules (id, fiscal_year, category, amount, exempt, resolution_number, resolution_date, document_path, document_name, notes, created_by)
   VALUES (_new, _year, _category, CASE WHEN _exempt THEN 0 ELSE _amount END, _exempt, NULLIF(trim(_resolution_number),''), _resolution_date,
           NULLIF(_document_path,''), NULLIF(_document_name,''), NULLIF(trim(_notes),''), auth.uid());
-  IF _old IS NOT NULL THEN
-    ALTER TABLE public.treasury_fee_schedules DISABLE TRIGGER treasury_fee_immutable;
-    UPDATE public.treasury_fee_schedules SET superseded_by = _new WHERE id = _old;
-    ALTER TABLE public.treasury_fee_schedules ENABLE TRIGGER treasury_fee_immutable;
-  END IF;
   RETURN _new;
 END $$;
 REVOKE ALL ON FUNCTION public.treasury_set_fee(integer,text,numeric,boolean,text,date,text,text,text) FROM PUBLIC, anon;
