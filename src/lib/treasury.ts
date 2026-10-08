@@ -19,6 +19,7 @@ export const transactionSchema = z.object({
   amount: num, payment_method: z.string(), account: z.string(), event_id: z.string().nullable(), member_id: z.string().nullable(),
   document_number: z.string().nullable(), document_date: z.string().nullable(), attachment_path: z.string().nullable(),
   attachment_name: z.string().nullable(), notes: z.string().nullable(), created_by: z.string(), created_at: z.string(),
+  updated_at: z.string().nullable().optional(), deleted_at: z.string().nullable().optional(),
 });
 export type Transaction = z.infer<typeof transactionSchema>;
 export const memberSchema = z.object({
@@ -34,7 +35,7 @@ export const feeSchema = z.object({
   document_name: z.string().nullable(), notes: z.string().nullable(), created_by: z.string(), created_at: z.string(), superseded_at: z.string().nullable(),
 });
 export type Fee = z.infer<typeof feeSchema>;
-export type FiscalYear = { year: number; status: "open" | "closed" };
+export type FiscalYear = { year: number; status: "open" | "closed"; created_at?: string | null; closed_at?: string | null };
 
 export const transactionInput = z.object({
   transaction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data obbligatoria"),
@@ -85,7 +86,7 @@ async function fetchAll<T>(q: () => { range: (a: number, b: number) => PromiseLi
 
 export async function loadTreasury(year: number) {
   const [years, tx, members, budgets, events, fees] = await Promise.all([
-    treasuryClient.from("treasury_fiscal_years").select("year,status").order("year"),
+    treasuryClient.from("treasury_fiscal_years").select("year,status,created_at,closed_at").order("year"),
     fetchAll(() => treasuryClient.from("treasury_transactions").select("*").eq("fiscal_year", year).is("deleted_at", null).order("transaction_date").order("created_at").order("id")),
     fetchAll(() => treasuryClient.from("association_members").select("*").order("full_name").order("id")),
     treasuryClient.from("treasury_budgets").select("*").eq("fiscal_year", year),
@@ -277,4 +278,45 @@ export async function exportReport(data: TreasuryData, year: number) {
   a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return name;
+}
+
+/* ── Single records, audit log and per-year totals (dedicated treasury pages) ── */
+export async function loadTransaction(id: string) {
+  const { data, error } = await treasuryClient.from("treasury_transactions").select("*").eq("id", id).maybeSingle();
+  fail(error, "Movimento non disponibile");
+  return data ? transactionSchema.parse(data) : null;
+}
+
+export const auditSchema = z.object({
+  id: z.string().uuid(), table_name: z.string(), record_id: z.string().nullable(), operation: z.enum(["create", "update", "delete"]),
+  old_data: z.record(z.unknown()).nullable(), new_data: z.record(z.unknown()).nullable(), changed_by: z.string().nullable(), created_at: z.string(),
+});
+export type AuditEntry = z.infer<typeof auditSchema>;
+export const AUDIT_PAGE = 25;
+export async function loadAudit(opts: { table?: string; recordId?: string; page?: number }) {
+  const page = Math.max(1, opts.page ?? 1);
+  let q = treasuryClient.from("treasury_audit_log").select("*", { count: "exact" }).order("created_at", { ascending: false }).order("id");
+  if (opts.table) q = q.eq("table_name", opts.table);
+  if (opts.recordId) q = q.eq("record_id", opts.recordId);
+  const { data, error, count } = await q.range((page - 1) * AUDIT_PAGE, page * AUDIT_PAGE - 1);
+  fail(error, "Registro modifiche non disponibile");
+  return { rows: z.array(auditSchema).parse(data ?? []), total: count ?? 0 };
+}
+
+export async function loadYearTotals() {
+  const r = await fetchAll(() => treasuryClient.from("treasury_transactions").select("fiscal_year,type,amount").is("deleted_at", null).order("id"));
+  fail(r.error, "Totali non disponibili");
+  const out = new Map<number, { count: number; inc: number; out: number }>();
+  for (const t of (r.data ?? []) as { fiscal_year: number; type: string; amount: number | string }[]) {
+    const o = out.get(t.fiscal_year) ?? { count: 0, inc: 0, out: 0 };
+    o.count++; if (t.type === "Entrata") o.inc += Number(t.amount); else o.out += Number(t.amount);
+    out.set(t.fiscal_year, o);
+  }
+  return out;
+}
+
+export async function receiptUrl(path: string) {
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
+  if (error || !data) throw new Error("Documento non disponibile");
+  return data.signedUrl;
 }
