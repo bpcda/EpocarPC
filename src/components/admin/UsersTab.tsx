@@ -171,7 +171,7 @@ export default function UsersTab() {
                           return <div key={group} className="flex gap-2 flex-wrap items-center">
                             <span className="text-[10px] uppercase text-muted-foreground w-16">{group}</span>
                             {list.map(([role, label]) => { const active = r.roles.includes(role); return <RoleToggle key={role} label={label.toLowerCase()} active={active}
-                              disabled={(lockSelf && isSelf) || (!!categoryTaken && categoryTaken !== role)}
+                              disabled={(lockSelf && isSelf && role === "admin") || (!!categoryTaken && categoryTaken !== role)}
                               loading={updating === `${r.user_id}:${role}`}
                               onClick={() => setPending({ userId: r.user_id, role, grant: !active, label: fullName })} />; })}
                           </div>;
@@ -251,7 +251,7 @@ function RoleToggle({
       type="button"
       disabled={disabled || loading}
       onClick={onClick}
-      title={disabled ? "Non modificabile: è il tuo ruolo di sistema o c’è già un’altra categoria socio" : active ? "Clicca per revocare" : "Clicca per assegnare"}
+      title={disabled ? "Non modificabile: non puoi togliere a te stesso il ruolo admin, oppure c’è già un’altra categoria socio" : active ? "Clicca per revocare" : "Clicca per assegnare"}
       className={`text-xs uppercase tracking-wider px-2 py-1 border transition-colors ${
         active
           ? "bg-accent text-accent-foreground border-accent"
