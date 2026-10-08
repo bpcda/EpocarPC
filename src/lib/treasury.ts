@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { TEMPLATE_ACCOUNTS, TEMPLATE_CODES, TEMPLATE_LIMITS, TEMPLATE_METHODS } from "./treasury-template-lists";
-import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, EXCEL_FEE_CELLS, loadTemplate, type CellWrites } from "./treasury-excel";
+import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, EXCEL_FEE_CELLS, loadTemplate, type CellWrites, type FormulaResults } from "./treasury-excel";
 
 // External-instance schema (public/setup/treasury.sql); managed types are not edited.
 export const treasuryClient: SupabaseClient = supabase;
@@ -315,8 +315,21 @@ export async function buildExportWrites(data: TreasuryData): Promise<CellWrites>
   return { Movimenti: mov, "Quote Soci": quote, "Budget Previsionale": budget, Liste: fees } as CellWrites;
 }
 
+/** Cached values make the formula columns visible even in viewers that do not recalculate workbooks. */
+export function buildExportFormulaResults(data: TreasuryData): FormulaResults {
+  const cells: Record<string, string | number> = {};
+  memberDues(data, 0).forEach((d, i) => {
+    const row = EXCEL_MAPPING["Quote Soci"].firstRow + i;
+    cells[`E${row}`] = d.due;
+    cells[`F${row}`] = d.paid;
+    cells[`G${row}`] = d.residual;
+    cells[`I${row}`] = d.residual === 0 ? "Regolare" : "Da incassare";
+  });
+  return { "Quote Soci": cells };
+}
+
 export async function exportReport(data: TreasuryData, year: number) {
-  const blob = await buildWorkbook(await buildExportWrites(data));
+  const blob = await buildWorkbook(await buildExportWrites(data), buildExportFormulaResults(data));
   const d = new Date(), p = (n: number) => String(n).padStart(2, "0");
   const name = `EPOCAR_Tesoreria_Rendiconto_${year}_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}.xlsx`;
   const url = URL.createObjectURL(blob), a = document.createElement("a");

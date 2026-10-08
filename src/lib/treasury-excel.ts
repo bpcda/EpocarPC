@@ -11,6 +11,7 @@ export const TEMPLATE_URL = "/templates/EPOCAR_Tesoreria_Rendiconto_template.xls
 
 export type CellValue = string | number | Date | null | undefined;
 export type CellWrites = Record<string, Record<string, CellValue>>; // sheet name -> ref -> value
+export type FormulaResults = Record<string, Record<string, string | number>>;
 
 export const EXCEL_FEE_CELLS = { Fondatore: "L2", Ordinario: "L3", Sostenitore: "L4", Onorario: "L5" } as const;
 
@@ -108,6 +109,18 @@ function writeFeeCell(xml: string, ref: string, value: CellValue): string {
   return xml.replace(match[0], `<c r="${ref}"${match[1]}><v>${value}</v></c>`);
 }
 
+/** Updates only a formula's cached result, leaving the formula itself byte-identical. */
+function writeFormulaResult(xml: string, ref: string, value: string | number): string {
+  const re = new RegExp(`<c r="${ref}"((?: [a-zA-Z:]+="[^"]*")*)>(?:(?!</c>).)*</c>`, "s");
+  const match = xml.match(re);
+  if (!match || !/<f[^>]*?(?:\/>|>(?:(?!<\/f>).)*<\/f>)/s.test(match[0])) throw new Error(`Formula ${ref} non trovata nel template`);
+  const attrs = match[1].replace(/ t="[^"]*"/g, "");
+  const body = match[0].slice(match[0].indexOf(">") + 1, -4);
+  const cached = typeof value === "number" ? `<v>${value}</v>` : `<v>${esc(value)}</v>`;
+  const updatedBody = /<v>[^<]*<\/v>/.test(body) ? body.replace(/<v>[^<]*<\/v>/, cached) : `${body}${cached}`;
+  return xml.replace(match[0], `<c r="${ref}"${attrs}${typeof value === "string" ? ' t="str"' : ""}>${updatedBody}</c>`);
+}
+
 async function sharedStrings(zip: JSZip): Promise<string[]> {
   const f = zip.file("xl/sharedStrings.xml");
   if (!f) return [];
@@ -137,11 +150,11 @@ export async function loadTemplate(): Promise<{ zip: JSZip; bytes: ArrayBuffer }
 }
 
 /** Copies the template, writes inputs/yearly fee values and verifies formulas are byte-identical. */
-export async function buildWorkbook(writes: CellWrites): Promise<Blob> {
-  return new Blob([await buildWorkbookBytes(writes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+export async function buildWorkbook(writes: CellWrites, formulaResults: FormulaResults = {}): Promise<Blob> {
+  return new Blob([await buildWorkbookBytes(writes, formulaResults)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 
-export async function buildWorkbookBytes(writes: CellWrites): Promise<ArrayBuffer> {
+export async function buildWorkbookBytes(writes: CellWrites, formulaResults: FormulaResults = {}): Promise<ArrayBuffer> {
   const { bytes } = await loadTemplate();
   const original = await JSZip.loadAsync(bytes);
   const copy = await JSZip.loadAsync(bytes);
@@ -175,6 +188,20 @@ export async function buildWorkbookBytes(writes: CellWrites): Promise<ArrayBuffe
     copy.file(path, xml);
   }
 
+  for (const [sheet, cells] of Object.entries(formulaResults)) {
+    if (sheet !== "Quote Soci") throw new Error(`Risultati formula non consentiti nel foglio ${sheet}`);
+    const path = files[sheet];
+    let xml = await copy.file(path)!.async("string");
+    for (const [ref, value] of Object.entries(cells)) {
+      const col = ref.replace(/\d+/g, ""), row = Number(ref.replace(/\D+/g, ""));
+      if (!["E", "F", "G", "I"].includes(col) || row < EXCEL_MAPPING["Quote Soci"].firstRow || row > EXCEL_MAPPING["Quote Soci"].lastRow || !before.has(`${sheet}!${ref}`)) {
+        throw new Error(`Risultato formula non consentito in ${sheet}!${ref}`);
+      }
+      xml = writeFormulaResult(xml, ref, value);
+    }
+    copy.file(path, xml);
+  }
+
   // Ask Excel to recompute the accountant's formulas on open (no formula is changed).
   const wbXml = await copy.file("xl/workbook.xml")!.async("string");
   copy.file("xl/workbook.xml", wbXml.replace(/<calcPr(?![^>]*fullCalcOnLoad)([^>]*?)\/>/, '<calcPr$1 fullCalcOnLoad="1"/>'));
@@ -185,7 +212,7 @@ export async function buildWorkbookBytes(writes: CellWrites): Promise<ArrayBuffe
   const names = (z: JSZip) => Object.values(z.files).filter((f) => !f.dir).map((f) => f.name).sort().join("|");
   const origNames = names(original), newNames = names(reloaded);
   if (origNames !== newNames) diffs.push("Struttura del file diversa dal template");
-  const touched = new Set([...Object.keys(writes).map((s) => files[s]), "xl/workbook.xml"]);
+  const touched = new Set([...Object.keys(writes).map((s) => files[s]), ...Object.keys(formulaResults).map((s) => files[s]), "xl/workbook.xml"]);
   for (const name of Object.keys(original.files)) {
     if (touched.has(name) || original.files[name].dir) continue;
     const [a, b] = await Promise.all([original.file(name)!.async("uint8array"), reloaded.file(name)!.async("uint8array")]);
