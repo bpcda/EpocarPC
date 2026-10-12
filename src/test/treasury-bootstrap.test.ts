@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 
 const sql = readFileSync("setup/treasury-bootstrap-v11.sql", "utf8");
 const fn = readFileSync("supabase/functions/treasury-sync/index.ts", "utf8");
-const list = sql.slice(sql.indexOf("FUNCTION public.treasury_sync_bootstrap_members("), sql.indexOf("-- Acknowledge"));
+const list = sql.slice(sql.indexOf("FUNCTION public.treasury_sync_bootstrap_members("), sql.indexOf("-- Acknowledge import"));
 
 describe("bootstrap existing members", () => {
   it("lists members from category roles, with board roles kept separate from technical roles", () => {
