@@ -132,3 +132,33 @@ Risposta `200`:
 ## Polling consigliato
 
 Ogni 5–15 minuti: `pending` → `review` → decisione del CD → `approve`/`reject`; poi `member_update` quando cambiano tessera, quota o stato. Se la Tesoreria è offline, il sito continua a funzionare e le domande restano `submitted`.
+
+## BOOTSTRAP EXISTING MEMBERS
+
+Soci già configurati sul sito (Dashboard → Utenti, ruolo categoria Fondatore/Ordinario/Sostenitore) **prima** del workflow domande. Non hanno una `membership_applications` e non devono compilarla. Richiede `setup/treasury-bootstrap-v11.sql`.
+
+**Fonte reale:** `public.user_roles` (una riga per ruolo) + `public.profiles` (nome) + account (email). Categoria = ruolo `founder|ordinary|supporter`; cariche del Consiglio = ruoli `president|vice_president|secretary|treasurer|councillor` (cariche associative, distinte dai ruoli tecnici `admin|staff|user`, che non vengono mai inviati). Esclusi gli utenti che hanno già una domanda inviata (passano dal flusso normale).
+
+**Identificatore stabile:** `external_member_id` = UUID dell'account sul sito. Mai l'email.
+
+### Elenco — `GET {BASE_URL}?action=bootstrap_members[&limit=50][&cursor=<external_member_id>]`
+
+Stessa autenticazione (Bearer + `X-Treasury-Timestamp`). Sola lettura, ripetibile senza effetti.
+
+```json
+{ "ok": true, "request_id": "…", "next_cursor": null, "members": [{
+  "external_member_id": "uuid", "user_id": "uuid", "first_name": "Mario", "last_name": "Rossi", "full_name": "Mario Rossi",
+  "email": "mario@example.it", "category": "Fondatore", "board_roles": ["vice_president","treasurer"],
+  "admission_date": null, "card_number": null, "treasury_member_id": null, "acknowledged_at": null,
+  "account_created_at": "2026-03-01T10:00:00Z" }] }
+```
+
+`admission_date` e `card_number` sono valorizzati solo se già assegnati dalla Tesoreria; altrimenti `null` (mai inventati). `account_created_at` è la data dell'account, **non** la data di ammissione. Nessuna quota, delibera o stato pagamento: non esistono sul sito.
+
+### Acknowledgement — `POST {BASE_URL}?action=bootstrap_ack`
+
+Header `Idempotency-Key` obbligatorio. Corpo: `{ "external_member_id": "uuid", "treasury_member_id": "uuid" }`.
+
+Registra il collegamento senza cambiare l'id originario e senza toccare ruoli, profili o domande. Risposta: `{ "ok": true, "result": "applied"|"noop", "external_member_id", "treasury_member_id", "replayed" }`. Stessa coppia → `noop`; altro `treasury_member_id` per lo stesso socio, o `treasury_member_id` già usato → `409 conflict`; socio inesistente → `404 not_found`.
+
+Dopo l'ack, `member_update` con quel `treasury_member_id` aggiorna l'Area Socio. Finché la tessera non è assegnata, la categoria già presente sul sito resta.

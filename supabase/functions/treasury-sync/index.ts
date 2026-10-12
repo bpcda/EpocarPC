@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const MAX_SKEW_MS = 300_000;
 const RATE_LIMIT_PER_MIN = 120;
-const WRITE_ACTIONS = new Set(["review", "approve", "reject", "cancel", "member_update"]);
+const WRITE_ACTIONS = new Set(["review", "approve", "reject", "cancel", "member_update", "bootstrap_ack"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const json = (status: number, body: unknown, requestId: string) =>
@@ -90,6 +90,27 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, request_id: requestId, applications, next_cursor }, requestId);
     }
 
+    // 3b) Pre-existing members (from user roles, never from membership_applications). Read-only.
+    if (action === "bootstrap_members") {
+      if (req.method !== "GET") return fail(405, "method_not_allowed", "Use GET for action=bootstrap_members", true);
+      const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 100);
+      const cursor = url.searchParams.get("cursor");
+      if (cursor && !UUID.test(cursor)) return fail(422, "invalid_request", "Invalid cursor", true);
+      const { data, error } = await db.rpc("treasury_sync_bootstrap_members", { _limit: limit, _after: cursor || null });
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      const members = rows.map((r) => ({
+        external_member_id: r.external_member_id, user_id: r.user_id, first_name: r.first_name ?? null, last_name: r.last_name ?? null,
+        full_name: r.full_name ?? null, email: r.email ?? null, category: r.category, board_roles: r.board_roles ?? [],
+        admission_date: r.admission_date ?? null, card_number: r.card_number ?? null,
+        treasury_member_id: r.treasury_member_id ?? null, acknowledged_at: r.acknowledged_at ?? null,
+        account_created_at: r.account_created_at ?? null,
+      }));
+      const next_cursor = rows.length === limit ? (rows[rows.length - 1].external_member_id as string) : null;
+      await log(200, true);
+      return json(200, { ok: true, request_id: requestId, members, next_cursor }, requestId);
+    }
+
     // 4) Decisions / member updates.
     if (!WRITE_ACTIONS.has(action)) return fail(400, "unknown_action", "Unknown action", true);
     if (req.method !== "POST") return fail(405, "method_not_allowed", "Use POST for write actions", true);
@@ -101,7 +122,15 @@ Deno.serve(async (req) => {
     for (const f of ["application_id", "treasury_member_id"] as const) {
       if (payload[f] != null && (typeof payload[f] !== "string" || !UUID.test(payload[f] as string))) return fail(422, "invalid_request", `${f} must be a UUID`, true);
     }
-    const { data, error } = await db.rpc("treasury_sync_apply", { _action: action, _idempotency_key: key, _request_id: requestId, _payload: payload });
+    if (payload.external_member_id != null && (typeof payload.external_member_id !== "string" || !UUID.test(payload.external_member_id))) return fail(422, "invalid_request", "external_member_id must be a UUID", true);
+    let rpc = "treasury_sync_apply";
+    let args: Record<string, unknown> = { _action: action, _idempotency_key: key, _request_id: requestId, _payload: payload };
+    if (action === "bootstrap_ack") { rpc = "treasury_sync_bootstrap_ack"; args = { _idempotency_key: key, _request_id: requestId, _payload: payload }; }
+    else if (action === "member_update" && typeof payload.treasury_member_id === "string") {
+      const { count: linked } = await db.from("treasury_bootstrap_links").select("treasury_member_id", { count: "exact", head: true }).eq("treasury_member_id", payload.treasury_member_id);
+      if ((linked ?? 0) > 0) { rpc = "treasury_sync_bootstrap_member_update"; args = { _idempotency_key: key, _request_id: requestId, _payload: payload }; }
+    }
+    const { data, error } = await db.rpc(rpc, args);
     if (error) {
       const [status, code] = sqlError(error.message);
       return fail(status, code, status === 500 ? "Unexpected error" : error.message, true);
