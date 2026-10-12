@@ -33,7 +33,7 @@ export const submissionSchema = z.object({
   resolution_ref: z.string().nullable().optional(), resolution_date: z.string().nullable().optional(), decision_notes: z.string().nullable().optional(), member_id: z.string().nullable().optional(),
 });
 /** Applicant-editable fields only: decisions and Treasury-governed data are never sent from the browser. */
-export const APPLICANT_FIELDS = ["full_name", "email", "file_path", "filename", "status", "requested_category"] as const;
+export const APPLICANT_FIELDS = ["full_name", "email", "file_path", "filename", "status", "requested_category", "first_name", "last_name", "birth_date", "birth_place", "tax_code", "phone", "address", "postal_code", "city", "province", "motivation", "applicant_notes", "statute_accepted_at", "regulation_accepted_at", "admission_requested_at", "rules_commitment_at", "privacy_accepted_at", "communications_consent_at", "declarations_version", "application_kind"] as const;
 export function applicantPayload(fields: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const k of APPLICANT_FIELDS) if (k in fields) out[k] = fields[k];
@@ -53,7 +53,7 @@ export const memberStatusSchema = z.object({
 export type MemberStatus = z.infer<typeof memberStatusSchema>;
 export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", ceased: "Non più socio" } as const;
 export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
-export const cardLabel = (n: number | null | undefined) => (n == null ? "Non ancora assegnata" : `n. ${n}`);
+export const cardLabel = (n: number | null | undefined) => (n == null ? "Tessera non ancora assegnata" : `n. ${n}`);
 export async function loadMyMembership(userId: string) {
   const [app, mem] = await Promise.all([
     associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
@@ -85,4 +85,73 @@ export async function downloadMembership(path: string, filename: string) {
   const url = URL.createObjectURL(data);
   const link = document.createElement("a"); link.href = url; link.download = filename; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+/* ---------- Domanda di ammissione elettronica (setup/membership-application-v7.sql) ---------- */
+export const DECLARATIONS_VERSION = "2026-10";
+export const REQUESTED_CATEGORIES = ["Ordinario", "Sostenitore"] as const;
+export const DECLARATIONS = [
+  { key: "statute_accepted_at", label: "Dichiaro di aver preso visione dello Statuto dell’Associazione EPOCAR.", required: true },
+  { key: "regulation_accepted_at", label: "Dichiaro di aver preso visione dell’eventuale Regolamento interno, ove adottato.", required: true },
+  { key: "admission_requested_at", label: "Chiedo formalmente di essere ammesso/a come socio dell’Associazione EPOCAR.", required: true },
+  { key: "rules_commitment_at", label: "Mi impegno a rispettare lo Statuto, i regolamenti e le deliberazioni degli organi associativi.", required: true },
+  { key: "privacy_accepted_at", label: "Dichiaro di aver letto l’informativa sul trattamento dei dati personali.", required: true },
+  { key: "communications_consent_at", label: "Acconsento a ricevere comunicazioni informative sulle attività dell’Associazione (facoltativo).", required: false },
+] as const;
+export type DeclarationKey = (typeof DECLARATIONS)[number]["key"];
+const req = (m: string, max: number) => z.string().trim().min(1, m).max(max, "Testo troppo lungo");
+export const personalStep = z.object({
+  first_name: req("Inserisci il nome", 60), last_name: req("Inserisci il cognome", 60),
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Inserisci la data di nascita").refine(d => { const t = Date.parse(d); return t >= Date.parse("1900-01-01") && t <= Date.now(); }, "Data non valida"),
+  birth_place: req("Inserisci il luogo di nascita", 80),
+  tax_code: z.string().trim().toUpperCase().regex(/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/, "Codice fiscale non valido"),
+  email: z.string().trim().email("Email non valida").max(255),
+  phone: z.string().trim().regex(/^\+?[0-9 ]{6,20}$/, "Telefono non valido"),
+  address: req("Inserisci l’indirizzo", 120),
+  postal_code: z.string().trim().regex(/^[0-9]{5}$/, "CAP di 5 cifre"),
+  city: req("Inserisci il comune", 80),
+  province: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Sigla di 2 lettere (es. PC)"),
+});
+export const associativeStep = z.object({
+  requested_category: z.enum(REQUESTED_CATEGORIES, { errorMap: () => ({ message: "Scegli la categoria" }) }),
+  motivation: z.string().trim().max(1000, "Massimo 1000 caratteri"),
+  applicant_notes: z.string().trim().max(1000, "Massimo 1000 caratteri"),
+});
+export const declarationsStep = z.object(Object.fromEntries(DECLARATIONS.map(d => [d.key, d.required ? z.literal(true, { errorMap: () => ({ message: "Dichiarazione obbligatoria" }) }) : z.boolean()])) as Record<DeclarationKey, z.ZodTypeAny>);
+export type ApplicationForm = z.infer<typeof personalStep> & z.infer<typeof associativeStep> & Record<DeclarationKey, boolean>;
+export const emptyForm = (): ApplicationForm => ({ first_name: "", last_name: "", birth_date: "", birth_place: "", tax_code: "", email: "", phone: "", address: "", postal_code: "", city: "", province: "", requested_category: "" as never, motivation: "", applicant_notes: "", statute_accepted_at: false, regulation_accepted_at: false, admission_requested_at: false, rules_commitment_at: false, privacy_accepted_at: false, communications_consent_at: false });
+/** Field errors keyed by field name, for inline messages. */
+export function stepErrors(schema: z.ZodTypeAny, values: unknown): Record<string, string> {
+  const r = schema.safeParse(values); if (r.success) return {};
+  const out: Record<string, string> = {}; for (const i of r.error.issues) { const k = String(i.path[0]); out[k] ??= i.message; } return out;
+}
+/** Row → form (draft resume). Declarations become checked only if the stored timestamp exists. */
+export function formFromRow(row: Record<string, unknown>, fallback: ApplicationForm): ApplicationForm {
+  const f = { ...fallback };
+  for (const k of Object.keys(f) as (keyof ApplicationForm)[]) {
+    const v = row[k];
+    if (DECLARATIONS.some(d => d.key === k)) (f as Record<string, unknown>)[k] = Boolean(v);
+    else if (typeof v === "string" && v) (f as Record<string, unknown>)[k] = v;
+  }
+  return f;
+}
+/** Form → applicant-only payload. Status is the only workflow field and only draft/submitted. Server sets submitted_at. */
+export function electronicPayload(f: ApplicationForm, status: "draft" | "submitted", previous?: Record<string, unknown> | null) {
+  const empty = (s: string) => (s.trim() ? s.trim() : null);
+  const now = new Date().toISOString();
+  const out: Record<string, unknown> = {
+    application_kind: "electronic", status, declarations_version: DECLARATIONS_VERSION,
+    full_name: `${f.first_name.trim()} ${f.last_name.trim()}`.trim() || "Bozza",
+    first_name: empty(f.first_name), last_name: empty(f.last_name), birth_date: f.birth_date || null, birth_place: empty(f.birth_place),
+    tax_code: empty(f.tax_code.toUpperCase()), email: f.email.trim(), phone: empty(f.phone), address: empty(f.address),
+    postal_code: empty(f.postal_code), city: empty(f.city), province: empty(f.province.toUpperCase()),
+    requested_category: f.requested_category || null, motivation: empty(f.motivation), applicant_notes: empty(f.applicant_notes),
+  };
+  for (const d of DECLARATIONS) out[d.key] = f[d.key] ? ((previous?.[d.key] as string | undefined) ?? now) : null;
+  // Draft values that fail DB format checks are dropped rather than blocking the save.
+  if (status === "draft") {
+    for (const k of ["tax_code", "phone", "postal_code", "province", "birth_date"] as const) {
+      const r = personalStep.shape[k].safeParse(out[k] ?? ""); if (!r.success) out[k] = null;
+    }
+  }
+  return out;
 }

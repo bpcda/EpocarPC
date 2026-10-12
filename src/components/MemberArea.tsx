@@ -39,17 +39,17 @@ export default function MemberArea({ userId }: { userId: string }) {
 
   if (!a || a.status === "draft") return (
     <section>
-      <h2 className={title}>Completa la tua domanda di iscrizione</h2>
-      <p className={text}>{a ? "Hai una bozza salvata: allega il modulo firmato e inviala." : "Non hai ancora presentato la domanda di ammissione all’associazione."}</p>
-      <Button variant="hero-primary" asChild><Link to="/associazione/iscrizione">{a ? "Riprendi la domanda" : "Presenta la domanda"}</Link></Button>
+      <h2 className={title}>{a ? "Domanda in bozza" : "Diventa socio"}</h2>
+      <p className={text}>{a ? "Hai una bozza salvata: completala e inviala quando sei pronto." : "Non hai ancora presentato la domanda di ammissione all’associazione."}</p>
+      <Button variant="hero-primary" asChild><Link to="/associazione/iscrizione">{a ? "Continua la domanda" : "Presenta domanda di ammissione"}</Link></Button>
     </section>
   );
 
   const states = {
-    submitted: ["Domanda ricevuta", `Inviata il ${fmt(a.submitted_at ?? a.created_at)}. La qualità di socio si acquisisce solo con l’approvazione del Consiglio Direttivo.`],
-    review: ["Domanda in valutazione", "Il Consiglio Direttivo sta esaminando la tua domanda."],
-    approved: ["Domanda approvata", "La tua ammissione è stata approvata. I dettagli della tessera compariranno qui appena registrati."],
-    rejected: ["Domanda non accolta", "Il Consiglio Direttivo non ha accolto la domanda."],
+    submitted: ["Domanda ricevuta", `Inviata il ${fmt(a.submitted_at ?? a.created_at)}. La domanda sarà esaminata secondo la procedura prevista: l’invio non attribuisce la qualità di socio.`],
+    review: ["In valutazione", "Il Consiglio Direttivo sta esaminando la tua domanda."],
+    approved: ["Domanda approvata", "La tua ammissione è stata approvata. I dati di socio compariranno qui appena registrati dalla Tesoreria."],
+    rejected: ["Domanda respinta", "Il Consiglio Direttivo non ha accolto la domanda."],
     cancelled: ["Domanda annullata", "La domanda è stata annullata."],
   } as const;
   const [h, p] = states[a.status];
