@@ -43,11 +43,9 @@ interface Article {
 }
 
 export default function AdminDashboard() {
-  const { user, isAdmin, isStaff, isTreasurer, canAccessTreasury, signOut } = useAuth();
+  const { user, isAdmin, isStaff, isTreasurer, signOut } = useAuth();
   const onlyTreasury = isTreasurer && !isAdmin && !isStaff;
   const navigate = useNavigate();
-  // Treasurer-only accounts have nothing else here: the treasury app lives at /tesoreria.
-  useEffect(() => { if (onlyTreasury) navigate("/tesoreria", { replace: true }); }, [onlyTreasury, navigate]);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -121,11 +119,6 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {canAccessTreasury && (
-          <Link to="/tesoreria" className="mb-6 flex items-center justify-between border border-border bg-card px-5 min-h-14 font-headline text-lg tracking-[0.15em] uppercase text-foreground hover:bg-muted/40">
-            Apri la Tesoreria <span aria-hidden>→</span>
-          </Link>
-        )}
         <Tabs defaultValue="events">
           <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
             {!onlyTreasury && <>
