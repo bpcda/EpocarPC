@@ -56,12 +56,27 @@ export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", 
 export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
 export const cardLabel = (n: number | null | undefined) => (n == null ? "Tessera non ancora assegnata" : `n. ${n}`);
 export async function loadMyMembership(userId: string) {
-  const [app, mem] = await Promise.all([
+  const [app, mem, roles] = await Promise.all([
     associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
     associationClient.from("member_public_status").select("membership_status,category,card_number,admission_date,membership_year,fee_status,updated_at").eq("user_id", userId).maybeSingle(),
+    associationClient.from("user_roles").select("role").eq("user_id", userId),
   ]);
   if (app.error) throw new Error("Area socio non disponibile.");
-  return { application: app.data ? submissionSchema.parse(app.data) : null, member: !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null };
+  const r = (roles.data ?? []).map((x: { role: string }) => String(x.role));
+  const category = (Object.keys(CATEGORY_ROLES) as (keyof typeof CATEGORY_ROLES)[]).find(k => r.includes(k));
+  const board = (Object.keys(BOARD_ROLES) as (keyof typeof BOARD_ROLES)[]).filter(k => r.includes(k)).map(k => BOARD_ROLES[k]);
+  return {
+    application: app.data ? submissionSchema.parse(app.data) : null,
+    member: !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null,
+    /** Category held on the site (e.g. founders admitted before the online flow). Shown only when no Treasury projection exists. */
+    roleCategory: category ? CATEGORY_ROLES[category] : null,
+    board,
+  };
+}
+export async function loadMyRegistrations(userId: string) {
+  const { data, error } = await supabase.from("event_registrations").select("id,created_at,events(id,title,date,location)").eq("user_id", userId).order("created_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []) as unknown as { id: string; created_at: string; events: { id: string; title: string; date: string | null; location: string | null } | null }[];
 }
 export type Submission = z.infer<typeof submissionSchema>;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
