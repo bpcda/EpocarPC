@@ -40,6 +40,8 @@ const emptyVehicle: Omit<Vehicle, "id"> = {
 export default function Account() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   const [profile, setProfile] = useState<Profile>({
     first_name: "", last_name: "", city: "", phone: "", avatar_url: null,
