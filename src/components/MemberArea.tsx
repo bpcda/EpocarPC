@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { cardLabel, FEE_STATUS, loadMyMembership, MEMBERSHIP_STATUS } from "@/lib/association";
+import { supabase } from "@/integrations/supabase/client";
+import { cardLabel, FEE_STATUS, loadAssociation, loadMyMembership, loadMyRegistrations, MEMBERSHIP_STATUS, publicAssociationFile } from "@/lib/association";
 
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("it-IT") : null);
+const panel = "border border-primary-foreground/20 p-6";
+const h3 = "font-headline text-2xl tracking-wider text-primary-foreground mb-4";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -14,27 +17,91 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Area Socio: shows the applicant's own status. Every membership fact comes from the Treasury sync. */
+function MemberDashboard({ userId, name, category, status, card, admission, feeLabel, fee, board, note }: {
+  userId: string; name: string; category: string; status: string; card: number | null; admission: string | null;
+  feeLabel: string; fee: string | null; board: string[]; note?: string | null;
+}) {
+  const docs = useQuery({ queryKey: ["association-docs"], queryFn: loadAssociation, retry: false });
+  const regs = useQuery({ queryKey: ["my-registrations", userId], queryFn: () => loadMyRegistrations(userId) });
+  const statute = docs.data?.documents.find((d) => d.kind === "statute");
+  const now = Date.now();
+  const upcoming = (regs.data ?? []).filter((r) => r.events && (!r.events.date || new Date(r.events.date).getTime() >= now));
+  const past = (regs.data ?? []).filter((r) => r.events?.date && new Date(r.events.date).getTime() < now);
+
+  return (
+    <div className="space-y-6">
+      {/* Tessera digitale */}
+      <section aria-labelledby="tessera" className="bg-primary-foreground text-foreground p-6 md:p-8 max-w-xl">
+        <p className="text-xs uppercase tracking-[0.3em] opacity-70">Epocar · Tessera socio</p>
+        <h2 id="tessera" className="font-headline text-4xl tracking-wider mt-2">{name}</h2>
+        <div className="grid grid-cols-2 gap-4 mt-6 text-sm">
+          <div><p className="uppercase tracking-widest opacity-60 text-xs">Categoria</p><p className="font-medium">{category}</p></div>
+          <div><p className="uppercase tracking-widest opacity-60 text-xs">Tessera</p><p className="font-medium">{cardLabel(card)}</p></div>
+          <div><p className="uppercase tracking-widest opacity-60 text-xs">Stato</p><p className="font-medium">{status}</p></div>
+          <div><p className="uppercase tracking-widest opacity-60 text-xs">Ammissione</p><p className="font-medium">{fmt(admission) ?? "—"}</p></div>
+        </div>
+        {board.length > 0 && <p className="mt-6 text-xs uppercase tracking-widest">Consiglio Direttivo · {board.join(", ")}</p>}
+      </section>
+      {note && <p className="text-primary-foreground/75">{note}</p>}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <section className={panel}>
+          <h3 className={h3}>{feeLabel}</h3>
+          <p className="text-primary-foreground text-lg">{fee ?? "Stato non ancora disponibile"}</p>
+          <p className="text-primary-foreground/60 text-sm mt-2">Lo stato della quota è aggiornato dalla Tesoreria dopo la registrazione del versamento.</p>
+        </section>
+
+        <section className={panel}>
+          <h3 className={h3}>Documenti</h3>
+          {statute ? (
+            <a className="underline text-primary-foreground" href={publicAssociationFile("association-documents", statute.path)} target="_blank" rel="noreferrer">Statuto ({statute.filename})</a>
+          ) : <p className="text-primary-foreground/60">Statuto non ancora pubblicato.</p>}
+          <p className="mt-3"><Link to="/associazione" className="underline text-primary-foreground/80">Pagina Associazione</Link></p>
+        </section>
+
+        <section className={panel}>
+          <h3 className={h3}>I miei eventi</h3>
+          {regs.isLoading ? <p className="text-primary-foreground/60">Caricamento…</p> : upcoming.length === 0 ? (
+            <p className="text-primary-foreground/60 mb-3">Nessuna iscrizione a eventi in programma.</p>
+          ) : (
+            <ul className="space-y-2 mb-3">{upcoming.map((r) => <li key={r.id} className="text-primary-foreground">{r.events!.title}{r.events!.date ? ` · ${fmt(r.events!.date)}` : ""}</li>)}</ul>
+          )}
+          {past.length > 0 && <p className="text-primary-foreground/60 text-sm mb-3">Eventi a cui hai partecipato: {past.length}</p>}
+          <Link to="/eventi" className="underline text-primary-foreground/80">Vedi tutti gli eventi</Link>
+        </section>
+
+        <section className={panel}>
+          <h3 className={h3}>Contatti</h3>
+          <p className="text-primary-foreground/75 mb-4">Cambio di residenza, di veicolo o ricevuta di un bonifico: scrivi alla segreteria.</p>
+          <Button variant="hero-primary" asChild><a href={`mailto:epocarpc@gmail.com?subject=${encodeURIComponent(`Socio ${name}${card ? ` (tessera n. ${card})` : ""}`)}`}>Scrivi alla segreteria</a></Button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+/** Area Socio. Every membership fact comes from the Treasury sync; site category roles cover members admitted before the online flow. */
 export default function MemberArea({ userId }: { userId: string }) {
+  const u = useQuery({ queryKey: ["me-user"], queryFn: async () => (await supabase.auth.getUser()).data.user, retry: false });
+  const user = u.data;
   const q = useQuery({ queryKey: ["my-membership", userId], queryFn: () => loadMyMembership(userId), refetchOnWindowFocus: true });
   if (q.isLoading) return <p role="status" className="text-primary-foreground/70">Caricamento…</p>;
   if (q.error || !q.data) return <p className="text-primary-foreground/70">L’Area Socio non è al momento disponibile. Riprova più tardi.</p>;
-  const { application: a, member: m } = q.data;
+  const { application: a, member: m, roleCategory, board } = q.data;
+  const meta = (user?.user_metadata ?? {}) as Record<string, string>;
+  const name = a?.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(" ") || meta.full_name || user?.email || "Socio";
   const title = "font-headline text-3xl tracking-wider text-primary-foreground mb-3";
   const text = "text-primary-foreground/75 mb-6";
 
   if (m) return (
-    <section aria-labelledby="socio-title">
-      <h2 id="socio-title" className={title}>{MEMBERSHIP_STATUS[m.membership_status]}</h2>
-      <dl className="max-w-xl">
-        <Row label="Stato" value={MEMBERSHIP_STATUS[m.membership_status]} />
-        <Row label="Categoria" value={m.category} />
-        <Row label="Tessera" value={cardLabel(m.card_number)} />
-        {m.admission_date && <Row label="Data di ammissione" value={fmt(m.admission_date)!} />}
-        {m.fee_status && <Row label={m.membership_year ? `Quota ${m.membership_year}` : "Quota annuale"} value={FEE_STATUS[m.fee_status]} />}
-      </dl>
-      {a?.public_status_message && <p className="text-primary-foreground/75 mt-6">{a.public_status_message}</p>}
-    </section>
+    <MemberDashboard userId={userId} name={name} category={m.category} status={MEMBERSHIP_STATUS[m.membership_status]}
+      card={m.card_number} admission={m.admission_date} board={board} note={a?.public_status_message}
+      feeLabel={m.membership_year ? `Quota ${m.membership_year}` : "Quota annuale"} fee={m.fee_status ? FEE_STATUS[m.fee_status] : null} />
+  );
+
+  if (roleCategory) return (
+    <MemberDashboard userId={userId} name={name} category={roleCategory} status="Socio" card={null} admission={null}
+      board={board} feeLabel="Quota annuale" fee={null} />
   );
 
   if (!a || a.status === "draft") return (
