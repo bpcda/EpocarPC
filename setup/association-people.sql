@@ -1,5 +1,5 @@
 -- Epocar: fondatori, categorie soci e consiglio direttivo dai ruoli utente.
--- rev. 3 (rieseguibile, foto visibili a tutti). Se non vedi "rev. 2" stai usando una copia vecchia.
+-- rev. 3 (rieseguibile, foto visibili a tutti). Se non vedi "rev. 3" stai usando una copia vecchia.
 -- Execute in your external instance SQL editor, AFTER association.sql. Safe to re-run.
 -- New enum values must be committed before use, so they run outside the transaction.
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'founder';
