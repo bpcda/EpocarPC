@@ -63,7 +63,7 @@ export default function Associazione() {
       </section>
       <section className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         <p className="text-sm text-primary-foreground/60 mb-3">04 / Partecipare</p><h2 className="text-5xl md:text-6xl mb-5">Diventa socio</h2>
-        <p className="max-w-xl leading-relaxed text-primary-foreground/75 mb-8">Un passo in più nella community Epocar. Le richieste di adesione si apriranno quando saranno disponibili lo statuto e il modulo di iscrizione.</p>
+        <p className="max-w-xl leading-relaxed text-primary-foreground/75 mb-8">Un passo in più nella community Epocar. Puoi presentare online la domanda di ammissione: la compili in pochi passaggi e la salvi come bozza quando vuoi.</p>
         <Button variant="hero-primary" asChild><Link to="/associazione/iscrizione">Adesione all’associazione <ArrowUpRight /></Link></Button>
       </section>
     </main><Footer />

@@ -46,10 +46,13 @@ export default function Adesione() {
   const [sending, setSending] = useState(false);
   const busy = useRef(false);
 
+  const [reload, setReload] = useState(0);
+  const [started, setStarted] = useState(false);
   useEffect(() => {
     if (authLoading) return; let active = true; setLoading(true); setUnavailable(false); setSubmission(null); setRow(null);
     Promise.all([
-      loadAssociation(),
+      // Documents are optional: their absence never blocks the electronic application.
+      loadAssociation().catch((e) => { console.error("[Adesione] documenti non disponibili", e); return { documents: [] as AssociationDocument[] }; }),
       user ? associationClient.from("membership_applications").select("*").eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       user ? supabase.from("profiles").select("first_name,last_name,phone,city").eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]).then(([materials, application, profile]) => {
@@ -59,24 +62,24 @@ export default function Adesione() {
       const data = application.data as Row | null;
       setRow(data); setSubmission(data ? submissionSchema.parse(data) : null);
       setForm(data?.status === "draft" ? formFromRow(data, base) : base);
-    }).catch(() => { if (active) setUnavailable(true); }).finally(() => { if (active) setLoading(false); });
+    }).catch((e) => { console.error("[Adesione] lettura domanda non riuscita", e); if (active) setUnavailable(true); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, reload]);
 
   const statute = docs.find(d => d.kind === "statute");
   const moduleDoc = docs.find(d => d.kind === "membership_form");
-  const ready = Boolean(statute && moduleDoc && !unavailable);
+  const ready = !unavailable;
   const isDraft = submission?.status === "draft";
   const set = (k: keyof ApplicationForm, v: string | boolean) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => { const n = { ...e }; delete n[k]; return n; }); };
 
   async function persist(status: "draft" | "submitted") {
-    if (!user || !statute || !moduleDoc || busy.current || (submission && !isDraft)) return false;
+    if (!user || busy.current || (submission && !isDraft)) return false;
     busy.current = true; setSending(true);
     try {
       const fields = applicantPayload(electronicPayload(form, status, row));
       const result = isDraft
         ? await associationClient.from("membership_applications").update(fields).eq("id", submission!.id).eq("status", "draft").select("*").single()
-        : await associationClient.from("membership_applications").insert({ user_id: user.id, ...fields, acknowledged: true, statute_path: statute.path, form_path: moduleDoc.path }).select("*").single();
+        : await associationClient.from("membership_applications").insert({ user_id: user.id, ...fields, acknowledged: true, statute_path: statute?.path ?? null, form_path: moduleDoc?.path ?? null }).select("*").single();
       if (result.error) {
         const existing = await associationClient.from("membership_applications").select("*").eq("user_id", user.id).maybeSingle();
         if (existing.data) { setRow(existing.data); setSubmission(submissionSchema.parse(existing.data)); }
@@ -84,7 +87,8 @@ export default function Adesione() {
       }
       setRow(result.data); setSubmission(submissionSchema.parse(result.data));
       return true;
-    } catch {
+    } catch (e) {
+      console.error("[Adesione] salvataggio non riuscito", e);
       toast.error(status === "draft" ? "Salvataggio bozza non riuscito. Riprova più tardi." : "Invio non completato. Controlla i dati o verifica se la domanda risulta già inviata.");
       return false;
     } finally { busy.current = false; setSending(false); }
@@ -136,12 +140,12 @@ export default function Adesione() {
             </div>
           </section>
         ) : <>
-          {!ready && <div role="status" className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Adesioni non ancora aperte</h2><p className="text-primary-foreground/70">{unavailable ? "I documenti non sono al momento disponibili. Riprova più tardi." : "Lo statuto e il modulo di adesione saranno pubblicati qui quando saranno pronti."}</p></div>}
-          <section className="mb-10"><h2 className="text-3xl mb-5">Documenti dell’associazione</h2><div className="flex flex-wrap gap-4">{([["statute", "Lo statuto"], ["membership_form", "Modulo e informativa"]] as const).map(([kind, label]) => { const doc = docs.find(d => d.kind === kind); return doc ? <Button key={kind} variant="hero-secondary" asChild><a href={publicAssociationFile("association-documents", doc.path)} target="_blank" rel="noopener noreferrer"><FileDown /> {label}</a></Button> : <span key={kind} className="text-sm text-primary-foreground/50 border border-primary-foreground/20 px-4 py-3">{label} · non disponibile</span>; })}</div></section>
-          {ready && !user && <Button variant="hero-primary" asChild><Link to="/auth?next=/associazione/iscrizione">Accedi per presentare la domanda</Link></Button>}
-          {ready && user && <section className="border-t border-primary-foreground/25 pt-8" aria-label="Modulo di domanda">
+          {unavailable && <div role="alert" className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Impossibile caricare la domanda</h2><p className="text-primary-foreground/70 mb-4">Non siamo riusciti a leggere lo stato della tua domanda. Riprova tra poco; se il problema continua, contattaci.</p><Button variant="hero-secondary" onClick={() => setReload(n => n + 1)}>Riprova</Button></div>}
+          {ready && !user && <div className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Accedi per presentare la domanda</h2><p className="text-primary-foreground/70 mb-5">Serve un account del sito per compilare la domanda online e salvarla come bozza.</p><Button variant="hero-primary" asChild><Link to="/auth?next=/associazione/iscrizione">Accedi o registrati</Link></Button></div>}
+          {ready && user && !submission && !started && <div className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Diventa socio</h2><p className="text-primary-foreground/70 mb-5">Compila la domanda online in 4 passaggi. Puoi salvarla come bozza e riprenderla quando vuoi.</p><Button variant="hero-primary" onClick={() => setStarted(true)}>Presenta domanda di ammissione <ArrowRight /></Button></div>}
+          {ready && user && (isDraft || started) && <section className="border-t border-primary-foreground/25 pt-8" aria-label="Modulo di domanda">
             <ol className="grid grid-cols-4 gap-1 mb-8" aria-label="Avanzamento">{STEPS.map((s, i) => <li key={s} aria-current={i === step ? "step" : undefined} className={`border-t-4 pt-2 text-xs sm:text-sm uppercase tracking-widest ${i <= step ? "border-primary-foreground" : "border-primary-foreground/20 text-primary-foreground/50"}`}><span className="hidden sm:inline">{i + 1}. {s}</span><span className="sm:hidden">{i + 1}</span></li>)}</ol>
-            <h2 className="text-3xl mb-2">{STEPS[step]}</h2>
+            {isDraft && step === 0 && <p className="font-headline tracking-widest text-sm mb-2">Continua la domanda</p>}<h2 className="text-3xl mb-2">{STEPS[step]}</h2>
             <p className="text-sm text-primary-foreground/60 mb-6">{isDraft ? "Stato: Bozza · " : ""}I campi con * sono obbligatori.</p>
 
             {step === 0 && <div className="grid sm:grid-cols-2 gap-5">{PERSONAL.map(([k, label, type, ac]) => <div key={k}><Label htmlFor={`f-${k}`}>{label} *</Label><Input id={`f-${k}`} type={type} autoComplete={ac} value={form[k] as string} aria-invalid={!!errors[k]} aria-describedby={errors[k] ? `${k}-err` : undefined} onChange={e => set(k, e.target.value)} className={inputCls} maxLength={k === "tax_code" ? 16 : k === "province" ? 2 : 120} />{err(k)}</div>)}</div>}
@@ -172,6 +176,7 @@ export default function Adesione() {
               <Button type="button" variant="hero-secondary" disabled={sending} onClick={saveDraft}><Save /> Salva bozza</Button>
             </div>
           </section>}
+          <section className="mt-12"><h2 className="text-2xl mb-5">Documenti dell’associazione</h2><div className="flex flex-wrap gap-4">{([["statute", "Lo statuto"], ["membership_form", "Modulo e informativa"]] as const).map(([kind, label]) => { const doc = docs.find(d => d.kind === kind); return doc ? <Button key={kind} variant="hero-secondary" asChild><a href={publicAssociationFile("association-documents", doc.path)} target="_blank" rel="noopener noreferrer"><FileDown /> {label}</a></Button> : <span key={kind} className="text-sm text-primary-foreground/50 border border-primary-foreground/20 px-4 py-3">{label} · non disponibile</span>; })}</div></section>
         </>}
       </div>
     </main><Footer /></>;
