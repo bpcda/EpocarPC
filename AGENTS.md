@@ -8,6 +8,6 @@
 - Template row capacity is enforced only at Excel export; the database and dashboard read all rows via pagination and never truncate.
 
 - Founders and board members are derived from user roles assigned in user management; the association tab only stores display order, and the public list exposes only founders/board members via a security-definer function.
-- Treasury is a standalone routed app under /tesoreria (guarded layout + one page per entity, filters/year in the URL); modals only for confirmations, so state survives refresh and deep links.
+- Treasury UI is not mounted in the public router (hosted privately); treasury pages/libs stay in the repo but no public route or link may reference them.
 - Membership exists only through a recorded Board admission (treasury-v5.sql): card numbers come from a sequence solely at approval, are immutable except via a logged admin correction, and every associative event goes to an immutable history; names are not unique, so UIs show name plus card number or "Non assegnato".
 - The treasury member register is the single source of members; site accounts link optionally by email (treasury-v4.sql), and the register drives the category role, never the reverse except for the one-off reconciliation.
