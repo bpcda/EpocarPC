@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { countdownState, eventPhase, isoToRomeInput, romeInputToISO, splitEvents } from "@/lib/event-time";
 
 const now = new Date("2026-10-12T20:00:00Z"); // 22:00 Rome (CEST)
-const ev = (date: string | null, extra: Record<string, unknown> = {}) => ({ date, published: true, ...extra });
+type E = { date: string | null; published?: boolean; id?: string; end_date?: string; show_homepage_countdown?: boolean };
+const ev = (date: string | null, extra: Partial<E> = {}): E => ({ date, published: true, ...extra });
 
 describe("phases", () => {
   it("future → upcoming, past → past, ongoing → current", () => {
