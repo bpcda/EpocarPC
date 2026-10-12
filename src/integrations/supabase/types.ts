@@ -108,6 +108,7 @@ export type Database = {
           created_at: string
           date: string | null
           description: string | null
+          end_date: string | null
           form_fields: Json
           id: string
           image_url: string | null
@@ -115,6 +116,7 @@ export type Database = {
           published: boolean | null
           registration_enabled: boolean
           registration_link: string | null
+          show_homepage_countdown: boolean
           title: string
           updated_at: string
           uploaded_by: string | null
@@ -125,6 +127,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          end_date?: string | null
           form_fields?: Json
           id?: string
           image_url?: string | null
@@ -132,6 +135,7 @@ export type Database = {
           published?: boolean | null
           registration_enabled?: boolean
           registration_link?: string | null
+          show_homepage_countdown?: boolean
           title: string
           updated_at?: string
           uploaded_by?: string | null
@@ -142,6 +146,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          end_date?: string | null
           form_fields?: Json
           id?: string
           image_url?: string | null
@@ -149,6 +154,7 @@ export type Database = {
           published?: boolean | null
           registration_enabled?: boolean
           registration_link?: string | null
+          show_homepage_countdown?: boolean
           title?: string
           updated_at?: string
           uploaded_by?: string | null
