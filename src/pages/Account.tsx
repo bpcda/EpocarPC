@@ -14,6 +14,8 @@ import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
 import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
+import DeleteAccountDialog, { PRIVACY_NOTE } from "@/components/DeleteAccountDialog";
+import { DELETE_PHRASE, deleteMyAccount } from "@/lib/account-deletion";
 
 type VehicleType = "auto" | "moto" | "vespa";
 interface Vehicle {
@@ -56,6 +58,7 @@ export default function Account() {
   const [vForm, setVForm] = useState<Omit<Vehicle, "id">>(emptyVehicle);
   const [vPhotoFile, setVPhotoFile] = useState<File | null>(null);
   const [savingVehicle, setSavingVehicle] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
