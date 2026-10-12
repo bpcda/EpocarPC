@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { isoToRomeInput, romeInputToISO } from "@/lib/event-time";
 import FormBuilder from "@/components/admin/FormBuilder";
 import type { FormField } from "@/lib/form-fields";
 import { ArrowLeft, Upload, X, Image as ImageIcon } from "lucide-react";
@@ -15,6 +16,8 @@ const emptyForm = {
   title: "",
   description: "",
   date: "",
+  end_date: "",
+  show_homepage_countdown: false,
   location: "",
   image_url: "",
   category: "event",
@@ -54,7 +57,9 @@ export default function AdminEventEditor() {
           base = {
             title: data.title || "",
             description: data.description || "",
-            date: data.date ? String(data.date).slice(0, 16) : "",
+            date: isoToRomeInput(data.date),
+            end_date: isoToRomeInput(data.end_date),
+            show_homepage_countdown: data.show_homepage_countdown ?? false,
             location: data.location || "",
             image_url: data.image_url || "",
             category: data.category || "event",
@@ -127,7 +132,9 @@ export default function AdminEventEditor() {
     const payload = {
       title: form.title,
       description: form.description || null,
-      date: form.date || null,
+      date: form.date ? romeInputToISO(form.date) : null,
+      end_date: form.end_date ? romeInputToISO(form.end_date) : null,
+      show_homepage_countdown: form.show_homepage_countdown,
       location: form.location || null,
       image_url: imageUrl,
       category: form.category || "event",
@@ -138,8 +145,9 @@ export default function AdminEventEditor() {
       allow_guests: form.allow_guests,
       form_fields: form.form_fields as never,
     };
-    if (isNew) await supabase.from("events").insert(payload);
-    else await supabase.from("events").update(payload).eq("id", id!);
+    if (payload.end_date && payload.date && payload.end_date < payload.date) { setLoading(false); alert("La fine deve essere successiva all'inizio."); return; }
+    const { error } = isNew ? await supabase.from("events").insert(payload) : await supabase.from("events").update(payload).eq("id", id!);
+    if (error) { setLoading(false); alert(`Salvataggio non riuscito: ${error.message}`); return; }
     localStorage.removeItem(draftKey);
     setLoading(false);
     navigate("/admin");
@@ -183,11 +191,14 @@ export default function AdminEventEditor() {
           rows={4}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input
-            type="datetime-local"
-            value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
-          />
+          <label className="text-xs text-muted-foreground space-y-1">
+            <span>Inizio (ora italiana)</span>
+            <Input type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </label>
+          <label className="text-xs text-muted-foreground space-y-1">
+            <span>Fine (facoltativa, per eventi di più ore o giorni)</span>
+            <Input type="datetime-local" value={form.end_date} min={form.date || undefined} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+          </label>
           <AddressAutocomplete
             value={form.location}
             onChange={(val) => setForm({ ...form, location: val })}
@@ -280,6 +291,17 @@ export default function AdminEventEditor() {
             onCheckedChange={(checked) => setForm({ ...form, published: checked })}
           />
           <span className="text-sm text-muted-foreground">Pubblicato</span>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <Switch
+            checked={form.show_homepage_countdown}
+            onCheckedChange={(checked) => setForm({ ...form, show_homepage_countdown: checked })}
+          />
+          <div>
+            <span className="text-sm text-foreground">Mostra countdown in homepage</span>
+            <p className="text-xs text-muted-foreground">Se attivo, questo evento verrà mostrato con un conto alla rovescia nella homepage fino all'inizio/conclusione dell'evento. Un solo evento alla volta: attivandolo qui si disattiva su quello scelto in precedenza.</p>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4">

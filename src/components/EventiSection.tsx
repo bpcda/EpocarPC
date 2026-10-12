@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { splitEvents } from "@/lib/event-time";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -59,13 +60,14 @@ export default function EventiSection() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("id, title, description, date, location, image_url, registration_link")
+          .select("id, title, description, date, end_date, location, image_url, registration_link")
           .eq("published", true)
-          .order("date", { ascending: true })
-          .limit(3);
+          .order("date", { ascending: false })
+          .limit(30);
 
         if (data && data.length > 0) {
-          setEvents(data as EventDisplay[]);
+          const { upcoming, past } = splitEvents(data);
+          setEvents([...upcoming, ...past].slice(0, 3) as EventDisplay[]);
         }
       } catch {
         // Backend unavailable — keep fallback data
