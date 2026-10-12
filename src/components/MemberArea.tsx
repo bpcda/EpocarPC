@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { cardLabel, FEE_STATUS, loadAssociation, loadMyMembership, loadMyRegistrations, MEMBERSHIP_STATUS, publicAssociationFile } from "@/lib/association";
 
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("it-IT") : null);
@@ -82,7 +82,8 @@ function MemberDashboard({ userId, name, category, status, card, admission, feeL
 
 /** Area Socio. Every membership fact comes from the Treasury sync; site category roles cover members admitted before the online flow. */
 export default function MemberArea({ userId }: { userId: string }) {
-  const { user } = useAuth();
+  const u = useQuery({ queryKey: ["me-user"], queryFn: async () => (await supabase.auth.getUser()).data.user, retry: false });
+  const user = u.data;
   const q = useQuery({ queryKey: ["my-membership", userId], queryFn: () => loadMyMembership(userId), refetchOnWindowFocus: true });
   if (q.isLoading) return <p role="status" className="text-primary-foreground/70">Caricamento…</p>;
   if (q.error || !q.data) return <p className="text-primary-foreground/70">L’Area Socio non è al momento disponibile. Riprova più tardi.</p>;
