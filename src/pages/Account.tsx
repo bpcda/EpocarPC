@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import MemberArea from "@/components/MemberArea";
 
 type VehicleType = "auto" | "moto" | "vespa";
 interface Vehicle {
@@ -39,6 +40,8 @@ const emptyVehicle: Omit<Vehicle, "id"> = {
 export default function Account() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
 
   const [profile, setProfile] = useState<Profile>({
     first_name: "", last_name: "", city: "", phone: "", avatar_url: null,
@@ -187,11 +190,14 @@ export default function Account() {
           <p className="text-primary-foreground/60 text-sm mb-8">{user?.email}</p>
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
-          <Tabs defaultValue="profile" className="w-full">
+          <Tabs defaultValue={tabParam === "socio" ? "socio" : "profile"} className="w-full">
             <TabsList className="bg-primary-foreground/10 border border-primary-foreground/20">
               <TabsTrigger value="profile" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Profilo</TabsTrigger>
               <TabsTrigger value="vehicles" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">I Miei Veicoli</TabsTrigger>
+              <TabsTrigger value="socio" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Area Socio</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="socio" className="mt-8">{user && <MemberArea userId={user.id} />}</TabsContent>
 
             <TabsContent value="profile" className="mt-8">
               <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8">

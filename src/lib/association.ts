@@ -22,26 +22,45 @@ export async function loadPeople() {
 export type PersonWithPhoto = Person & { photo: string | null };
 export type AssociationDocument = z.infer<typeof documentSchema>;
 export const membershipSchema = z.object({ full_name: z.string().trim().min(2, "Inserisci nome e cognome").max(100), email: z.string().trim().email("Email non valida").max(255), acknowledged: z.literal(true, { errorMap: () => ({ message: "Conferma di aver preso visione dello statuto" }) }) });
-export const APPLICATION_STATUS = { draft: "Bozza", submitted: "Inviata", review: "In valutazione", approved: "Approvata dal Consiglio Direttivo", rejected: "Respinta" } as const;
+export const APPLICATION_STATUS = { draft: "Bozza", submitted: "Domanda ricevuta", review: "Domanda in valutazione", approved: "Approvata dal Consiglio Direttivo", rejected: "Respinta", cancelled: "Annullata" } as const;
+export const APPLICATION_STATUSES = ["draft", "submitted", "review", "approved", "rejected", "cancelled"] as const;
 export type ApplicationStatus = keyof typeof APPLICATION_STATUS;
 export const submissionSchema = z.object({
   id: z.string().uuid(), user_id: z.string().uuid(), full_name: z.string(), email: z.string(), file_path: z.string().nullable(), filename: z.string().nullable(), created_at: z.string(),
-  status: z.enum(["draft", "submitted", "review", "approved", "rejected"]).default("submitted"),
+  status: z.enum(APPLICATION_STATUSES).default("submitted"),
+  submitted_at: z.string().nullable().optional(), approved_at: z.string().nullable().optional(), rejected_at: z.string().nullable().optional(),
+  public_status_message: z.string().nullable().optional(),
   resolution_ref: z.string().nullable().optional(), resolution_date: z.string().nullable().optional(), decision_notes: z.string().nullable().optional(), member_id: z.string().nullable().optional(),
 });
-export const decisionSchema = z.object({
-  decision: z.enum(["review", "approved", "rejected"]),
-  category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]).optional(),
-  admission_date: z.string().optional(), resolution_ref: z.string().trim().max(80).optional(), resolution_date: z.string().optional(), notes: z.string().trim().max(1000).optional(),
+/** Applicant-editable fields only: decisions and Treasury-governed data are never sent from the browser. */
+export const APPLICANT_FIELDS = ["full_name", "email", "file_path", "filename", "status", "requested_category"] as const;
+export function applicantPayload(fields: Record<string, unknown>) {
+  const out: Record<string, unknown> = {};
+  for (const k of APPLICANT_FIELDS) if (k in fields) out[k] = fields[k];
+  if (out.status !== undefined && out.status !== "draft" && out.status !== "submitted") throw new Error("Stato non consentito");
+  return out;
+}
+/** Area Socio: limited projection written only by the private Treasury (own row only, via RLS). */
+export const memberStatusSchema = z.object({
+  membership_status: z.enum(["active", "suspended", "ceased"]),
+  category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]),
+  card_number: z.number().int().positive().nullable(),
+  admission_date: z.string().nullable(),
+  membership_year: z.number().int().nullable(),
+  fee_status: z.enum(["paid", "partial", "due", "exempt"]).nullable(),
+  updated_at: z.string(),
 });
-/** Registers a Board decision. Approval creates/links the register entry and assigns the card number server-side. */
-export async function decideApplication(id: string, input: z.infer<typeof decisionSchema>) {
-  const v = decisionSchema.parse(input);
-  const { error } = await associationClient.rpc("membership_decide", {
-    _application: id, _decision: v.decision, _category: v.category ?? null, _admission_date: v.admission_date || null,
-    _resolution_ref: v.resolution_ref || null, _resolution_date: v.resolution_date || null, _notes: v.notes || null,
-  });
-  if (error) throw new Error(error.message.includes("function") ? "Esegui prima lo script treasury-v5.sql" : error.message);
+export type MemberStatus = z.infer<typeof memberStatusSchema>;
+export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", ceased: "Non più socio" } as const;
+export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
+export const cardLabel = (n: number | null | undefined) => (n == null ? "Non ancora assegnata" : `n. ${n}`);
+export async function loadMyMembership(userId: string) {
+  const [app, mem] = await Promise.all([
+    associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
+    associationClient.from("member_public_status").select("membership_status,category,card_number,admission_date,membership_year,fee_status,updated_at").eq("user_id", userId).maybeSingle(),
+  ]);
+  if (app.error) throw new Error("Area socio non disponibile.");
+  return { application: app.data ? submissionSchema.parse(app.data) : null, member: !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null };
 }
 export type Submission = z.infer<typeof submissionSchema>;
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;

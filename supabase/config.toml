@@ -1,1 +1,3 @@
 project_id = "mwhklatqkmimmljhxcfm"
+[functions.treasury-sync]
+verify_jwt = false

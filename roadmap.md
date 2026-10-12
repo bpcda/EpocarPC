@@ -14,3 +14,4 @@
 - [x] PDF report for the Board.
 - [x] Routed /tesoreria app: sidebar/bottom nav, dedicated pages, URL filters, unsaved-changes guard.
 - [ ] Live use — blocked by user running /setup/treasury.sql then /setup/treasury-v2.sql on the external instance and assigning the treasurer role.
+- [ ] User: run setup/membership-sync-v6.sql on the instance, set secret TREASURY_SYNC_SECRET, deploy treasury-sync, configure the private Treasury per docs/treasury-sync-contract.md

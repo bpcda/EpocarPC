@@ -1,7 +1,7 @@
 # Architecture rules
 - Association data access lives in a dedicated validated module using the existing client; managed generated types are not edited because the external schema is installed independently.
 - Association membership requests are separate from event registrations, with private user-scoped storage, unique requests per user, and server-enforced admin/staff read permissions.
-- External association setup is delivered as an executable SQL script through the application; do not apply it to the managed backend without an explicit request.
+- External association setup is delivered as executable SQL scripts in the repository setup/ folder (never served publicly); do not apply it to the managed backend without an explicit request.
 - Treasury exports patch empty input cells, the four category fee lookup values, and formula caches in the exported copy (zip/XML level), using the dashboard's yearly settings; every formula and otherwise untouched part remains identical and the original template is never edited.
 - Treasury data lives in external-instance SQL scripts (treasury.sql + treasury-v2.sql) with treasurer-only RLS (admin/staff/board roles never imply access), soft-deleted transactions, closed-year locks and an immutable audit log.
 - Membership fees are versioned per fiscal year and category, written only through a security-definer function; dues are always computed from the year's own fees.
@@ -11,3 +11,6 @@
 - Treasury UI is not mounted in the public router (hosted privately); treasury pages/libs stay in the repo but no public route or link may reference them.
 - Membership exists only through a recorded Board admission (treasury-v5.sql): card numbers come from a sequence solely at approval, are immutable except via a logged admin correction, and every associative event goes to an immutable history; names are not unique, so UIs show name plus card number or "Non assegnato".
 - The treasury member register is the single source of members; site accounts link optionally by email (treasury-v4.sql), and the register drives the category role, never the reverse except for the one-off reconciliation.
+
+- Membership decisions come only from the private Treasury via the treasury-sync Edge Function (shared-secret, idempotent, service-only SQL functions in setup/membership-sync-v6.sql); the public site only creates/submits its own application and reads its own member_public_status projection.
+- Treasury-only assets (Excel template) are imported from src/assets/treasury so they are bundled only with the private treasury app, never placed in public/.
