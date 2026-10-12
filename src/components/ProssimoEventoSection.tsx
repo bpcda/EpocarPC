@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { CalendarDays, MapPin } from "lucide-react";
+import { eventPhase, formatEventDate } from "@/lib/event-time";
 import eventRitrovo from "@/assets/event-ritrovo.jpg";
 
 interface NextEvent {
   title: string;
   date: string | null;
+  end_date?: string | null;
   location: string | null;
   description: string | null;
   image_url: string | null;
@@ -31,12 +33,14 @@ export default function ProssimoEventoSection() {
         const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase
           .from("events")
-          .select("title, date, location, description, image_url")
+          .select("title, date, end_date, location, description, image_url")
           .eq("published", true)
-          .gte("date", new Date().toISOString().split("T")[0])
+          // Candidates: anything not ended yet (end_date in the future, or started within the last 2 days); exact phase checked in Rome time.
+          .or(`end_date.gte.${new Date().toISOString()},date.gte.${new Date(Date.now() - 2 * 86400000).toISOString()}`)
           .order("date", { ascending: true })
-          .limit(1);
-        if (data && data.length > 0) setEvent(data[0]);
+          .limit(10);
+        const next = (data ?? []).find((e) => ["upcoming", "current"].includes(eventPhase(e)));
+        if (next) setEvent(next);
       } catch {
         // Backend unavailable — keep fallback
       }
@@ -46,7 +50,7 @@ export default function ProssimoEventoSection() {
 
   const formatDate = (d: string | null) => {
     if (!d) return "";
-    return new Date(d).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+    return formatEventDate({ date: d, end_date: event.end_date });
   };
 
   const imageSrc = event.image_url || eventRitrovo;
