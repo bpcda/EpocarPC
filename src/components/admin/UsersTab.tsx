@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Loader2, UserX } from "lucide-react";
+import DeleteAccountDialog from "@/components/DeleteAccountDialog";
+import { ADMIN_DELETE_PHRASE, adminDeleteAccount } from "@/lib/account-deletion";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { CATEGORY_ROLES, BOARD_ROLES } from "@/lib/association";
@@ -50,6 +52,8 @@ export default function UsersTab() {
     grant: boolean;
     label: string;
   } | null>(null);
+
+  const [deleting, setDeleting] = useState<{ userId: string; label: string } | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
@@ -177,6 +181,12 @@ export default function UsersTab() {
                           </div>;
                         })}
                       </div>
+                      {!isSelf && (
+                        <Button variant="ghost" size="sm" className="mt-2 h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          onClick={() => setDeleting({ userId: r.user_id, label: fullName !== "—" ? fullName : r.email ?? "utente" })}>
+                          <UserX className="h-3 w-3 mr-1" /> Elimina account portale
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -214,6 +224,15 @@ export default function UsersTab() {
           </Button>
         </div>
       </div>
+
+      <DeleteAccountDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)} mode="admin"
+        targetUserId={deleting?.userId} targetLabel={deleting?.label} phrase={ADMIN_DELETE_PHRASE}
+        onConfirm={async () => {
+          if (!deleting) return;
+          const res = await adminDeleteAccount(deleting.userId);
+          toast({ title: res.outcome === "already_deleted" ? "Account già eliminato" : "Account portale eliminato", description: deleting.label });
+          fetchUsers();
+        }} />
 
       <AlertDialog open={!!pending} onOpenChange={(o) => !o && setPending(null)}>
         <AlertDialogContent>
