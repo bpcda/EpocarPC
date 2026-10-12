@@ -1,3 +1,4 @@
+import { isStorageAvatar } from "@/lib/avatar";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ export async function loadPeople() {
   const { data, error } = await associationClient.rpc("list_association_people");
   if (error) throw new Error("Persone dell’associazione non ancora disponibili.");
   const people = z.array(personSchema).parse(data);
-  const urls = await Promise.all(people.map(async p => p.avatar_url ? (await supabase.storage.from("avatars").createSignedUrl(p.avatar_url, 3600)).data?.signedUrl ?? null : null));
+  const urls = await Promise.all(people.map(async p => isStorageAvatar(p.avatar_url) ? (await supabase.storage.from("avatars").createSignedUrl(p.avatar_url, 3600)).data?.signedUrl ?? null : null));
   return people.map((p, i) => ({ ...p, photo: urls[i] }));
 }
 export type PersonWithPhoto = Person & { photo: string | null };

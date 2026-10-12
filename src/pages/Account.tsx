@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
+import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
 
 type VehicleType = "auto" | "moto" | "vespa";
 interface Vehicle {
@@ -78,7 +79,7 @@ export default function Account() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   useEffect(() => {
     (async () => {
-      if (!profile.avatar_url) { setAvatarUrl(null); return; }
+      if (!isStorageAvatar(profile.avatar_url)) { setAvatarUrl(null); return; }
       const { data } = await supabase.storage.from("avatars").createSignedUrl(profile.avatar_url, 3600);
       setAvatarUrl(data?.signedUrl ?? null);
     })();
@@ -98,6 +99,7 @@ export default function Account() {
     })();
   }, [vehicles, signedUrl]);
 
+
   const saveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
@@ -107,22 +109,46 @@ export default function Account() {
       last_name: profile.last_name,
       city: profile.city,
       phone: profile.phone,
-      avatar_url: profile.avatar_url,
     }, { onConflict: "user_id" });
     setSavingProfile(false);
     if (error) toast.error(error.message); else toast.success("Profilo salvato");
   };
 
+  const setAvatarPath = async (path: string | null) => {
+    if (!user) return false;
+    const { error } = await supabase.from("profiles").upsert({ user_id: user.id, avatar_url: path }, { onConflict: "user_id" });
+    if (error) { toast.error(error.message); return false; }
+    setProfile((p) => ({ ...p, avatar_url: path }));
+    return true;
+  };
+
   const uploadAvatar = async (file: File) => {
     if (!user) return;
+    const invalid = await validateAvatar(file);
+    if (invalid) { toast.error(invalid); return; }
     setAvatarUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    const path = `${user.id}/profile.${AVATAR_TYPES[file.type]}`;
+    const old = profile.avatar_url;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "0" });
     if (error) { toast.error(error.message); setAvatarUploading(false); return; }
-    setProfile((p) => ({ ...p, avatar_url: path }));
+    if (await setAvatarPath(path)) {
+      if (isStorageAvatar(old) && old !== path) await supabase.storage.from("avatars").remove([old]);
+      setProfile((p) => ({ ...p, avatar_url: null }));
+      setTimeout(() => setProfile((p) => ({ ...p, avatar_url: path })), 0);
+      toast.success("Foto profilo aggiornata");
+    }
     setAvatarUploading(false);
-    toast.success("Avatar caricato — ricordati di salvare");
+  };
+
+  const removeAvatar = async () => {
+    const old = profile.avatar_url;
+    if (!old || !confirm("Rimuovere la foto profilo?")) return;
+    setAvatarUploading(true);
+    if (await setAvatarPath(null)) {
+      if (isStorageAvatar(old)) await supabase.storage.from("avatars").remove([old]);
+      toast.success("Foto rimossa");
+    }
+    setAvatarUploading(false);
   };
 
   const openNew = () => {
@@ -202,14 +228,21 @@ export default function Account() {
             <TabsContent value="profile" className="mt-8">
               <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8">
                 <div className="flex flex-col items-center gap-3">
+                  <p className="font-headline tracking-widest text-primary-foreground/70 text-sm">Foto profilo</p>
                   <div className="w-32 h-32 bg-primary-foreground/10 border border-primary-foreground/20 overflow-hidden">
-                    {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-primary-foreground/40 text-xs">Nessuna foto</div>}
+                    {avatarUrl ? <img src={avatarUrl} alt="Foto profilo" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-primary-foreground/60 font-headline text-4xl">{initials(profile.first_name, profile.last_name, user?.email)}</div>}
                   </div>
                   <label className="cursor-pointer text-xs text-primary-foreground/70 hover:text-primary-foreground flex items-center gap-1">
                     <Upload className="w-3 h-3" />
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={avatarUploading} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadAvatar(f); }} />
                     {avatarUploading ? "Caricamento..." : "Cambia foto"}
                   </label>
+                  {profile.avatar_url && (
+                    <button type="button" onClick={removeAvatar} disabled={avatarUploading} className="text-xs text-primary-foreground/60 hover:text-primary-foreground flex items-center gap-1">
+                      <Trash2 className="w-3 h-3" /> Rimuovi foto
+                    </button>
+                  )}
+                  <p className="text-[10px] text-primary-foreground/40 text-center max-w-[10rem]">JPG, PNG o WebP, max 5 MB</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
