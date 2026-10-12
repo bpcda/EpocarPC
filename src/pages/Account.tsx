@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
+import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
 
 type VehicleType = "auto" | "moto" | "vespa";
 interface Vehicle {
@@ -83,6 +84,21 @@ export default function Account() {
       setAvatarUrl(data?.signedUrl ?? null);
     })();
   }, [profile.avatar_url]);
+
+  const [vehiclePhotoUrls, setVehiclePhotoUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    (async () => {
+      const map: Record<string, string> = {};
+      for (const v of vehicles) {
+        if (v.photo_url) {
+          const url = await signedUrl(v.photo_url);
+          if (url) map[v.id] = url;
+        }
+      }
+      setVehiclePhotoUrls(map);
+    })();
+  }, [vehicles, signedUrl]);
+
 
   const saveProfile = async () => {
     if (!user) return;
