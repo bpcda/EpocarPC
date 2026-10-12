@@ -119,6 +119,9 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {onlyTreasury ? (
+          <p role="status" className="border border-border bg-card p-6 text-muted-foreground">Nessuna funzione disponibile su questo portale per il tuo profilo.</p>
+        ) : (
         <Tabs defaultValue="events">
           <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
             {!onlyTreasury && <>
@@ -297,6 +300,7 @@ export default function AdminDashboard() {
             </TabsContent>
           )}
         </Tabs>
+        )}
       </main>
     </div>
   );
