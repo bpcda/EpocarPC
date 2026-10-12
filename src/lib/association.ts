@@ -1,3 +1,4 @@
+import { isStorageAvatar } from "@/lib/avatar";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
