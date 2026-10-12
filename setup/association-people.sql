@@ -1,5 +1,5 @@
 -- Epocar: fondatori, categorie soci e consiglio direttivo dai ruoli utente.
--- rev. 2 (rieseguibile, tesoriere nel consiglio). Se non vedi "rev. 2" stai usando una copia vecchia.
+-- rev. 3 (rieseguibile, foto visibili a tutti). Se non vedi "rev. 2" stai usando una copia vecchia.
 -- Execute in your external instance SQL editor, AFTER association.sql. Safe to re-run.
 -- New enum values must be committed before use, so they run outside the transaction.
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'founder';
@@ -60,12 +60,18 @@ GRANT EXECUTE ON FUNCTION public.list_association_people() TO anon, authenticate
 
 -- Profile photos of founders and board members become readable to show them publicly.
 -- Ordinary/supporter members without a board role stay private.
+-- rev. 3: user_roles RLS lets each user see only their own roles, so the check must run
+-- in a SECURITY DEFINER function, otherwise everyone sees only their own photo.
+CREATE OR REPLACE FUNCTION public.is_association_person(_uid text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id::text = _uid
+      AND ur.role::text IN ('founder','president','vice_president','secretary','treasurer','councillor')) $$;
+REVOKE ALL ON FUNCTION public.is_association_person(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_association_person(text) TO anon, authenticated;
 DROP POLICY IF EXISTS association_people_avatars_read ON storage.objects;
 CREATE POLICY association_people_avatars_read ON storage.objects FOR SELECT TO anon, authenticated USING (
-  bucket_id = 'avatars' AND EXISTS (
-    SELECT 1 FROM public.user_roles ur
-    WHERE ur.user_id::text = (storage.foldername(name))[1]
-      AND ur.role::text IN ('founder','president','vice_president','secretary','treasurer','councillor')));
+  bucket_id = 'avatars' AND public.is_association_person((storage.foldername(name))[1]));
 
 COMMENT ON TABLE public.association_founders IS 'DEPRECATED: founders now come from user roles (association_people_order)';
 COMMIT;
