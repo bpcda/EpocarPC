@@ -14,6 +14,8 @@ import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
 import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
+import DeleteAccountDialog, { PRIVACY_NOTE } from "@/components/DeleteAccountDialog";
+import { DELETE_PHRASE, deleteMyAccount } from "@/lib/account-deletion";
 
 type VehicleType = "auto" | "moto" | "vespa";
 interface Vehicle {
@@ -56,6 +58,7 @@ export default function Account() {
   const [vForm, setVForm] = useState<Omit<Vehicle, "id">>(emptyVehicle);
   const [vPhotoFile, setVPhotoFile] = useState<File | null>(null);
   const [savingVehicle, setSavingVehicle] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -273,6 +276,27 @@ export default function Account() {
                   </div>
                 </div>
               </div>
+
+              <section className="mt-16 border-t border-primary-foreground/20 pt-8">
+                <h2 className="font-headline text-2xl tracking-wider text-primary-foreground">GESTIONE ACCOUNT</h2>
+                <div className="mt-4 border border-destructive/60 p-5">
+                  <h3 className="font-headline text-xl tracking-wider text-primary-foreground">Elimina account</h3>
+                  <p className="text-sm text-primary-foreground/70 mt-2 max-w-2xl">
+                    L'eliminazione dell'account rimuove l'accesso al portale EPOCAR e i dati strettamente collegati al profilo online. Se sei già socio dell'Associazione, la cancellazione dell'account non equivale al recesso dall'Associazione.
+                  </p>
+                  <p className="text-xs text-primary-foreground/50 mt-2 max-w-2xl">{PRIVACY_NOTE}</p>
+                  <Button variant="destructive" className="mt-4" onClick={() => setDeleteOpen(true)}>
+                    Elimina definitivamente il mio account
+                  </Button>
+                </div>
+              </section>
+              <DeleteAccountDialog open={deleteOpen} onOpenChange={setDeleteOpen} mode="self" phrase={DELETE_PHRASE}
+                onConfirm={async () => {
+                  await deleteMyAccount();
+                  await supabase.auth.signOut({ scope: "local" });
+                  toast.success("Il tuo account è stato eliminato.");
+                  navigate("/", { replace: true });
+                }} />
             </TabsContent>
 
             <TabsContent value="vehicles" className="mt-8">
