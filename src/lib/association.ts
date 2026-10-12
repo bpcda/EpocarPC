@@ -53,7 +53,7 @@ export const memberStatusSchema = z.object({
 export type MemberStatus = z.infer<typeof memberStatusSchema>;
 export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", ceased: "Non più socio" } as const;
 export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
-export const cardLabel = (n: number | null | undefined) => (n == null ? "Non ancora assegnata" : `n. ${n}`);
+export const cardLabel = (n: number | null | undefined) => (n == null ? "Tessera non ancora assegnata" : `n. ${n}`);
 export async function loadMyMembership(userId: string) {
   const [app, mem] = await Promise.all([
     associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
