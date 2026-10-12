@@ -21,7 +21,7 @@ describe("browser payloads", () => {
 
 describe("card number", () => {
   it("is shown only when assigned, never invented", () => {
-    expect(cardLabel(null)).toBe("Non ancora assegnata");
+    expect(cardLabel(null)).toBe("Tessera non ancora assegnata");
     expect(cardLabel(12)).toBe("n. 12");
     expect(memberStatusSchema.safeParse({ membership_status: "active", category: "Ordinario", card_number: 0, admission_date: null, membership_year: null, fee_status: null, updated_at: "x" }).success).toBe(false);
   });

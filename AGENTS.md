@@ -14,3 +14,4 @@
 
 - Membership decisions come only from the private Treasury via the treasury-sync Edge Function (shared-secret, idempotent, service-only SQL functions in setup/membership-sync-v6.sql); the public site only creates/submits its own application and reads its own member_public_status projection.
 - Treasury-only assets (Excel template) are imported from src/assets/treasury so they are bundled only with the private treasury app, never placed in public/.
+- The public admission application is an electronic multi-step frontend of membership_applications (setup/membership-application-v7.sql): applicant fields and per-declaration acceptance timestamps only, editable solely while draft, submitted_at and required-field checks enforced by a DB trigger; no decisions from the site.
