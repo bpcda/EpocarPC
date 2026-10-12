@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { buildWorkbook, buildWorkbookBytes, extractFormulas, compareFormulas, writeCell } from "@/lib/treasury-excel";
 import { buildExportFormulaResults, buildExportWrites, MEMBER_CATEGORIES, type TreasuryData } from "@/lib/treasury";
 
-const bytes = readFileSync("public/templates/EPOCAR_Tesoreria_Rendiconto_template.xlsx");
+const bytes = readFileSync("src/assets/treasury/EPOCAR_Tesoreria_Rendiconto_template.xlsx");
 beforeAll(() => { vi.stubGlobal("fetch", async () => new Response(bytes)); });
 
 describe("treasury excel export", () => {

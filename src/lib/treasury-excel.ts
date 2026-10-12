@@ -7,7 +7,9 @@ import { TEMPLATE_LIMITS } from "./treasury-template-lists";
  * empty input cells and the four category fee values in Liste in the exported
  * copy only. Every formula is checked before and after.
  */
-export const TEMPLATE_URL = "/templates/EPOCAR_Tesoreria_Rendiconto_template.xlsx";
+import templateUrl from "@/assets/treasury/EPOCAR_Tesoreria_Rendiconto_template.xlsx?url";
+// Bundled only with the private treasury app (never served from the public folder).
+export const TEMPLATE_URL = templateUrl;
 
 export type CellValue = string | number | Date | null | undefined;
 export type CellWrites = Record<string, Record<string, CellValue>>; // sheet name -> ref -> value

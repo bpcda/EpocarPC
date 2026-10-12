@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TEMPLATE_ACCOUNTS, TEMPLATE_CODES, TEMPLATE_LIMITS, TEMPLATE_METHODS } from "./treasury-template-lists";
 import { buildWorkbook, budgetCodeRows, EXCEL_MAPPING, EXCEL_FEE_CELLS, loadTemplate, type CellWrites, type FormulaResults } from "./treasury-excel";
 
-// External-instance schema (public/setup/treasury.sql); managed types are not edited.
+// External-instance schema (setup/treasury.sql); managed types are not edited.
 export const treasuryClient: SupabaseClient = supabase;
 export const BUCKET = "treasury-documents";
 

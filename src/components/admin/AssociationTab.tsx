@@ -52,7 +52,7 @@ export default function AssociationTab() {
   }
   return <div className="space-y-10">
     <div><h2 className="text-3xl mb-2">Associazione</h2><p className="text-sm text-muted-foreground">Percorso ETS in preparazione · le adesioni si aprono quando statuto e modulo sono pubblicati.</p></div>
-    {error && <div role="alert" className="border border-border py-5 px-4"><p className="mb-3">La sezione non è disponibile. Verifica che la tua istanza sia stata configurata.</p>{isAdmin && <Button variant="outline" asChild><a href="/setup/association.sql" download><Download /> SQL di installazione</a></Button>}</div>}
+    {error && <div role="alert" className="border border-border py-5 px-4"><p className="mb-3">La sezione non è disponibile. Verifica che la tua istanza sia stata configurata.</p>{isAdmin && <p className="text-sm text-muted-foreground">Script di installazione: <code>setup/association.sql</code> nel repository del progetto.</p>}</div>}
     <section className="border-t border-border pt-6"><h3 className="text-2xl mb-4">Documenti pubblici</h3>
       <div className="divide-y divide-border">{([['statute','Statuto'],['membership_form','Modulo di adesione']] as const).map(([kind,label])=>{const doc=docs.find(d=>d.kind===kind);return <div key={kind} className="flex flex-wrap items-center gap-3 py-4"><div className="flex-1 min-w-[180px]"><p className="font-medium">{label}</p><p className="text-sm text-muted-foreground break-all">{doc ? doc.filename : "Non ancora pubblicato"}</p></div>
         {doc && <Button variant="outline" size="sm" asChild><a href={publicAssociationFile("association-documents",doc.path)} target="_blank" rel="noopener noreferrer"><Download /> Scarica</a></Button>}
