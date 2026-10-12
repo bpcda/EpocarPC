@@ -46,10 +46,13 @@ export default function Adesione() {
   const [sending, setSending] = useState(false);
   const busy = useRef(false);
 
+  const [reload, setReload] = useState(0);
+  const [started, setStarted] = useState(false);
   useEffect(() => {
     if (authLoading) return; let active = true; setLoading(true); setUnavailable(false); setSubmission(null); setRow(null);
     Promise.all([
-      loadAssociation(),
+      // Documents are optional: their absence never blocks the electronic application.
+      loadAssociation().catch((e) => { console.error("[Adesione] documenti non disponibili", e); return { documents: [] as Doc[] }; }),
       user ? associationClient.from("membership_applications").select("*").eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       user ? supabase.from("profiles").select("first_name,last_name,phone,city").eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]).then(([materials, application, profile]) => {
@@ -59,24 +62,24 @@ export default function Adesione() {
       const data = application.data as Row | null;
       setRow(data); setSubmission(data ? submissionSchema.parse(data) : null);
       setForm(data?.status === "draft" ? formFromRow(data, base) : base);
-    }).catch(() => { if (active) setUnavailable(true); }).finally(() => { if (active) setLoading(false); });
+    }).catch((e) => { console.error("[Adesione] lettura domanda non riuscita", e); if (active) setUnavailable(true); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, reload]);
 
   const statute = docs.find(d => d.kind === "statute");
   const moduleDoc = docs.find(d => d.kind === "membership_form");
-  const ready = Boolean(statute && moduleDoc && !unavailable);
+  const ready = !unavailable;
   const isDraft = submission?.status === "draft";
   const set = (k: keyof ApplicationForm, v: string | boolean) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => { const n = { ...e }; delete n[k]; return n; }); };
 
   async function persist(status: "draft" | "submitted") {
-    if (!user || !statute || !moduleDoc || busy.current || (submission && !isDraft)) return false;
+    if (!user || busy.current || (submission && !isDraft)) return false;
     busy.current = true; setSending(true);
     try {
       const fields = applicantPayload(electronicPayload(form, status, row));
       const result = isDraft
         ? await associationClient.from("membership_applications").update(fields).eq("id", submission!.id).eq("status", "draft").select("*").single()
-        : await associationClient.from("membership_applications").insert({ user_id: user.id, ...fields, acknowledged: true, statute_path: statute.path, form_path: moduleDoc.path }).select("*").single();
+        : await associationClient.from("membership_applications").insert({ user_id: user.id, ...fields, acknowledged: true, statute_path: statute?.path ?? null, form_path: moduleDoc?.path ?? null }).select("*").single();
       if (result.error) {
         const existing = await associationClient.from("membership_applications").select("*").eq("user_id", user.id).maybeSingle();
         if (existing.data) { setRow(existing.data); setSubmission(submissionSchema.parse(existing.data)); }
