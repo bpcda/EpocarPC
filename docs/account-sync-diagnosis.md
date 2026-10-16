@@ -73,6 +73,14 @@ frontend for its new actionable error message. `treasury-sync` has no source cha
 this repair and needs no redeployment if its existing version matches the contract.
 No deployment was performed from this workspace.
 
+**Subsequent compatible extension (16 October 2026):** `treasury-sync` now adds
+`category_source: "site_role"` and `admission: {status:"unknown",source:null}` to
+each bootstrap HTTPS record. For this extension, redeploy `treasury-sync` on the
+external project and the public frontend, and adapt the private importer; no SQL
+migration or RPC signature change is needed. The earlier no-redeployment statement
+above applies only to the deletion/ack repair, not this subsequent extension.
+Missing fields from older servers mean unknown admission, never confirmed.
+
 ## Partial deletion review (read-only)
 
 The diagnostic audit summary finds `prepared` entries without `deleted/already_deleted`,
@@ -129,6 +137,7 @@ Anonymized/synthetic bootstrap response:
     "user_id": "10000000-0000-4000-8000-000000000105",
     "first_name": "Persona", "last_name": "Esempio", "full_name": "Persona Esempio",
     "email": "persona@example.invalid", "category": "Fondatore",
+    "category_source": "site_role", "admission": { "status": "unknown", "source": null },
     "board_roles": ["vice_president", "treasurer"],
     "admission_date": null, "card_number": null, "treasury_member_id": null,
     "acknowledged_at": null, "account_created_at": "2026-10-01T12:00:00Z"

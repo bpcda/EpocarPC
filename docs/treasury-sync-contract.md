@@ -151,11 +151,20 @@ Limite intero 1–100, predefinito 50. Ordine UUID ascendente; inviare ogni `nex
 { "ok": true, "request_id": "…", "next_cursor": null, "members": [{
   "external_member_id": "uuid", "user_id": "uuid", "first_name": "Mario", "last_name": "Rossi", "full_name": "Mario Rossi",
   "email": "mario@example.it", "category": "Fondatore", "board_roles": ["vice_president","treasurer"],
+  "category_source": "site_role", "admission": { "status": "unknown", "source": null },
   "admission_date": null, "card_number": null, "treasury_member_id": null, "acknowledged_at": null,
   "account_created_at": "2026-03-01T10:00:00Z" }] }
 ```
 
 `admission_date` e `card_number` sono valorizzati solo se già assegnati dalla Tesoreria; altrimenti `null` (mai inventati). `account_created_at` è la data dell'account, **non** la data di ammissione. Nessuna quota, delibera o stato pagamento: non esistono sul sito.
+
+**Estensione compatibile (2026-10-16):** ogni record aggiunge `category_source: "site_role"` e `admission: { "status": "unknown", "source": null }`. Questi valori sono sempre espliciti, anche per record già collegati o con data/tessera nella proiezione: questo elenco non verifica le decisioni della Tesoreria. Campi assenti da una versione precedente vanno interpretati come ammissione `unknown`, mai `confirmed`. Endpoint, campi precedenti, identificatori, filtri, paginazione e autenticazione restano identici; nessuna nuova domanda o modifica dello storico.
+
+La Tesoreria importa **identità da riconciliare**, mantenendo separati identità, categoria del sito e ammissione. Un nuovo `founder` senza domanda compare qui, non in `pending`. L'importatore deve verificare una decisione reale nella propria anagrafica/storia prima di riconoscere un socio legacy; import/ack non assegnano tessera, quota o stato `active`. Se l'anagrafica locale non supporta identità non ammesse, rinviare l'ack fino alla verifica. Non sovrascrivere decisioni locali confermate con `unknown`: il campo indica l'assenza di attestazione da questo endpoint, non una revoca.
+
+**Distribuzione esterna:** ridistribuire `supabase/functions/treasury-sync/index.ts` sul progetto esterno e il frontend pubblico; aggiornare l'importatore privato per interpretare i due campi. Questa estensione è aggiunta nella risposta HTTPS, quindi **non richiede nuove migrazioni SQL** né modifiche alle firme delle RPC. Restano necessari v11 e, per installazioni precedenti, v13 come sopra. Nessuna distribuzione sull'istanza esterna viene eseguita da questo workspace.
+
+**Area Socio:** il solo ruolo categoria e una proiezione `active` (anche con tessera/data) non attestano l'ammissione. Il frontend riconosce una decisione disponibile quando la propria domanda ha `status = approved` e un `approved_at` valido registrato dal server; in mancanza mostra “Ammissione da verificare”. Le decisioni della domanda e gli stati `suspended`/`ceased` rimangono visibili, come i dati proiettati e le sezioni già accessibili. Per un legacy la cui prova esiste soltanto nella Tesoreria privata, resta “da verificare” finché non sarà disponibile una attestazione verificabile: questo aggiornamento non inventa tale prova né modifica decisioni o permessi.
 
 ### Acknowledgement — `POST {BASE_URL}?action=bootstrap_ack`
 

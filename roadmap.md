@@ -1,4 +1,6 @@
 # Association
+- [x] Extend bootstrap response compatibly, document contract, correct admission display without changing access, and run synthetic tests.
+- [ ] Deploy compatible bootstrap extension and public admission display on external project; adapt private importer — blocked: external project/importer are not connected to this workspace. No new SQL migration for this extension.
 - [x] Diagnose account deletion and founder synchronization; supply safe external SQL repair, synthetic tests and Codex handoff (docs/account-sync-diagnosis.md).
 - [ ] Verify external production RPCs/roles/partial-deletion evidence, install v12/v13 and deploy delete-account — blocked: external production instance is not connected to this workspace; run setup/account-sync-diagnostics.sql there first.
 - [x] Public association and membership pages with honest pending-material states.
