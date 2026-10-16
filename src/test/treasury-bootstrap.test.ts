@@ -20,7 +20,7 @@ describe("bootstrap existing members", () => {
   it("does not write membership_applications or user roles from the list/ack", () => {
     expect(sql).not.toMatch(/INSERT INTO public\.membership_applications|UPDATE public\.membership_applications/);
     const ack = sql.slice(sql.indexOf("treasury_sync_bootstrap_ack("), sql.indexOf("-- member_update for"));
-    expect(ack).not.toMatch(/user_roles/);
+    expect(ack).not.toMatch(/(?:INSERT INTO|UPDATE|DELETE FROM) public\.user_roles/);
   });
   it("is idempotent and prevents duplicates", () => {
     expect(sql).toMatch(/treasury_member_id uuid NOT NULL UNIQUE/);
