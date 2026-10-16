@@ -1,0 +1,15 @@
+CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
+CREATE SCHEMA auth; CREATE SCHEMA extensions;
+CREATE EXTENSION pgcrypto WITH SCHEMA extensions;
+CREATE TYPE public.app_role AS ENUM ('admin','user','staff','founder','ordinary','supporter','president','vice_president','secretary','treasurer','councillor');
+CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, created_at timestamptz DEFAULT now());
+CREATE TABLE public.profiles(user_id uuid, first_name text, last_name text);
+CREATE TABLE public.user_roles(user_id uuid, role app_role, UNIQUE(user_id,role));
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT NULL::uuid $$;
+CREATE FUNCTION public.has_role(uuid,app_role) RETURNS boolean LANGUAGE sql AS $$ SELECT EXISTS(SELECT 1 FROM public.user_roles WHERE user_id=$1 AND role=$2) $$;
+CREATE TABLE public.vehicles(id uuid, user_id uuid);
+CREATE TABLE public.event_registrations(user_id uuid, vehicle_id uuid, guest_name text, guest_email text, answers jsonb);
+CREATE TABLE public.membership_applications(id uuid DEFAULT gen_random_uuid(), user_id uuid UNIQUE, status text, file_path text, cancelled_at timestamptz, public_status_message text, treasury_member_id uuid);
+CREATE TABLE public.member_public_status(user_id uuid, treasury_member_id uuid, admission_date date, card_number int, membership_status text);
+CREATE TABLE public.treasury_sync_requests(idempotency_key text PRIMARY KEY, action text, treasury_member_id uuid, payload_hash text, response jsonb, request_id text);
+CREATE FUNCTION public.member_public_upsert(uuid,uuid,uuid,jsonb) RETURNS text LANGUAGE sql AS $$ SELECT 'applied'::text $$;
