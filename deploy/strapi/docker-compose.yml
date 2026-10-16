@@ -1,0 +1,52 @@
+# Stack CMS Epocar per Coolify: Strapi 5 + PostgreSQL 16.
+# Tutti i segreti arrivano dalle variabili d'ambiente di Coolify (vedi .env.example).
+services:
+  strapi:
+    build:
+      context: ./app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 1337
+      PUBLIC_URL: ${PUBLIC_URL:?}
+      CORS_ORIGINS: ${CORS_ORIGINS:?}
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: strapi-db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:?}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:?}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?}
+      APP_KEYS: ${APP_KEYS:?}
+      API_TOKEN_SALT: ${API_TOKEN_SALT:?}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:?}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT:?}
+      JWT_SECRET: ${JWT_SECRET:?}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+    volumes:
+      - strapi-uploads:/opt/app/public/uploads
+    depends_on:
+      strapi-db:
+        condition: service_healthy
+    expose:
+      - "1337"
+
+  strapi-db:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:?}
+      POSTGRES_USER: ${DATABASE_USERNAME:?}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?}
+    volumes:
+      - strapi-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Nessuna porta esposta: il database è raggiungibile solo da Strapi.
+
+volumes:
+  strapi-uploads:
+  strapi-db-data:

@@ -1,0 +1,21 @@
+{
+  "name": "epocar-cms",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CMS editoriale Epocar (Strapi Community Edition, solo contenuti pubblici)",
+  "scripts": {
+    "develop": "strapi develop",
+    "build": "strapi build",
+    "start": "strapi start"
+  },
+  "dependencies": {
+    "@strapi/strapi": "5.12.6",
+    "@strapi/plugin-users-permissions": "5.12.6",
+    "pg": "8.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.28.0",
+    "styled-components": "6.1.13"
+  },
+  "engines": { "node": ">=20.0.0 <=22.x.x" }
+}
