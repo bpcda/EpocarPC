@@ -119,7 +119,7 @@ export default function MemberArea({ userId }: { userId: string }) {
   const states = {
     submitted: ["Domanda ricevuta", `Inviata il ${fmt(a.submitted_at ?? a.created_at)}. La domanda sarà esaminata secondo la procedura prevista: l’invio non attribuisce la qualità di socio.`],
     review: ["In valutazione", "Il Consiglio Direttivo sta esaminando la tua domanda."],
-    approved: ["Domanda approvata", "La tua ammissione è stata approvata. I dati di socio compariranno qui appena registrati dalla Tesoreria."],
+    approved: confirmed ? ["Domanda approvata", "La tua ammissione è stata approvata. I dati di socio compariranno qui appena registrati dalla Tesoreria."] : ["Ammissione da verificare", "La domanda risulta approvata, ma la data della decisione non è disponibile."],
     rejected: ["Domanda respinta", "Il Consiglio Direttivo non ha accolto la domanda."],
     cancelled: ["Domanda annullata", "La domanda è stata annullata."],
   } as const;
