@@ -22,6 +22,9 @@ import UserProtectedRoute from "./components/UserProtectedRoute.tsx";
 import Auth from "./pages/Auth.tsx";
 import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import CmsPage from "./pages/CmsPage.tsx";
+import { NewsList, NewsDetail } from "./pages/News.tsx";
+import Faq from "./pages/Faq.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth.ts";
@@ -48,6 +51,10 @@ const App = () => (
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/articoli" element={<Articoli />} />
           <Route path="/articoli/quando-auto-diventa-epoca" element={<QuandoAutoEpoca />} />
+          <Route path="/news" element={<NewsList />} />
+          <Route path="/news/:slug" element={<NewsDetail />} />
+          <Route path="/pagine/:slug" element={<CmsPage />} />
+          <Route path="/faq" element={<Faq />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/account"
