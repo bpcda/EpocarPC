@@ -1,0 +1,15 @@
+{
+    "collectionName": "components_blocks_separatore",
+    "info": {
+        "displayName": "Separatore"
+    },
+    "attributes": {
+        "style": {
+            "type": "enumeration",
+            "enum": [
+                "linea"
+            ],
+            "default": "linea"
+        }
+    }
+}

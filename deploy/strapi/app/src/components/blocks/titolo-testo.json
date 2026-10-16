@@ -1,0 +1,15 @@
+{
+    "collectionName": "components_blocks_titolo_testo",
+    "info": {
+        "displayName": "Titolo e testo"
+    },
+    "attributes": {
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "body": {
+            "type": "blocks"
+        }
+    }
+}

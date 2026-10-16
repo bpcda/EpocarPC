@@ -15,3 +15,7 @@
 - [x] Routed /tesoreria app: sidebar/bottom nav, dedicated pages, URL filters, unsaved-changes guard.
 - [ ] Live use — blocked by user running /setup/treasury.sql then /setup/treasury-v2.sql on the external instance and assigning the treasurer role.
 - [ ] User: run setup/membership-sync-v6.sql on the instance, set secret TREASURY_SYNC_SECRET, deploy treasury-sync, configure the private Treasury per docs/treasury-sync-contract.md
+# CMS editoriale
+- [x] Client CMS, homepage/footer collegati con fallback, pagine News/Pagine/FAQ, sponsor/partner, modelli Strapi, compose Coolify, doc, test.
+- [ ] Deploy Strapi su Coolify e VITE_STRAPI_URL su Vercel — blocked: eseguito dall'utente (docs/strapi-cms-deployment.md).
+- [ ] Import testi attuali nel CMS e rimozione fallback — dopo il deploy.

@@ -1,0 +1,35 @@
+{
+    "kind": "collectionType",
+    "collectionName": "galleries",
+    "info": {
+        "singularName": "gallery",
+        "pluralName": "galleries",
+        "displayName": "Galleria"
+    },
+    "options": {
+        "draftAndPublish": true
+    },
+    "attributes": {
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "slug": {
+            "type": "uid",
+            "targetField": "title"
+        },
+        "description": {
+            "type": "text"
+        },
+        "images": {
+            "type": "media",
+            "multiple": true,
+            "allowedTypes": [
+                "images"
+            ]
+        },
+        "date": {
+            "type": "date"
+        }
+    }
+}

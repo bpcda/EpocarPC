@@ -10,6 +10,8 @@ import InstagramSection from "@/components/InstagramSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
+import FeaturedNewsSection from "@/components/cms/FeaturedNewsSection";
+import OrganizationsSection from "@/components/cms/OrganizationsSection";
 
 const Index = () => {
   return (
@@ -27,8 +29,10 @@ const Index = () => {
         <CommunityNumbersSection />
         <MissionSection />
         <EventiSection />
+        <FeaturedNewsSection />
         <CommunitySection />
         <InstagramSection />
+        <OrganizationsSection />
         <CTASection />
       </main>
       <Footer />

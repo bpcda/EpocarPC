@@ -1,0 +1,21 @@
+{
+    "collectionName": "components_blocks_cta",
+    "info": {
+        "displayName": "Invito all'azione"
+    },
+    "attributes": {
+        "title": {
+            "type": "string",
+            "required": true
+        },
+        "text": {
+            "type": "text"
+        },
+        "link": {
+            "type": "component",
+            "repeatable": false,
+            "required": true,
+            "component": "shared.link"
+        }
+    }
+}

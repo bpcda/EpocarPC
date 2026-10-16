@@ -6,9 +6,10 @@ interface PageMetaProps {
   title: string;
   description: string;
   path: string;
+  image?: string;
 }
 
-export default function PageMeta({ title, description, path }: PageMetaProps) {
+export default function PageMeta({ title, description, path, image }: PageMetaProps) {
   const url = `${SITE_URL}${path}`;
   return (
     <Helmet>
@@ -18,6 +19,7 @@ export default function PageMeta({ title, description, path }: PageMetaProps) {
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
+      {image && <meta property="og:image" content={image} />}
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
     </Helmet>

@@ -1,0 +1,15 @@
+{
+    "collectionName": "components_blocks_citazione",
+    "info": {
+        "displayName": "Citazione"
+    },
+    "attributes": {
+        "text": {
+            "type": "text",
+            "required": true
+        },
+        "author": {
+            "type": "string"
+        }
+    }
+}
