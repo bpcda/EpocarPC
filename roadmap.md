@@ -1,4 +1,5 @@
 # Association
+- [ ] Extend bootstrap response compatibly, document contract, correct admission display without changing access, and run synthetic tests.
 - [x] Diagnose account deletion and founder synchronization; supply safe external SQL repair, synthetic tests and Codex handoff (docs/account-sync-diagnosis.md).
 - [ ] Verify external production RPCs/roles/partial-deletion evidence, install v12/v13 and deploy delete-account — blocked: external production instance is not connected to this workspace; run setup/account-sync-diagnostics.sql there first.
 - [x] Public association and membership pages with honest pending-material states.
