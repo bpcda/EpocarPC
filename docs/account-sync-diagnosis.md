@@ -152,3 +152,7 @@ Auth/storage/RPC and synthetic JWT claims: self/admin missing-RPC refusal, admin
 dry-run, last-admin, successful rejected self/admin deletion, finalization failure.
 No real identities or tokens are used. This verifies logic, not external production
 deployments, managed Auth cascades, or the external cache.
+
+Result: **36 tests passed across 5 files** (SQL integration, endpoint, account client,
+bootstrap and membership sync). Preview compilation reports `build OK`. No production
+account was deleted, no real admission was created, and no security policy was disabled.
