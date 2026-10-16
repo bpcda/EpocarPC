@@ -46,6 +46,12 @@ BEGIN
      OR NOT has_function_privilege('service_role', 'public.account_deletion_finalize(uuid,uuid,text,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'account_deletion_schema_not_ready';
   END IF;
+  IF (SELECT proargnames FROM pg_proc WHERE oid = 'public.account_deletion_prepare(uuid,uuid,text)'::regprocedure)
+      IS DISTINCT FROM ARRAY['_actor','_target','_mode']::text[]
+     OR (SELECT proargnames FROM pg_proc WHERE oid = 'public.account_deletion_finalize(uuid,uuid,text,text)'::regprocedure)
+      IS DISTINCT FROM ARRAY['_actor','_target','_mode','_outcome']::text[] THEN
+    RAISE EXCEPTION 'account_deletion_schema_not_ready';
+  END IF;
   IF to_regclass('public.membership_applications') IS NOT NULL THEN
     EXECUTE 'SELECT status FROM public.membership_applications WHERE user_id = $1' INTO _app USING _target;
   END IF;
