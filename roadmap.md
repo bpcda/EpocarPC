@@ -1,4 +1,6 @@
 # Association
+- [x] Diagnose account deletion and founder synchronization; supply safe external SQL repair, synthetic tests and Codex handoff (docs/account-sync-diagnosis.md).
+- [ ] Verify external production RPCs/roles/partial-deletion evidence, install v12/v13 and deploy delete-account — blocked: external production instance is not connected to this workspace; run setup/account-sync-diagnostics.sql there first.
 - [x] Public association and membership pages with honest pending-material states.
 - [x] Admin management of founders/documents and member applications; staff read/download only.
 - [x] External-instance SQL with permissions, private uploads and validation.

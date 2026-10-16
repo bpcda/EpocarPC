@@ -135,15 +135,17 @@ Ogni 5–15 minuti: `pending` → `review` → decisione del CD → `approve`/`r
 
 ## BOOTSTRAP EXISTING MEMBERS
 
-Soci già configurati sul sito (Dashboard → Utenti, ruolo categoria Fondatore/Ordinario/Sostenitore) **prima** del workflow domande. Non hanno una `membership_applications` e non devono compilarla. Richiede `setup/treasury-bootstrap-v11.sql`.
+Candidati alla riconciliazione già configurati sul sito (Dashboard → Utenti, ruolo categoria Fondatore/Ordinario/Sostenitore). **Un ruolo non prova l'ammissione**: la Tesoreria deve verificare una delibera reale prima di creare un socio effettivo o assegnare una tessera. Richiede `setup/treasury-bootstrap-v11.sql`; sulle installazioni precedenti applicare anche `setup/treasury-bootstrap-v13.sql` (correzione ack oltre la prima pagina, nessun cambio di contratto).
 
-**Fonte reale:** `public.user_roles` (una riga per ruolo) + `public.profiles` (nome) + account (email). Categoria = ruolo `founder|ordinary|supporter`; cariche del Consiglio = ruoli `president|vice_president|secretary|treasurer|councillor` (cariche associative, distinte dai ruoli tecnici `admin|staff|user`, che non vengono mai inviati). Esclusi gli utenti che hanno già una domanda inviata (passano dal flusso normale).
+**Fonte dei candidati:** `public.user_roles` (una riga per ruolo) + `public.profiles` (nome) + account (email). Categoria = ruolo `founder|ordinary|supporter`; cariche del Consiglio = ruoli `president|vice_president|secretary|treasurer|councillor` (cariche associative, distinte dai ruoli tecnici `admin|staff|user`, che non vengono mai inviati). Si richiedono un account esistente e almeno un ruolo categoria. Profilo assente non esclude. Domanda assente, `draft` o `cancelled`: inclusione; `submitted`, `review`, `approved` o `rejected`: esclusione. Un ruolo `founder` assegnato dopo un rifiuto **non** aggira la decisione e non riapre la domanda. Il ruolo `Onorario` non ha un valore enum corrispondente in questo elenco; è disponibile solo nella proiezione da Tesoreria.
 
 **Identificatore stabile:** `external_member_id` = UUID dell'account sul sito. Mai l'email.
 
 ### Elenco — `GET {BASE_URL}?action=bootstrap_members[&limit=50][&cursor=<external_member_id>]`
 
 Stessa autenticazione (Bearer + `X-Treasury-Timestamp`). Sola lettura, ripetibile senza effetti.
+
+Limite intero 1–100, predefinito 50. Ordine UUID ascendente; inviare ogni `next_cursor` fino a `null` (una pagina piena può richiedere un'ultima pagina vuota). Ogni nuovo aggiornamento completo deve partire **senza cursore**: è una scansione, non un flusso incrementale per data; un nuovo UUID può precedere il cursore della scansione precedente. `pending` non è un elenco di soci: restituisce solo domande `submitted` (default) / `review`, ordinate per `(submitted_at, application_id)` con cursore base64 distinto.
 
 ```json
 { "ok": true, "request_id": "…", "next_cursor": null, "members": [{

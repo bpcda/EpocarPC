@@ -21,6 +21,7 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
       const payload = await (error as { context?: Response }).context?.json();
       if (payload?.error === "last_admin") msg = "Non puoi eliminare l'ultimo amministratore del sistema.";
       else if (payload?.error === "forbidden") msg = "Non sei autorizzato a eliminare questo account.";
+      else if (payload?.error === "schema_not_ready") msg = "Eliminazione temporaneamente non disponibile: il servizio richiede un aggiornamento. Nessun dato è stato modificato da questa richiesta.";
     } catch { /* keep generic */ }
     throw new Error(msg);
   }
