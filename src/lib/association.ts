@@ -55,6 +55,13 @@ export type MemberStatus = z.infer<typeof memberStatusSchema>;
 export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", ceased: "Non più socio" } as const;
 export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
 export const cardLabel = (n: number | null | undefined) => (n == null ? "Tessera non ancora assegnata" : `n. ${n}`);
+/** Only a recorded, dated approval proves admission here; roles, cards and active projections do not. */
+export function admissionEvidence(application: Submission | null) {
+  if (application?.status === "approved" && application.approved_at && Number.isFinite(Date.parse(application.approved_at))) {
+    return { status: "confirmed", source: "application_decision" } as const;
+  }
+  return { status: "unknown", source: null } as const;
+}
 export async function loadMyMembership(userId: string) {
   const [app, mem, roles] = await Promise.all([
     associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
@@ -68,7 +75,7 @@ export async function loadMyMembership(userId: string) {
   return {
     application: app.data ? submissionSchema.parse(app.data) : null,
     member: !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null,
-    /** Category held on the site (e.g. founders admitted before the online flow). Shown only when no Treasury projection exists. */
+    /** Site category only: never evidence of a pre-existing admission. */
     roleCategory: category ? CATEGORY_ROLES[category] : null,
     board,
   };

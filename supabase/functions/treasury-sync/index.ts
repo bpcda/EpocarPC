@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, request_id: requestId, applications, next_cursor }, requestId);
     }
 
-    // 3b) Pre-existing members (from user roles, never from membership_applications). Read-only.
+    // 3b) Category-role reconciliation candidates, not an admitted-member register. Read-only.
     if (action === "bootstrap_members") {
       if (req.method !== "GET") return fail(405, "method_not_allowed", "Use GET for action=bootstrap_members", true);
       const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 50, 1), 100);
@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
       const members = rows.map((r) => ({
         external_member_id: r.external_member_id, user_id: r.user_id, first_name: r.first_name ?? null, last_name: r.last_name ?? null,
         full_name: r.full_name ?? null, email: r.email ?? null, category: r.category, board_roles: r.board_roles ?? [],
+        category_source: "site_role", admission: { status: "unknown", source: null },
         admission_date: r.admission_date ?? null, card_number: r.card_number ?? null,
         treasury_member_id: r.treasury_member_id ?? null, acknowledged_at: r.acknowledged_at ?? null,
         account_created_at: r.account_created_at ?? null,
