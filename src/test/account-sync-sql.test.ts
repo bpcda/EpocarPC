@@ -1,7 +1,7 @@
 // Real PostgreSQL, isolated temporary cluster with ONLY synthetic fixtures.
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, chmodSync, rmSync } from 'node:fs';
+import { mkdtempSync, chmodSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -9,7 +9,7 @@ describe('account/sync SQL on isolated synthetic PostgreSQL', () => {
   it('validates installation, refusals, rejected history, retries and bootstrap pages beyond 100', () => {
     const dir = mkdtempSync(join(tmpdir(), 'epocar-synthetic-'));
     chmodSync(dir, 0o777);
-    const asNobody = (args: string[]) => execFileSync('runuser', ['-u', 'nobody', '--', ...args], { encoding: 'utf8', stdio: 'pipe' });
+    const asNobody = (args: string[]) => execFileSync('runuser', ['-u', 'nobody', '--', realpathSync(`/usr/bin/${args[0]}`), ...args.slice(1)], { encoding: 'utf8', stdio: 'pipe' });
     const sql = (query: string) => execFileSync('psql', ['-h', dir, '-p', '55439', '-U', 'nobody', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-Atc', query], { encoding: 'utf8', stdio: 'pipe' }).trim();
     const install = (file: string) => execFileSync('psql', ['-h', dir, '-p', '55439', '-U', 'nobody', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-f', resolve(file)], { stdio: 'pipe' });
     let started = false;
