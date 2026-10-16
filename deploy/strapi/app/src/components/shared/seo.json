@@ -1,0 +1,23 @@
+{
+    "collectionName": "components_shared_seo",
+    "info": {
+        "displayName": "SEO"
+    },
+    "attributes": {
+        "metaTitle": {
+            "type": "string",
+            "maxLength": 70
+        },
+        "metaDescription": {
+            "type": "text",
+            "maxLength": 160
+        },
+        "ogImage": {
+            "type": "media",
+            "multiple": false,
+            "allowedTypes": [
+                "images"
+            ]
+        }
+    }
+}

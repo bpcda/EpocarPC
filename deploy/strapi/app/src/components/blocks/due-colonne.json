@@ -1,0 +1,14 @@
+{
+    "collectionName": "components_blocks_due_colonne",
+    "info": {
+        "displayName": "Due colonne"
+    },
+    "attributes": {
+        "left": {
+            "type": "blocks"
+        },
+        "right": {
+            "type": "blocks"
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "collectionName": "components_blocks_video",
+    "info": {
+        "displayName": "Video (YouTube/Vimeo)"
+    },
+    "attributes": {
+        "url": {
+            "type": "string",
+            "required": true
+        },
+        "title": {
+            "type": "string"
+        }
+    }
+}

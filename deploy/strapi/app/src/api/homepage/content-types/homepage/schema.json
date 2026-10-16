@@ -1,0 +1,65 @@
+{
+    "kind": "singleType",
+    "collectionName": "homepages",
+    "info": {
+        "singularName": "homepage",
+        "pluralName": "homepages",
+        "displayName": "Homepage"
+    },
+    "options": {
+        "draftAndPublish": true
+    },
+    "attributes": {
+        "heroTitle": {
+            "type": "string",
+            "required": true,
+            "maxLength": 120
+        },
+        "heroSubtitle": {
+            "type": "string",
+            "maxLength": 200
+        },
+        "heroImage": {
+            "type": "media",
+            "multiple": false,
+            "allowedTypes": [
+                "images"
+            ]
+        },
+        "missionLabel": {
+            "type": "string"
+        },
+        "missionText": {
+            "type": "text",
+            "maxLength": 400
+        },
+        "ctaTitle": {
+            "type": "string"
+        },
+        "ctaText": {
+            "type": "text"
+        },
+        "ctaPrimary": {
+            "type": "component",
+            "repeatable": false,
+            "component": "shared.link"
+        },
+        "ctaSecondary": {
+            "type": "component",
+            "repeatable": false,
+            "component": "shared.link"
+        },
+        "showNews": {
+            "type": "boolean",
+            "default": true
+        },
+        "showSponsors": {
+            "type": "boolean",
+            "default": true
+        },
+        "showPartners": {
+            "type": "boolean",
+            "default": true
+        }
+    }
+}

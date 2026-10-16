@@ -1,0 +1,12 @@
+{
+    "collectionName": "components_blocks_testo",
+    "info": {
+        "displayName": "Testo"
+    },
+    "attributes": {
+        "body": {
+            "type": "blocks",
+            "required": true
+        }
+    }
+}
