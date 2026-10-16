@@ -1,4 +1,5 @@
 # Association
+- [ ] Diagnose account deletion and founder synchronization; supply safe external SQL repair, synthetic tests and Codex handoff.
 - [x] Public association and membership pages with honest pending-material states.
 - [x] Admin management of founders/documents and member applications; staff read/download only.
 - [x] External-instance SQL with permissions, private uploads and validation.
