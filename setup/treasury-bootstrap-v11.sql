@@ -62,7 +62,11 @@ BEGIN
     RETURN _prev.response || jsonb_build_object('replayed', true);
   END IF;
   IF _ext IS NULL OR _tm IS NULL THEN RAISE EXCEPTION 'invalid: external_member_id and treasury_member_id are required' USING ERRCODE = 'P0422'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.treasury_sync_bootstrap_members(100000, NULL) b WHERE b.external_member_id = _ext) THEN
+  -- Direct eligibility lookup: the public list is capped at 100 rows per page.
+  -- A role is only a reconciliation candidate, never evidence of admission.
+  IF NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = _ext
+    AND EXISTS (SELECT 1 FROM public.user_roles r WHERE r.user_id = u.id AND r.role::text IN ('founder','ordinary','supporter'))
+    AND NOT EXISTS (SELECT 1 FROM public.membership_applications a WHERE a.user_id = u.id AND a.status NOT IN ('draft','cancelled'))) THEN
     RAISE EXCEPTION 'not_found: existing member' USING ERRCODE = 'P0404';
   END IF;
   SELECT * INTO _cur FROM public.treasury_bootstrap_links WHERE external_member_id = _ext FOR UPDATE;
