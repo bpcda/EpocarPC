@@ -29,6 +29,15 @@ ALTER TABLE public.member_public_status
   ADD COLUMN IF NOT EXISTS public_message text CHECK (char_length(public_message) <= 500),
   ADD COLUMN IF NOT EXISTS last_revision integer NOT NULL DEFAULT 0;
 
+-- ON CONFLICT needs a unique constraint on treasury_member_id (the v6 PK already provides it).
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE n.nspname = 'public' AND t.relname = 'member_public_status' AND i.indisunique AND i.indpred IS NULL AND i.indnkeyatts = 1
+      AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = t.oid AND a.attnum = i.indkey[0] AND a.attname = 'treasury_member_id')) THEN
+    CREATE UNIQUE INDEX member_public_status_tm_uq ON public.member_public_status (treasury_member_id);
+  END IF;
+END $$;
+
 -- 2) Annual fees: one row per member per year (2027 never overwrites 2026) --------------------------------
 CREATE TABLE IF NOT EXISTS public.member_annual_fees (
   treasury_member_id uuid NOT NULL,
