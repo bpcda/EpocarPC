@@ -1,4 +1,5 @@
 # Association
+- [x] Prepare read-only external SQL diagnostics for duplicate accounts A/B and a conditional Codex handoff for safe relinking; tested on isolated synthetic PostgreSQL, no external access or account changes.
 - [x] Extend bootstrap response compatibly, document contract, correct admission display without changing access, and run synthetic tests.
 - [x] member_update v2 site side: setup/membership-sync-v14.sql (revisioned events, per-year fees, clear_fields, admission evidence), treasury-sync routing, Area Socio display, contract + synthetic tests.
 - [ ] Deploy v14 + treasury-sync + frontend on external project; switch Django importer to v2 events — blocked: external project not connected to this workspace. Order in docs/treasury-sync-contract.md.
