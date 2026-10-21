@@ -11,7 +11,7 @@ SELECT t.tgrelid::regclass AS relation, t.tgname, t.tgenabled,
 FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid
 WHERE NOT t.tgisinternal AND t.tgrelid IN
   ('public.association_members'::regclass, 'public.user_roles'::regclass)
-ORDER BY relation::text, t.tgname;
+ORDER BY t.tgrelid::regclass::text, t.tgname;
 
 -- Impronta del codice installato: non è un hash Auth né un segreto.
 -- Copiarla nel blocco 2 SOLO dopo revisione delle definizioni e dei percorsi di sync.

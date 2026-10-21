@@ -74,6 +74,7 @@ describe('scoped public member relink', () => {
       INSERT INTO public.association_member_events(member_id,event_type) VALUES('${mid}','approved');`);
   });
   it('defaults to rollback including guard and role changes', () => {
+    expect(sql(source.slice(0,source.indexOf('BEGIN;')))).toContain(mid);
     execute();
     expect(sql(`SELECT user_id FROM association_members WHERE id='${mid}';`)).toBe(b);
     expect(sql("SELECT to_regprocedure('public.epocar_guard_member_1601d3a0()') IS NULL;")).toBe('t');
