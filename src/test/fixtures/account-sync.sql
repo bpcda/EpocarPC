@@ -11,6 +11,7 @@ CREATE TABLE public.vehicles(id uuid, user_id uuid);
 CREATE TABLE public.event_registrations(user_id uuid, vehicle_id uuid, guest_name text, guest_email text, answers jsonb);
 CREATE TABLE public.membership_applications(id uuid DEFAULT gen_random_uuid(), user_id uuid UNIQUE, status text, file_path text, filename text, full_name text, email text, requested_category text, submitted_at timestamptz, reviewed_at timestamptz, approved_at timestamptz, rejected_at timestamptz, cancelled_at timestamptz, decided_at timestamptz, member_id uuid, updated_at timestamptz DEFAULT now(), public_status_message text, treasury_member_id uuid);
 CREATE TABLE public.member_public_status(user_id uuid, treasury_member_id uuid, admission_date date, card_number int, membership_status text);
+GRANT SELECT ON public.member_public_status TO authenticated; -- mirrors membership-sync-v6.sql on the real instance
 CREATE TABLE public.treasury_sync_requests(idempotency_key text PRIMARY KEY, action text, application_id uuid, treasury_member_id uuid, payload_hash text, response jsonb, request_id text);
 CREATE TABLE public.association_member_events(application_id uuid, event_type text, category text, notes text);
 CREATE FUNCTION public.member_public_upsert(uuid,uuid,uuid,jsonb) RETURNS text LANGUAGE sql AS $$ SELECT 'applied'::text $$;
