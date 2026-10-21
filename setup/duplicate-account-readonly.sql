@@ -120,7 +120,7 @@ spec(table_name,fields,scope) AS (VALUES
 SELECT format('WITH params(account,email) AS (VALUES (''A'',%L::text),(''B'',%L::text)),
  ids AS (SELECT p.account,u.id FROM params p JOIN auth.users u ON lower(u.email)=lower(trim(p.email))),
  apps AS (%s), registers AS (%s), tms AS (%s)
- %s ORDER BY section,data::text;',p.email_a,p.email_b,a.q,r.q,
+ SELECT section,data FROM (%s) diagnostic_rows ORDER BY section,data::text;',p.email_a,p.email_b,a.q,r.q,
  coalesce((SELECT string_agg(q,' UNION ALL ') FROM seed_parts),'SELECT NULL::text AS tm WHERE false'),
  (SELECT string_agg(q,E'\nUNION ALL\n' ORDER BY q) FROM parts)) AS readonly_sql_to_copy_and_run
 FROM params p CROSS JOIN app_part a CROSS JOIN register_part r;
