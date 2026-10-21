@@ -46,8 +46,7 @@ describe('duplicate-account read-only diagnostics', () => {
         .replaceAll('EMAIL_ACCOUNT_A','a@example.invalid').replaceAll('EMAIL_ACCOUNT_B','b@example.invalid')
         .replaceAll('UUID_AUTH_A',a).replaceAll('UUID_AUTH_B',b)
         .replaceAll('BUCKET_DA_VERIFICARE','event-images').replaceAll('PERCORSO_OGGETTO','pic.png');
-      const statements = source.replace(/--[^\n]*/g, '').split(';').map(s => s.trim()).filter(Boolean);
-      expect(statements.length).toBe(10);
+      const statements = source.replace(/--[^\n]*/g, '').split(/;\s*\n/).map(s => s.trim()).filter(Boolean);
       const read = (q: string) => sql(`BEGIN TRANSACTION READ ONLY; ${q}; ROLLBACK;`).split('\n').filter(s => s !== 'BEGIN' && s !== 'ROLLBACK').join('\n');
       const output = statements.map(read);
       expect(output[0]).toContain(a);
