@@ -12,6 +12,8 @@ Il file `setup/duplicate-account-readonly.sql` contiene esclusivamente SELECT e 
 4. Eseguire 3: restituisce **testo SQL**, non i dati. Copiare la cella `readonly_sql_to_copy_and_run` integralmente ed eseguirla come 4. Il generatore seleziona soltanto colonne consentite realmente presenti e non interpella RPC applicative. Per sicurezza, il SELECT copiato può essere racchiuso in `BEGIN TRANSACTION READ ONLY;` e `ROLLBACK;`. Usare una sessione amministrativa autorizzata: risultati vuoti con RLS/permessi limitati non provano assenza di collegamenti.
 5. Eseguire 5 con `UUID_AUTH_A`/`UUID_AUTH_B`; distingue proprietario Storage, prefisso utente e UUID nel nome. Nessuna di queste prove è sostitutiva delle altre.
 6. Eseguire 6 per ogni immagine importante, con bucket e percorso esatti. Cerca anche il riuso in articoli/eventi di altri autori senza restituire HTML o generare URL firmati. È ricerca testuale sui riferimenti bucket/percorso, non un parser universale: URL codificati, HTML con URL diversi, asset Strapi o immagini locali richiedono verifica separata.
+7. Eseguire 7 con email e UUID: separa iscrizioni via account, veicolo e email ospite; espone soltanto i riferimenti agli allegati, non le altre risposte.
+8. Eseguire 8 per i percorsi referenziati: trova anche oggetti senza proprietario o caricati da un altro autore, che il solo inventario A/B potrebbe non includere.
 
 I risultati contengono dati personali (nomi, email, telefono, targhe, percorsi file): conservarli privatamente. Non restituiscono password, token, hash Auth, metadata Auth, hash email, hash payload, risposte sync integrali o moduli con codice fiscale/indirizzo. Gli URL immagine restituiti dal generatore sono privati di query string e frammento; i percorsi Storage non sono credenziali ma possono includere nomi di file personali.
 
@@ -67,3 +69,7 @@ Questa è una sequenza condizionale da concordare con Codex, **non una procedura
 8. **Ripresa controllata.** Codex aggiorna il riferimento esterno canonico ad A, invia un nuovo snapshot revisionato con generazione corretta, verifica lettura reale con A e assenza accesso con B; poi riattiva code/import e ripete inventario e conteggi. Un rollback operativo non deve riabilitare la coppia revocata o cancellare audit/ledger.
 
 **Da fare ora:** soltanto eseguire e interpretare le query. Dopo i risultati si può preparare il piano operativo e il codice di protezione con Codex; nessun UPDATE/DELETE è incluso qui.
+
+## Verifica locale effettuata
+
+Test PostgreSQL isolato con soli dati sintetici: tutti i SELECT eseguiti in transazioni READ ONLY, compreso il SELECT generato; UUID A/B distinti, contenuto attribuito ad A, collegamento e quote di B, revisione 7, proprietario Storage, esclusione di password/hash/payload/risposte sync e token nella query string. Ripetuto il generatore senza tabelle opzionali v11/v14. Un test automatizzato superato (`src/test/duplicate-account-readonly.test.ts`); nessuna verifica dei dati effettivi esterni.
