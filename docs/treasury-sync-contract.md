@@ -173,3 +173,76 @@ Header `Idempotency-Key` obbligatorio. Corpo: `{ "external_member_id": "uuid", "
 Registra il collegamento senza cambiare l'id originario e senza toccare ruoli, profili o domande. Risposta: `{ "ok": true, "result": "applied"|"noop", "external_member_id", "treasury_member_id", "replayed" }`. Stessa coppia → `noop`; altro `treasury_member_id` per lo stesso socio, o `treasury_member_id` già usato → `409 conflict`; socio inesistente → `404 not_found`.
 
 Dopo l'ack, `member_update` con quel `treasury_member_id` aggiorna l'Area Socio. Finché la tessera non è assegnata, la categoria già presente sul sito resta.
+
+## MEMBER_UPDATE V2 (eventi revisionati) — richiede `setup/membership-sync-v14.sql`
+
+Versione esplicita del contratto di aggiornamento socio. `POST {BASE_URL}?action=member_update` con header come sopra. Il formato v1 (`member: { … }` senza `event_id`) resta accettato per compatibilità, ma è deprecato: la Tesoreria dovrebbe passare a v2.
+
+### Busta dell'evento (obbligatoria)
+
+| Campo | Tipo | Note |
+|---|---|---|
+| `event_id` | stringa 8–100 caratteri | univoco, **stabile nei retry**: dopo un timeout si ripete lo stesso `event_id` (e la stessa `Idempotency-Key`) |
+| `revision` | intero ≥ 1 | monotono per socio: ogni nuovo evento per lo stesso `treasury_member_id` ha revisione maggiore |
+| `updated_at` | ISO 8601 UTC | orario della modifica in Tesoreria |
+| `treasury_member_id` | UUID | identificativo stabile del socio |
+| `external_member_id` | UUID | account del sito; obbligatorio se manca `application_id` |
+| `application_id` | UUID | domanda online, se esiste |
+
+Almeno uno tra `external_member_id` e `application_id`. Se entrambi presenti devono essere coerenti (stessa persona, stesso socio): altrimenti `409 conflict` e nessuna scrittura. L'email non è mai una chiave.
+
+### Dati (aggiornamento parziale)
+
+- Campo **omesso** = nessuna modifica. **`null` esplicito è rifiutato** (`422`): per rimuovere un valore si usa `clear_fields`.
+- `category`, `membership_status` (`active|suspended|ceased`), `card_number` (intero > 0), `admission_date` (`YYYY-MM-DD`): come v1, ma al livello superiore del corpo (non dentro `member`).
+- `admission`: `{ "status": "confirmed|unverified|not_admitted", "source": "board_resolution|historical_register", "reference": "…", "decision_date": "YYYY-MM-DD" }`. `confirmed` **richiede** `source`; ruolo pubblico, tessera o collegamento bootstrap non costituiscono prova e non vengono mai promossi ad ammissione.
+- `annual_fee`: `{ "membership_year": 2026, "fee_status": "paid|partial|due|exempt", "fee_amount": "100.00", "fee_paid_amount": "40.00", "fee_balance": "60.00", "last_payment": { "date": "2026-03-01", "amount": "40.00", "receipt_number": "R-1" } }`. Importi = **stringhe decimali con due cifre, EUR**; mai float. Ogni anno è conservato separatamente: un aggiornamento 2027 non sovrascrive il 2026. `fee_status` non è mai dedotto da `last_payment`.
+- `payment_coordinates`: `{ "iban": "IT60X054…", "account_holder": "EPOCAR APS" }` (facoltativo; spazi nell'IBAN ignorati).
+- `cessation`: `{ "date": "YYYY-MM-DD", "reason": "resignation|expulsion|death|other" }` (facoltativo).
+- `public_message`: testo destinato al socio (≤500 caratteri), mai note interne.
+
+### `clear_fields`
+
+Array di percorsi da azzerare esplicitamente. Percorsi ammessi: `card_number`, `admission_date`, `admission`, `payment_coordinates`, `cessation`, `public_message`, `annual_fee.last_payment` (richiede `annual_fee.membership_year` presente e `last_payment` omesso). Un campo presente **e** elencato in `clear_fields` è ambiguo → `422 invalid_request`. Esempio pagamento annullato: `{ …, "annual_fee": { "membership_year": 2026 }, "clear_fields": ["annual_fee.last_payment"] }`.
+
+### Semantica delle risposte
+
+```json
+{ "ok": true, "result": "applied", "member_projection": "applied", "revision": 7, "event_id": "…", "treasury_member_id": "…", "replayed": false, "request_id": "…" }
+```
+
+| Situazione | HTTP | `result` / `member_projection` | Effetti |
+|---|---|---|---|
+| Evento nuovo, revisione maggiore | 200 | `applied` | dati aggiornati atomicamente |
+| Stesso `event_id`, stesso contenuto | 200 | `duplicate` | nessun effetto aggiuntivo |
+| Revisione inferiore all'ultima applicata | 200 | `stale` | nessuna sovrascrittura |
+| Stesso `event_id` o stessa revisione, contenuto diverso | 409 | `conflict` | rifiutato, nessuna scrittura |
+| Identificatori incoerenti | 409 | `conflict` | rifiutato |
+| Socio non risolvibile | 404 | `not_found` | rifiutato |
+| Busta o campi non validi (null esplicito, importo non canonico, clear non ammesso…) | 422 | `invalid_request` | rifiutato |
+
+`replayed: true` resta il replay della stessa `Idempotency-Key` (livello richiesta), distinto da `duplicate` (livello evento). Funziona anche per soci storici senza domanda online: `external_member_id` + collegamento bootstrap.
+
+### Esempio completo
+
+```json
+{ "event_id": "7f3c…-2026-10-20", "revision": 7, "updated_at": "2026-10-20T10:00:00Z",
+  "treasury_member_id": "uuid", "external_member_id": "uuid",
+  "category": "Fondatore", "membership_status": "active", "card_number": 7, "admission_date": "2019-05-12",
+  "admission": { "status": "confirmed", "source": "board_resolution", "reference": "CD 2019-04", "decision_date": "2019-04-20" },
+  "annual_fee": { "membership_year": 2026, "fee_status": "partial", "fee_amount": "100.00", "fee_paid_amount": "40.00", "fee_balance": "60.00",
+    "last_payment": { "date": "2026-03-01", "amount": "40.00", "receipt_number": "R-1" } },
+  "payment_coordinates": { "iban": "IT60X0542811101000000123456", "account_holder": "EPOCAR APS" },
+  "public_message": "Benvenuto!" }
+```
+
+### Visibilità (Area Socio)
+
+Il socio vede solo la propria proiezione e le proprie quote annuali (RLS per `user_id`); il registro eventi è service-only. Payload, messaggi e motivi di cessazione non compaiono in elenchi pubblici. La prova di ammissione (`admission`) resta distinta dallo stato `active|suspended|ceased`. Cariche del Consiglio e privilegi tecnici del sito non cambiano mai per effetto di un `member_update`.
+
+### Ordine di distribuzione
+
+1. Applicare `setup/membership-sync-v14.sql` sul progetto esterno (dopo v6, v11, v13).
+2. Ridistribuire `supabase/functions/treasury-sync/index.ts`.
+3. Distribuire il frontend pubblico.
+4. La Tesoreria passa agli eventi v2 (v1 resta accettato durante la transizione).
