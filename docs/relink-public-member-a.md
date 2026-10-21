@@ -63,3 +63,7 @@ La richiesta circoscritta corregge il collegamento, **non autorizza una revoca a
 ### Cosa resta esterno
 
 Revisione ed esecuzione manuale del solo script sul sito; controllo di codice/trigger effettivamente installati; gestione delle code da Codex; lettura reale Area Socio con A/B e conferma asset. Nessun deployment è stato eseguito. Non occorre modificare la Tesoreria privata che, secondo la verifica comunicata, è già corretta.
+
+## Verifica locale
+
+**7 test superati su PostgreSQL isolato, dati sintetici:** sei nuovi test per query preventive, rollback completo, conservazione ID/tessera/data ammissione/storico, nuovo audit attribuito all'operatore, founder di A e ruoli di B invariati, rifiuto di ritorno a B/NULL; arresti specifici per proiezione B, domanda storica conflittuale, data pubblica diversa e categoria alternativa di A. Rieseguito anche il precedente test diagnostico read-only. I test usano le funzioni reali di auto-link, role-sync, card-guard e audit estratte dalle migrazioni; lo schema restante è sintetico. Non provano le code Django o le funzioni effettivamente distribuite sul progetto esterno.
