@@ -96,7 +96,7 @@ describe('member_update v2 on isolated synthetic PostgreSQL', () => {
       // Isolation: an authenticated user reads only own fees; events log is service-only.
       const asAuthenticated = (q: string) => sql(`SET ROLE authenticated; ${q}`).split('\n').pop();
       expect(asAuthenticated(`SELECT count(*) FROM member_annual_fees;`)).toBe('0');
-      expect(asAuthenticated(`SELECT count(*) FROM treasury_member_events;`)).toBe('0');
+      expect(() => asAuthenticated(`SELECT count(*) FROM treasury_member_events;`)).toThrow(); // service-only table
       expect(sql(`SELECT has_function_privilege('authenticated','public.member_update_v2(uuid,uuid,uuid,jsonb)','EXECUTE');`)).toBe('f');
       // Legacy v1 payload (no event_id) still works through the bootstrap path.
       const v1 = JSON.parse(update('mu-v1', JSON.stringify({ treasury_member_id: tm, member: { category: 'Fondatore', membership_status: 'active', updated_at: '2026-10-20T13:00:00Z' } })));
