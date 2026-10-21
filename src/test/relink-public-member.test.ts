@@ -92,22 +92,22 @@ describe('scoped public member relink', () => {
   });
   it('aborts on a projection still pointing to B', () => {
     sql(`INSERT INTO member_public_status(user_id,treasury_member_id) VALUES('${b}','${tm}');`);
-    expect(() => execute(true)).toThrow();
+    expect(() => execute(true)).toThrow(/proiezione in conflitto/);
     expect(sql('SELECT user_id FROM association_members;')).toBe(b);
   });
   it('aborts on conflicting historical applicant without changing its identity', () => {
     sql(`INSERT INTO membership_applications(user_id,status,member_id,treasury_member_id) VALUES('${b}','approved','${mid}','${tm}');`);
-    expect(() => execute(true)).toThrow();
+    expect(() => execute(true)).toThrow(/domanda storica o pendente conflittuale/);
     expect(sql('SELECT user_id FROM membership_applications;')).toBe(b);
   });
   it('aborts when public card/admission does not match instead of overwriting it', () => {
     sql(`UPDATE association_members SET admission_date='2026-10-08';`);
-    expect(() => execute(true)).toThrow();
+    expect(() => execute(true)).toThrow(/tessera\/ammissione\/delibera pubbliche non coincidenti/);
     expect(sql('SELECT admission_date FROM association_members;')).toBe('2026-10-08');
   });
   it('aborts rather than implicitly removing an alternate category from A', () => {
     sql(`INSERT INTO user_roles(user_id,role) VALUES('${a}','ordinary');`);
-    expect(() => execute(true)).toThrow();
+    expect(() => execute(true)).toThrow(/A ha categoria diversa/);
     expect(sql(`SELECT role FROM user_roles WHERE user_id='${a}';`)).toBe('ordinary');
   });
 });

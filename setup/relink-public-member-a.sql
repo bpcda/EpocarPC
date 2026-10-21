@@ -17,7 +17,7 @@ ORDER BY relation::text, t.tgname;
 -- Copiarla nel blocco 2 SOLO dopo revisione delle definizioni e dei percorsi di sync.
 WITH definitions AS (
   SELECT 'trigger:' || t.tgrelid::regclass::text || ':' || t.tgname AS k,
-         pg_get_triggerdef(t.oid) || ':' || t.tgenabled || ':' || pg_get_functiondef(t.tgfoid) AS v
+         pg_get_triggerdef(t.oid) || ':' || t.tgenabled::text || ':' || pg_get_functiondef(t.tgfoid) AS v
   FROM pg_trigger t WHERE NOT t.tgisinternal AND t.tgrelid IN
     ('public.association_members'::regclass, 'public.user_roles'::regclass)
   UNION ALL
@@ -87,7 +87,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub',operator_id)::text, true);
   WITH definitions AS (
     SELECT 'trigger:' || t.tgrelid::regclass::text || ':' || t.tgname AS k,
-           pg_get_triggerdef(t.oid) || ':' || t.tgenabled || ':' || pg_get_functiondef(t.tgfoid) AS v
+           pg_get_triggerdef(t.oid) || ':' || t.tgenabled::text || ':' || pg_get_functiondef(t.tgfoid) AS v
     FROM pg_trigger t WHERE NOT t.tgisinternal AND t.tgrelid IN
       ('public.association_members'::regclass, 'public.user_roles'::regclass)
     UNION ALL
