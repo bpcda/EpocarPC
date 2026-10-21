@@ -42,6 +42,7 @@ export function applicantPayload(fields: Record<string, unknown>) {
   return out;
 }
 /** Area Socio: limited projection written only by the private Treasury (own row only, via RLS). */
+const money = z.union([z.string(), z.number()]).transform(String); // numeric arrives as number or string; kept as text, never float math
 export const memberStatusSchema = z.object({
   membership_status: z.enum(["active", "suspended", "ceased"]),
   category: z.enum(["Fondatore", "Ordinario", "Sostenitore", "Onorario"]),
@@ -50,31 +51,71 @@ export const memberStatusSchema = z.object({
   membership_year: z.number().int().nullable(),
   fee_status: z.enum(["paid", "partial", "due", "exempt"]).nullable(),
   updated_at: z.string(),
+  // member_update v2 (Treasury-attested). Absent on projections written before v14.
+  admission_status: z.enum(["confirmed", "unverified", "not_admitted"]).nullable().optional(),
+  admission_source: z.enum(["board_resolution", "historical_register"]).nullable().optional(),
+  admission_reference: z.string().nullable().optional(),
+  admission_decision_date: z.string().nullable().optional(),
+  payment_iban: z.string().nullable().optional(),
+  payment_account_holder: z.string().nullable().optional(),
+  cessation_date: z.string().nullable().optional(),
+  cessation_reason: z.enum(["resignation", "expulsion", "death", "other"]).nullable().optional(),
+  public_message: z.string().nullable().optional(),
 });
 export type MemberStatus = z.infer<typeof memberStatusSchema>;
+/** One row per membership year: a 2027 update never overwrites 2026. */
+export const annualFeeSchema = z.object({
+  membership_year: z.number().int(),
+  fee_status: z.enum(["paid", "partial", "due", "exempt"]).nullable(),
+  fee_amount: money.nullable(),
+  fee_paid_amount: money.nullable(),
+  fee_balance: money.nullable(),
+  last_payment_date: z.string().nullable(),
+  last_payment_amount: money.nullable(),
+  last_payment_receipt_number: z.string().nullable(),
+});
+export type AnnualFee = z.infer<typeof annualFeeSchema>;
 export const MEMBERSHIP_STATUS = { active: "Socio", suspended: "Socio sospeso", ceased: "Non più socio" } as const;
 export const FEE_STATUS = { paid: "Quota pagata", partial: "Quota pagata in parte", due: "Quota da pagare", exempt: "Esente" } as const;
+export const ADMISSION_SOURCE = { board_resolution: "Delibera del Consiglio Direttivo", historical_register: "Registro storico dei soci", application_decision: "Domanda online approvata" } as const;
+export const CESSATION_REASON = { resignation: "Dimissione", expulsion: "Radiazione", death: "Decesso", other: "Altra causa" } as const;
 export const cardLabel = (n: number | null | undefined) => (n == null ? "Tessera non ancora assegnata" : `n. ${n}`);
-/** Only a recorded, dated approval proves admission here; roles, cards and active projections do not. */
-export function admissionEvidence(application: Submission | null) {
+/** EUR amounts arrive as canonical 2-digit strings; display only, never arithmetic. */
+export const eur = (v: string | null | undefined) => (v == null ? null : `${v.replace(".", ",")} €`);
+/**
+ * Admission is confirmed only by a recorded, dated approval of the online application or by an explicit
+ * Treasury attestation (member_update v2). Roles, cards, links and active projections never prove it.
+ */
+export function admissionEvidence(application: Submission | null, member?: MemberStatus | null) {
   if (application?.status === "approved" && application.approved_at && Number.isFinite(Date.parse(application.approved_at))) {
     return { status: "confirmed", source: "application_decision" } as const;
   }
+  if (member?.admission_status === "confirmed") {
+    return { status: "confirmed", source: member.admission_source ?? null } as const;
+  }
+  if (member?.admission_status === "not_admitted") return { status: "not_admitted", source: null } as const;
   return { status: "unknown", source: null } as const;
 }
 export async function loadMyMembership(userId: string) {
   const [app, mem, roles] = await Promise.all([
     associationClient.from("membership_applications").select("*").eq("user_id", userId).maybeSingle(),
-    associationClient.from("member_public_status").select("membership_status,category,card_number,admission_date,membership_year,fee_status,updated_at").eq("user_id", userId).maybeSingle(),
+    associationClient.from("member_public_status").select("*").eq("user_id", userId).maybeSingle(),
     associationClient.from("user_roles").select("role").eq("user_id", userId),
   ]);
   if (app.error) throw new Error("Area socio non disponibile.");
+  const member = !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null;
+  let fees: AnnualFee[] = [];
+  if (member) {
+    const f = await associationClient.from("member_annual_fees").select("*").order("membership_year", { ascending: false });
+    if (!f.error && f.data) fees = z.array(annualFeeSchema).parse(f.data);
+  }
   const r = (roles.data ?? []).map((x: { role: string }) => String(x.role));
   const category = (Object.keys(CATEGORY_ROLES) as (keyof typeof CATEGORY_ROLES)[]).find(k => r.includes(k));
   const board = (Object.keys(BOARD_ROLES) as (keyof typeof BOARD_ROLES)[]).filter(k => r.includes(k)).map(k => BOARD_ROLES[k]);
   return {
     application: app.data ? submissionSchema.parse(app.data) : null,
-    member: !mem.error && mem.data ? memberStatusSchema.parse(mem.data) : null,
+    member,
+    fees,
     /** Site category only: never evidence of a pre-existing admission. */
     roleCategory: category ? CATEGORY_ROLES[category] : null,
     board,
