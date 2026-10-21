@@ -124,7 +124,7 @@ export default function MemberArea({ userId }: { userId: string }) {
   const name = a?.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(" ") || meta.full_name || user?.email || "Socio";
   const title = "font-headline text-3xl tracking-wider text-primary-foreground mb-3";
   const text = "text-primary-foreground/75 mb-6";
-  const annual = fees[0] ?? null;
+  const annual = (fees ?? [])[0] ?? null;
   const admissionProof = confirmed
     ? [evidence.source ? ADMISSION_SOURCE[evidence.source] : null, m?.admission_decision_date ? fmt(m.admission_decision_date) : null, m?.admission_reference ?? null].filter(Boolean).join(" · ")
     : null;
