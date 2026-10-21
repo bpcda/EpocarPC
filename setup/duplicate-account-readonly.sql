@@ -163,5 +163,27 @@ WHERE strpos(coalesce(r.image_url,''),a.bucket || '/' || a.path)>0
 ORDER BY r.source,r.id;
 
 -- Nessun SELECT * da auth.users/auth.identities. Non eseguire funzioni sync/import/delete.
+-- 7. Registrazioni: relazione via account, veicolo o email ospite, senza risposte personali.
+WITH params(account,email,id) AS (VALUES
+ ('A','EMAIL_ACCOUNT_A'::text,'UUID_AUTH_A'::uuid),
+ ('B','EMAIL_ACCOUNT_B'::text,'UUID_AUTH_B'::uuid))
+SELECT p.account,r.id AS registration_id,r.event_id,r.vehicle_id,
+       r.user_id=p.id AS direct_account, v.user_id=p.id AS vehicle_owner,
+       lower(r.guest_email)=lower(trim(p.email)) AS guest_email_match,
+       f.key AS upload_field,f.value->>'path' AS upload_path,
+       f.value->>'filename' AS upload_filename
+FROM public.event_registrations r LEFT JOIN public.vehicles v ON v.id=r.vehicle_id
+JOIN params p ON r.user_id=p.id OR v.user_id=p.id OR lower(r.guest_email)=lower(trim(p.email))
+LEFT JOIN LATERAL jsonb_each(CASE WHEN jsonb_typeof(r.answers)='object'
+ THEN r.answers ELSE '{}'::jsonb END) f ON jsonb_typeof(f.value)='object' AND f.value ? 'path'
+ORDER BY p.account,r.id,f.key;
+
+-- 8. Oggetto esatto referenziato da un contenuto: anche con owner nullo o di altro autore.
+-- Copiare bucket/percorso da image_url (senza query string), avatar_url, photo_url o upload_path.
+SELECT o.id,o.bucket_id,o.name,to_jsonb(o)->>'owner' AS owner,
+       to_jsonb(o)->>'owner_id' AS owner_id,o.created_at,o.updated_at,b.public AS bucket_public
+FROM storage.objects o LEFT JOIN storage.buckets b ON b.id=o.bucket_id
+WHERE o.bucket_id='BUCKET_DA_VERIFICARE' AND o.name='PERCORSO_OGGETTO';
+
 -- Se una query fallisce per schema/versione, riportare solo errore e inventario 2a: non
 -- installare migrazioni, non disattivare RLS e non tentare una cancellazione per diagnosticare.
