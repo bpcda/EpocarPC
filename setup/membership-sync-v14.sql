@@ -17,6 +17,7 @@ ALTER TABLE public.member_public_status
   ADD COLUMN IF NOT EXISTS membership_year integer,
   ADD COLUMN IF NOT EXISTS fee_status text,
   ADD COLUMN IF NOT EXISTS treasury_updated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS admission_status text CHECK (admission_status IN ('confirmed','unverified','not_admitted')),
   ADD COLUMN IF NOT EXISTS admission_source text CHECK (admission_source IN ('board_resolution','historical_register')),
   ADD COLUMN IF NOT EXISTS admission_reference text,
