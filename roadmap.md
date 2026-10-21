@@ -1,5 +1,7 @@
 # Association
 - [x] Extend bootstrap response compatibly, document contract, correct admission display without changing access, and run synthetic tests.
+- [x] member_update v2 site side: setup/membership-sync-v14.sql (revisioned events, per-year fees, clear_fields, admission evidence), treasury-sync routing, Area Socio display, contract + synthetic tests.
+- [ ] Deploy v14 + treasury-sync + frontend on external project; switch Django importer to v2 events — blocked: external project not connected to this workspace. Order in docs/treasury-sync-contract.md.
 - [ ] Deploy compatible bootstrap extension and public admission display on external project; adapt private importer — blocked: external project/importer are not connected to this workspace. No new SQL migration for this extension.
 - [x] Diagnose account deletion and founder synchronization; supply safe external SQL repair, synthetic tests and Codex handoff (docs/account-sync-diagnosis.md).
 - [ ] Verify external production RPCs/roles/partial-deletion evidence, install v12/v13 and deploy delete-account — blocked: external production instance is not connected to this workspace; run setup/account-sync-diagnostics.sql there first.

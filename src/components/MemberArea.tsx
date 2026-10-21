@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { admissionEvidence, APPLICATION_STATUS, cardLabel, FEE_STATUS, loadAssociation, loadMyMembership, loadMyRegistrations, MEMBERSHIP_STATUS, publicAssociationFile } from "@/lib/association";
+import { ADMISSION_SOURCE, admissionEvidence, APPLICATION_STATUS, type AnnualFee, cardLabel, CESSATION_REASON, eur, FEE_STATUS, loadAssociation, loadMyMembership, loadMyRegistrations, MEMBERSHIP_STATUS, type MemberStatus, publicAssociationFile } from "@/lib/association";
 
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("it-IT") : null);
 const panel = "border border-primary-foreground/20 p-6";
@@ -17,9 +17,35 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MemberDashboard({ userId, name, category, status, card, admission, feeLabel, fee, board, note, confirmed, applicationStatus }: {
+/** Annual fee card: amounts come from the Treasury as canonical strings, shown as-is. */
+function FeeSection({ fee, feeLabel, annual, iban, holder }: {
+  fee: string | null; feeLabel: string; annual: AnnualFee | null; iban?: string | null; holder?: string | null;
+}) {
+  const showCoordinates = annual?.fee_status === "due" || annual?.fee_status === "partial" || (!annual && fee === FEE_STATUS.due);
+  return (
+    <section className={panel}>
+      <h3 className={h3}>{feeLabel}</h3>
+      <p className="text-primary-foreground text-lg">{annual?.fee_status ? FEE_STATUS[annual.fee_status] : fee ?? "Stato non ancora disponibile"}</p>
+      {annual && (
+        <dl className="mt-3">
+          {annual.fee_amount && <Row label="Quota" value={eur(annual.fee_amount)!} />}
+          {annual.fee_paid_amount && <Row label="Versato" value={eur(annual.fee_paid_amount)!} />}
+          {annual.fee_balance && <Row label="Da versare" value={eur(annual.fee_balance)!} />}
+          {annual.last_payment_date && <Row label="Ultimo versamento" value={`${fmt(annual.last_payment_date)}${annual.last_payment_amount ? ` · ${eur(annual.last_payment_amount)}` : ""}${annual.last_payment_receipt_number ? ` · ricevuta ${annual.last_payment_receipt_number}` : ""}`} />}
+        </dl>
+      )}
+      {showCoordinates && iban && (
+        <p className="text-primary-foreground/75 text-sm mt-3">Bonifico: IBAN <span className="font-mono">{iban}</span>{holder ? ` intestato a ${holder}` : ""}. Indica nome, cognome e anno come causale.</p>
+      )}
+      <p className="text-primary-foreground/60 text-sm mt-2">Lo stato della quota è aggiornato dalla Tesoreria dopo la registrazione del versamento.</p>
+    </section>
+  );
+}
+
+function MemberDashboard({ userId, name, category, status, card, admission, admissionProof, feeLabel, fee, annual, member, board, note, confirmed, applicationStatus }: {
   userId: string; name: string; category: string; status: string; card: number | null; admission: string | null;
-  feeLabel: string; fee: string | null; board: string[]; note?: string | null; confirmed: boolean; applicationStatus?: string;
+  admissionProof: string | null; feeLabel: string; fee: string | null; annual: AnnualFee | null; member: MemberStatus | null;
+  board: string[]; note?: string | null; confirmed: boolean; applicationStatus?: string;
 }) {
   const docs = useQuery({ queryKey: ["association-docs"], queryFn: loadAssociation, retry: false });
   const regs = useQuery({ queryKey: ["my-registrations", userId], queryFn: () => loadMyRegistrations(userId) });
@@ -40,17 +66,20 @@ function MemberDashboard({ userId, name, category, status, card, admission, feeL
           <div><p className="uppercase tracking-widest opacity-60 text-xs">Stato</p><p className="font-medium">{status}</p></div>
           <div><p className="uppercase tracking-widest opacity-60 text-xs">Ammissione</p><p className="font-medium">{confirmed ? fmt(admission) ?? "Confermata" : "Ammissione da verificare"}</p></div>
         </div>
+        {confirmed && admissionProof && <p className="mt-4 text-xs uppercase tracking-widest opacity-70">{admissionProof}</p>}
         {board.length > 0 && <p className="mt-6 text-xs uppercase tracking-widest">Consiglio Direttivo · {board.join(", ")}</p>}
       </section>
       {applicationStatus && <dl className="max-w-xl"><Row label="Domanda" value={applicationStatus} /></dl>}
+      {member?.membership_status === "ceased" && (member.cessation_date || member.cessation_reason) && (
+        <dl className="max-w-xl">
+          {member.cessation_date && <Row label="Cessazione" value={fmt(member.cessation_date)!} />}
+          {member.cessation_reason && <Row label="Motivo" value={CESSATION_REASON[member.cessation_reason]} />}
+        </dl>
+      )}
       {note && <p className="text-primary-foreground/75">{note}</p>}
 
       <div className="grid md:grid-cols-2 gap-6">
-        <section className={panel}>
-          <h3 className={h3}>{feeLabel}</h3>
-          <p className="text-primary-foreground text-lg">{fee ?? "Stato non ancora disponibile"}</p>
-          <p className="text-primary-foreground/60 text-sm mt-2">Lo stato della quota è aggiornato dalla Tesoreria dopo la registrazione del versamento.</p>
-        </section>
+        <FeeSection fee={fee} feeLabel={feeLabel} annual={annual} iban={member?.payment_iban} holder={member?.payment_account_holder} />
 
         <section className={panel}>
           <h3 className={h3}>Documenti</h3>
@@ -88,24 +117,31 @@ export default function MemberArea({ userId }: { userId: string }) {
   const q = useQuery({ queryKey: ["my-membership", userId], queryFn: () => loadMyMembership(userId), refetchOnWindowFocus: true });
   if (q.isLoading) return <p role="status" className="text-primary-foreground/70">Caricamento…</p>;
   if (q.error || !q.data) return <p className="text-primary-foreground/70">L’Area Socio non è al momento disponibile. Riprova più tardi.</p>;
-  const { application: a, member: m, roleCategory, board } = q.data;
-  const confirmed = admissionEvidence(a).status === "confirmed";
+  const { application: a, member: m, fees, roleCategory, board } = q.data;
+  const evidence = admissionEvidence(a, m);
+  const confirmed = evidence.status === "confirmed";
   const meta = (user?.user_metadata ?? {}) as Record<string, string>;
   const name = a?.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(" ") || meta.full_name || user?.email || "Socio";
   const title = "font-headline text-3xl tracking-wider text-primary-foreground mb-3";
   const text = "text-primary-foreground/75 mb-6";
+  const annual = (fees ?? [])[0] ?? null;
+  const admissionProof = confirmed
+    ? [evidence.source ? ADMISSION_SOURCE[evidence.source] : null, m?.admission_decision_date ? fmt(m.admission_decision_date) : null, m?.admission_reference ?? null].filter(Boolean).join(" · ")
+    : null;
 
   if (m) return (
     <MemberDashboard userId={userId} name={name} category={m.category} status={!confirmed && m.membership_status === "active" ? "Ammissione da verificare" : MEMBERSHIP_STATUS[m.membership_status]}
-      card={m.card_number} admission={m.admission_date ?? a?.approved_at ?? null} board={board} note={a?.public_status_message}
+      card={m.card_number} admission={m.admission_date ?? a?.approved_at ?? null} admissionProof={admissionProof} board={board}
+      note={m.public_message ?? a?.public_status_message} member={m}
       confirmed={confirmed} applicationStatus={a ? APPLICATION_STATUS[a.status] : undefined}
-      feeLabel={m.membership_year ? `Quota ${m.membership_year}` : "Quota annuale"} fee={m.fee_status ? FEE_STATUS[m.fee_status] : null} />
+      feeLabel={annual ? `Quota ${annual.membership_year}` : m.membership_year ? `Quota ${m.membership_year}` : "Quota annuale"}
+      fee={m.fee_status ? FEE_STATUS[m.fee_status] : null} annual={annual} />
   );
 
   if (roleCategory) return (
     <MemberDashboard userId={userId} name={name} category={roleCategory} status={confirmed ? "Socio" : "Ammissione da verificare"} card={null} admission={a?.approved_at ?? null}
-      confirmed={confirmed} applicationStatus={a ? APPLICATION_STATUS[a.status] : undefined} note={a?.public_status_message}
-      board={board} feeLabel="Quota annuale" fee={null} />
+      admissionProof={admissionProof} confirmed={confirmed} applicationStatus={a ? APPLICATION_STATUS[a.status] : undefined} note={a?.public_status_message}
+      member={null} board={board} feeLabel="Quota annuale" fee={null} annual={null} />
   );
 
   if (!a || a.status === "draft") return (
