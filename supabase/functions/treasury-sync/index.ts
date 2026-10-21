@@ -124,12 +124,28 @@ Deno.serve(async (req) => {
       if (payload[f] != null && (typeof payload[f] !== "string" || !UUID.test(payload[f] as string))) return fail(422, "invalid_request", `${f} must be a UUID`, true);
     }
     if (payload.external_member_id != null && (typeof payload.external_member_id !== "string" || !UUID.test(payload.external_member_id))) return fail(422, "invalid_request", "external_member_id must be a UUID", true);
+    // member_update v2 envelope: event_id + revision + updated_at travel together (legacy member{...} stays valid).
+    if (action === "member_update" && (payload.event_id != null || payload.revision != null || payload.updated_at != null)) {
+      const eid = payload.event_id, rev = payload.revision, ts = payload.updated_at;
+      if (typeof eid !== "string" || eid.length < 8 || eid.length > 100) return fail(422, "invalid_request", "event_id must be a string of 8-100 chars", true);
+      if (typeof rev !== "number" || !Number.isInteger(rev) || rev < 1) return fail(422, "invalid_request", "revision must be a positive integer", true);
+      if (typeof ts !== "string" || Number.isNaN(Date.parse(ts))) return fail(422, "invalid_request", "updated_at must be an ISO 8601 timestamp", true);
+    }
     let rpc = "treasury_sync_apply";
     let args: Record<string, unknown> = { _action: action, _idempotency_key: key, _request_id: requestId, _payload: payload };
     if (action === "bootstrap_ack") { rpc = "treasury_sync_bootstrap_ack"; args = { _idempotency_key: key, _request_id: requestId, _payload: payload }; }
-    else if (action === "member_update" && typeof payload.treasury_member_id === "string") {
-      const { count: linked } = await db.from("treasury_bootstrap_links").select("treasury_member_id", { count: "exact", head: true }).eq("treasury_member_id", payload.treasury_member_id);
-      if ((linked ?? 0) > 0) { rpc = "treasury_sync_bootstrap_member_update"; args = { _idempotency_key: key, _request_id: requestId, _payload: payload }; }
+    else if (action === "member_update") {
+      // Bootstrap-linked members are routed by treasury_member_id or by external_member_id (historic members).
+      let linked = 0;
+      if (typeof payload.treasury_member_id === "string") {
+        const { count } = await db.from("treasury_bootstrap_links").select("treasury_member_id", { count: "exact", head: true }).eq("treasury_member_id", payload.treasury_member_id);
+        linked = count ?? 0;
+      }
+      if (!linked && typeof payload.external_member_id === "string") {
+        const { count } = await db.from("treasury_bootstrap_links").select("external_member_id", { count: "exact", head: true }).eq("external_member_id", payload.external_member_id);
+        linked = count ?? 0;
+      }
+      if (linked > 0) { rpc = "treasury_sync_bootstrap_member_update"; args = { _idempotency_key: key, _request_id: requestId, _payload: payload }; }
     }
     const { data, error } = await db.rpc(rpc, args);
     if (error) {

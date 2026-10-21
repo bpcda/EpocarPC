@@ -155,7 +155,6 @@ BEGIN
       RAISE EXCEPTION 'conflict: event_id already applied with different content' USING ERRCODE = 'P0409'; END IF;
     RETURN jsonb_build_object('member_projection', 'duplicate', 'revision', _ev.revision, 'event_id', _event);
   END IF;
-  IF FOUND AND FALSE THEN END IF; -- (keeps plpgsql happy about _cur usage below)
   IF _cur.last_revision IS NOT NULL AND _rev < _cur.last_revision THEN
     RETURN jsonb_build_object('member_projection', 'stale', 'revision', _cur.last_revision, 'event_id', _event);
   END IF;
