@@ -43,9 +43,9 @@ describe('duplicate-account read-only diagnostics', () => {
         INSERT INTO storage.buckets VALUES ('event-images',true);
         INSERT INTO storage.objects VALUES ('${a}','event-images','pic.png','${a}',now(),now());`);
       const source = readFileSync(resolve('setup/duplicate-account-readonly.sql'), 'utf8')
-        .replaceAll('EMAIL_ACCOUNT_A','a@example.invalid').replaceAll('EMAIL_ACCOUNT_B','b@example.invalid')
-        .replaceAll('UUID_AUTH_A',a).replaceAll('UUID_AUTH_B',b)
-        .replaceAll('BUCKET_DA_VERIFICARE','event-images').replaceAll('PERCORSO_OGGETTO','pic.png');
+        .split('EMAIL_ACCOUNT_A').join('a@example.invalid').split('EMAIL_ACCOUNT_B').join('b@example.invalid')
+        .split('UUID_AUTH_A').join(a).split('UUID_AUTH_B').join(b)
+        .split('BUCKET_DA_VERIFICARE').join('event-images').split('PERCORSO_OGGETTO').join('pic.png');
       const statements = source.replace(/--[^\n]*/g, '').split(/;\s*\n/).map(s => s.trim()).filter(Boolean);
       const read = (q: string) => sql(`BEGIN TRANSACTION READ ONLY; ${q}; ROLLBACK;`).split('\n').filter(s => s !== 'BEGIN' && s !== 'ROLLBACK').join('\n');
       const output = statements.map(read);

@@ -1,7 +1,7 @@
 # Architecture rules
 - Association data access lives in a dedicated validated module using the existing client; managed generated types are not edited because the external schema is installed independently.
 - Association membership requests are separate from event registrations, with private user-scoped storage, unique requests per user, and server-enforced admin/staff read permissions.
-- External SQL stays in setup/, never publicly served or applied to Cloud without request; account diagnostics are catalog-aware SELECTs with allowlisted output, tested in isolated read-only transactions.
+- External SQL stays in setup/, never publicly served/applied without request; diagnostics are allowlisted read-only SELECTs. Manual relinks require reviewed code, default rollback and scoped canonical-account guards, preserving applicants/ledgers; test on isolated PostgreSQL.
 - Treasury exports patch empty input cells, the four category fee lookup values, and formula caches in the exported copy (zip/XML level), using the dashboard's yearly settings; every formula and otherwise untouched part remains identical and the original template is never edited.
 - Treasury data lives in external-instance SQL scripts (treasury.sql + treasury-v2.sql) with treasurer-only RLS (admin/staff/board roles never imply access), soft-deleted transactions, closed-year locks and an immutable audit log.
 - Membership fees are versioned per fiscal year and category, written only through a security-definer function; dues are always computed from the year's own fees.
