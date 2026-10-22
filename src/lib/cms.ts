@@ -47,6 +47,7 @@ export interface Homepage {
   missionLabel?: string; missionText?: string;
   ctaTitle?: string; ctaText?: string; ctaPrimary?: CmsLink; ctaSecondary?: CmsLink;
   showSponsors: boolean; showPartners: boolean; showNews: boolean;
+  membershipOpen: boolean; membershipTitle?: string; membershipText: RichText; membershipButtonLabel?: string;
 }
 export interface CmsPage { title: string; slug: string; excerpt?: string; heroImage?: CmsImage; blocks: Block[]; seo: Seo }
 export interface NewsItem {
@@ -198,6 +199,8 @@ export function toHomepage(v: unknown): Homepage | null {
     missionLabel: str(o.missionLabel), missionText: str(o.missionText),
     ctaTitle: str(o.ctaTitle), ctaText: str(o.ctaText), ctaPrimary: toLink(o.ctaPrimary), ctaSecondary: toLink(o.ctaSecondary),
     showSponsors: o.showSponsors !== false, showPartners: o.showPartners !== false, showNews: o.showNews !== false,
+    membershipOpen: o.membershipOpen !== false, membershipTitle: str(o.membershipTitle),
+    membershipText: toRichText(o.membershipText), membershipButtonLabel: str(o.membershipButtonLabel),
   };
 }
 
