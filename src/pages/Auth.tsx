@@ -33,7 +33,7 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -42,7 +42,14 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        toast.success("Registrazione completata! Controlla la mail per confermare.");
+        if (data.session) {
+          // Conferma email disattivata: l'account è attivo subito.
+          toast.success("Registrazione completata! Benvenuto in Epocar.");
+          navigate(nextPath, { replace: true });
+        } else {
+          // Conferma email attiva: serve la verifica via email.
+          toast.success("Registrazione completata! Controlla la mail per confermare.");
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
