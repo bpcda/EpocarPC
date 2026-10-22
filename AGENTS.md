@@ -1,4 +1,5 @@
 # Architecture rules
+- Authentication error presentation uses a safe message helper; never serialize whole errors, so empty service responses remain diagnosable without leaking request details.
 - Association data access lives in a dedicated validated module using the existing client; managed generated types are not edited because the external schema is installed independently.
 - Association membership requests are separate from event registrations, with private user-scoped storage, unique requests per user, and server-enforced admin/staff read permissions.
 - External SQL stays in setup/, never publicly served/applied without request; diagnostics are allowlisted read-only SELECTs. Manual relinks require reviewed code, default rollback and scoped canonical-account guards, preserving applicants/ledgers; test on isolated PostgreSQL.

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { authErrorMessage } from "@/lib/auth-error";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -49,8 +50,7 @@ export default function Auth() {
         navigate(nextPath, { replace: true });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Errore di autenticazione";
-      toast.error(msg);
+      toast.error(authErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -70,8 +70,7 @@ export default function Auth() {
       // Il browser reindirizza a Google; al ritorno Supabase gestisce il token
       // e l'utente viene rimandato a `nextPath` dal useEffect sopra.
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Errore Google";
-      toast.error(msg);
+      toast.error(authErrorMessage(err));
       setBusy(false);
     }
   };
