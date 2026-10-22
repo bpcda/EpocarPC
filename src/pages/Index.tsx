@@ -7,6 +7,7 @@ import MissionSection from "@/components/MissionSection";
 import EventiSection from "@/components/EventiSection";
 import CommunitySection from "@/components/CommunitySection";
 import InstagramSection from "@/components/InstagramSection";
+import MembershipCtaSection from "@/components/MembershipCtaSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
@@ -24,6 +25,7 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <MembershipCtaSection />
         <HomepageCountdownSection />
         <ProssimoEventoSection />
         <CommunityNumbersSection />

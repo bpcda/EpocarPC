@@ -60,6 +60,21 @@
         "showPartners": {
             "type": "boolean",
             "default": true
+        },
+        "membershipOpen": {
+            "type": "boolean",
+            "default": true
+        },
+        "membershipTitle": {
+            "type": "string",
+            "maxLength": 120
+        },
+        "membershipText": {
+            "type": "blocks"
+        },
+        "membershipButtonLabel": {
+            "type": "string",
+            "maxLength": 60
         }
     }
 }
