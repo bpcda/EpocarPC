@@ -65,7 +65,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
       </div>
     </header>
     {session.error && <p role="alert" className="text-destructive">Seduta non disponibile: occorre installare l'aggiornamento SQL della Fase 2.</p>}
-    {q && <div className={`border-l-4 p-4 bg-muted ${q.met ? "border-primary" : "border-destructive"}`} role="status">
+    {q && !m.ended_at && <div className={`border-l-4 p-4 bg-muted ${q.met ? "border-primary" : "border-destructive"}`} role="status">
       <strong>{q.present}/{q.total} componenti presenti · quorum richiesto: {q.required}</strong>
       <p>{q.met ? "Quorum raggiunto" : "Quorum non raggiunto · non è possibile deliberare"}</p>
     </div>}

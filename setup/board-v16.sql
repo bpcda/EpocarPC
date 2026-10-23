@@ -129,7 +129,7 @@ BEGIN
   UPDATE public.board_meeting_participants SET last_seen_at = now()
     WHERE meeting_id = _id AND user_id = auth.uid() AND EXISTS (
       SELECT 1 FROM public.board_meetings WHERE id = _id AND status IN ('CONVOCATO','IN_CORSO','SOSPESO') AND ended_at IS NULL);
-  -- Ne change jamais la présence, l'identification ou le quorum.
+  -- Non modifica mai presenza, identificazione o quorum.
 END $$;
 REVOKE ALL ON FUNCTION public.board_heartbeat(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.board_heartbeat(uuid) TO authenticated;

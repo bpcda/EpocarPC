@@ -134,14 +134,14 @@ export const romeTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT
 
 /** Groups meetings for the dashboard. */
 export function groupMeetings(list: Meeting[], now = new Date()) {
-  const active = (m: Meeting) => ["CONVOCATO", "SOSPESO"].includes(m.status);
+  const active = (m: Meeting) => ["CONVOCATO", "SOSPESO"].includes(m.status) && !m.started_at;
   const upcoming = list.filter((m) => active(m) && new Date(m.scheduled_at) >= now)
     .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
   return {
     next: upcoming[0] ?? null,
     upcoming,
-    live: list.filter((m) => m.status === "IN_CORSO"),
+    live: list.filter((m) => m.status === "IN_CORSO" || m.status === "SOSPESO" && !!m.started_at && !m.ended_at),
     drafts: list.filter((m) => m.status === "DRAFT"),
-    concluded: list.filter((m) => !active(m) && !["DRAFT", "IN_CORSO"].includes(m.status) || active(m) && new Date(m.scheduled_at) < now),
+    concluded: list.filter((m) => !active(m) && !["DRAFT", "IN_CORSO"].includes(m.status) && !(m.status === "SOSPESO" && m.started_at && !m.ended_at) || active(m) && new Date(m.scheduled_at) < now),
   };
 }
