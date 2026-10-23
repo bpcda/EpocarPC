@@ -37,6 +37,7 @@
 - [ ] Fase 3 — attivazione sul progetto esterno: eseguire setup/board-v17.sql dopo v15/v16 e distribuire il sito (docs/board-phase3.md) — blocked: external project is not connected to this workspace.
 - [x] Fase 4 — codice e SQL v18: consenso registrato a registro, tracce individuali/condivise, bucket privato board-audio, trascrizione via Edge Function board-transcribe (service-only, limiti di spesa, IA disattivabile); test PostgreSQL isolati.
 - [ ] Fase 4 — attivazione sul progetto esterno: eseguire setup/board-v18.sql dopo v15/v16/v17, distribuire board-transcribe, impostare il segreto BOARD_AI_API_KEY e distribuire il sito (docs/board-phase4.md) — blocked: external project is not connected to this workspace.
-- [ ] Fase 5 — verbale, revisione, approvazione
+- [x] Fase 5 — codice e SQL v19: verbale con versioni (manuale/IA/rettifica), rettifiche dei componenti, approvazione col sistema di voto (quorum, maggioranza, voto prevalente), versione firmata nel bucket board-documents, Edge Function board-draft-minutes; test PostgreSQL isolati superati.
+- [ ] Fase 5 — attivazione sul progetto esterno: eseguire setup/board-v19.sql dopo v15–v18, distribuire board-draft-minutes e il sito (docs/board-phase5.md) — blocked: external project is not connected to this workspace.
 - [ ] Fase 6 — fascicolo ZIP, archivio, cancellazione dati temporanei
 - [ ] Fase 7 — prove complete, sicurezza, verifica Statuto
