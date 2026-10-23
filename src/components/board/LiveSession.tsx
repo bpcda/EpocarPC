@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { boardClient, BOARD_ROLE_LABEL, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
+import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
@@ -35,10 +36,13 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); };
+    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); };
     const channel = boardClient.channel(`board-session-${m.id}`);
-    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events"]) {
+    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `meeting_id=eq.${m.id}` }, refreshData);
+    }
+    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshData);
     }
     channel.on("postgres_changes", { event: "*", schema: "public", table: "board_meetings", filter: `id=eq.${m.id}` }, refreshData)
       .subscribe((status) => { if (alive) setConnection(status === "SUBSCRIBED" ? "Aggiornamenti in diretta" : "Diretta non disponibile · aggiornamento periodico"); });
@@ -92,6 +96,8 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
         {session.data?.events.map((e) => <li key={e.id} className="border-b border-border pb-3 text-sm break-words"><time className="text-xs text-muted-foreground">{romeTime(e.created_at)}</time><p>{eventLabels[e.action] ?? "Aggiornamento della riunione"}{typeof e.detail.name === "string" ? ` · ${e.detail.name}` : ""}</p>{typeof e.detail.note === "string" && <p className="text-muted-foreground">{e.detail.note}</p>}{typeof e.detail.reason === "string" && <p className="text-muted-foreground">{e.detail.reason}</p>}</li>)}
       </ol></aside>
     </div>
+    <DeliberationsPanel m={m} me={me} president={president} boardMember={boardMember} manager={manager}
+      active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
