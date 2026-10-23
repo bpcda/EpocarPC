@@ -11,6 +11,7 @@ ALTER TABLE public.board_meeting_participants ADD COLUMN IF NOT EXISTS attendanc
 ALTER TABLE public.board_meeting_participants ADD COLUMN IF NOT EXISTS identified_by uuid;
 ALTER TABLE public.board_meeting_participants ADD COLUMN IF NOT EXISTS identified_at timestamptz;
 ALTER TABLE public.board_meeting_participants ADD COLUMN IF NOT EXISTS attendance_note text;
+ALTER TABLE public.board_meeting_participants ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
 ALTER TABLE public.board_agenda_items ADD COLUMN IF NOT EXISTS discussion_status text NOT NULL DEFAULT 'pending' CHECK (discussion_status IN ('pending','current','discussed'));
 
 -- Controllo attendibile: cariche attuali, mai risposta RSVP o connessione tecnica.
@@ -121,6 +122,18 @@ BEGIN
 END $$;
 
 -- Protegge anche i vecchi percorsi della Fase 1 durante una sospensione live.
+CREATE OR REPLACE FUNCTION public.board_heartbeat(_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT public.is_board_member(auth.uid()) THEN RAISE EXCEPTION 'not authorized'; END IF;
+  UPDATE public.board_meeting_participants SET last_seen_at = now()
+    WHERE meeting_id = _id AND user_id = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.board_meetings WHERE id = _id AND status IN ('CONVOCATO','IN_CORSO','SOSPESO') AND ended_at IS NULL);
+  -- Ne change jamais la présence, l'identification ou le quorum.
+END $$;
+REVOKE ALL ON FUNCTION public.board_heartbeat(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.board_heartbeat(uuid) TO authenticated;
+
 -- I corpi originali restano privati; wrapper con lock eseguiti anche dai vecchi client.
 DO $$ BEGIN
   IF to_regprocedure('public.board_save_meeting_phase1(uuid,jsonb)') IS NULL THEN
