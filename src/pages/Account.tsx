@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
 import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
 import DeleteAccountDialog, { PRIVACY_NOTE } from "@/components/DeleteAccountDialog";
@@ -41,7 +41,7 @@ const emptyVehicle: Omit<Vehicle, "id"> = {
 };
 
 export default function Account() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isBoardMember } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -217,6 +217,11 @@ export default function Account() {
             </Button>
           </div>
           <p className="text-primary-foreground/60 text-sm mb-8">{user?.email}</p>
+          {isBoardMember && (
+            <Link to="/consiglio-direttivo" className="inline-block mb-8 border border-primary-foreground/40 px-4 py-2 text-primary-foreground uppercase tracking-widest text-sm hover:bg-primary-foreground/10">
+              Area Consiglio Direttivo →
+            </Link>
+          )}
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
           <Tabs defaultValue={tabParam === "socio" ? "socio" : "profile"} className="w-full">
