@@ -85,7 +85,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
         {m.board_meeting_participants.map((p) => <article key={p.id} className="border-b border-border py-3 space-y-1 break-words">
           <strong>{p.display_name}</strong><p className="text-xs text-muted-foreground">{p.kind === "guest" ? "Invitato · senza voto" : p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(" · ")}</p>
           <p className="text-sm">{p.present ? `Presente · ${p.attendance_mode === "remoto" ? "da remoto" : "in presenza"}` : "Presenza non confermata"}</p>
-          <p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"} · audio non attivo</p>
+          <p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"}</p>
           {p.attendance_requested_at && <p className="text-sm">Identificazione richiesta</p>}
           {manager && active && <Button size="sm" variant="outline" disabled={act.isPending || !session.data} onClick={() => { setSelected(p); setVerified(false); setNote(""); setMode(p.attendance_mode ?? (m.mode === "remoto" ? "remoto" : "presenza")); }}>{p.present ? "Registra uscita" : "Verifica presenza"}</Button>}
         </article>)}
@@ -104,6 +104,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     </div>
     <DeliberationsPanel m={m} me={me} president={president} boardMember={boardMember} manager={manager}
       active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
+    <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
