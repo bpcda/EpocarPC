@@ -13,6 +13,9 @@ const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
   attendance_requested: "Richiesta di identificazione", attendance_enter: "Presenza confermata", attendance_leave: "Uscita confermata",
   session_open: "Seduta aperta", session_suspend: "Seduta sospesa", session_resume: "Seduta ripresa", session_close: "Seduta chiusa", agenda_selected: "Punto in discussione",
+  deliberation_created: "Delibera scritta", deliberation_version: "Testo della delibera aggiornato", deliberation_suggested: "Suggerimento di modifica",
+  deliberation_suggestion_decided: "Suggerimento valutato", deliberation_withdrawn: "Delibera ritirata",
+  ballot_open: "Votazione aperta", ballot_vote: "Voto registrato", ballot_close: "Votazione conclusa", ballot_cancel: "Votazione annullata",
 };
 
 export default function LiveSession({ m, me, president, boardMember }: { m: Meeting; me: string; president: boolean; boardMember: boolean }) {

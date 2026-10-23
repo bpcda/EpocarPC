@@ -87,6 +87,11 @@ CREATE TABLE IF NOT EXISTS public.board_votes (
   UNIQUE (ballot_id, participant_id)
 );
 
+-- Meeting owner of a deliberation (for RLS on child tables).
+CREATE OR REPLACE FUNCTION public.board_deliberation_meeting(_deliberation uuid)
+RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT meeting_id FROM public.board_deliberations WHERE id = _deliberation $$;
+
 -- Read-only grants; every write goes through the functions below.
 GRANT SELECT ON public.board_deliberations, public.board_deliberation_versions, public.board_deliberation_suggestions,
   public.board_deliberation_documents, public.board_ballots, public.board_votes TO authenticated;
