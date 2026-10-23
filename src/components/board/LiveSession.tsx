@@ -20,6 +20,8 @@ const eventLabels: Record<string, string> = {
   ballot_open: "Votazione aperta", ballot_vote: "Voto registrato", ballot_close: "Votazione conclusa", ballot_cancel: "Votazione annullata",
   recording_consent: "Consenso alla registrazione", audio_track_start: "Registrazione avviata", audio_track_finish: "Registrazione caricata",
   audio_track_delete: "Traccia eliminata", audio_transcribed: "Trascrizione completata", audio_error: "Errore di trascrizione",
+  minutes_version: "Versione del verbale", minutes_rectification: "Rettifica proposta al verbale",
+  minutes_rectification_decided: "Rettifica valutata", minutes_ballot_open: "Verbale sottoposto al voto", minutes_signed: "Verbale firmato registrato",
 };
 
 export default function LiveSession({ m, me, president, boardMember }: { m: Meeting; me: string; president: boolean; boardMember: boolean }) {
@@ -106,6 +108,8 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     <DeliberationsPanel m={m} me={me} president={president} boardMember={boardMember} manager={manager}
       active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
     <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
+    {m.started_at && <MinutesPanel m={m} me={me} president={president} manager={manager} boardMember={boardMember}
+      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />}
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
