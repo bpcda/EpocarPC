@@ -1,5 +1,6 @@
 # Evento Epocar x Mossi
-- [ ] Review implementation plan for guest bookings, multiple vehicles, account activation, confirmation emails and administrative exports; external installation only, no changes to real accounts.
+- [ ] Complete resumed Mossi booking implementation: external SQL, guest server function, two-mode form, garage/account activation, email status and admin exports; synthetic tests only, no changes to real accounts.
+- [ ] Install and verify Mossi bookings and email delivery on the external project — blocked: external service access and approved event/privacy details are supplied by the user.
 
 # Association
 - [x] Prepare scoped manual B→A public-register repair with transaction, conflict guards, role/replay analysis and synthetic tests (7 passed); review-only delivery, no external execution.

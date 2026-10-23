@@ -43,7 +43,6 @@ export const bookingSchema = z.object({
   account_requested: z.boolean(),
   account_terms_accepted: z.boolean(),
   account_terms_version: z.string().trim().max(100),
-  password: z.string().min(8, "Usa almeno 8 caratteri per la password").max(128).optional(),
 }).superRefine((b, ctx) => {
   if (b.mode === "with_vehicle" && !b.vehicles.length) ctx.addIssue({ code: "custom", path: ["vehicles"], message: "Inserisci almeno un veicolo" });
   if (b.mode === "without_vehicle" && (b.vehicles.length || b.drive || b.exhibition || b.account_requested)) ctx.addIssue({ code: "custom", message: "La partecipazione senza veicolo non include veicoli, attività motoristiche o creazione account" });
@@ -55,6 +54,11 @@ export type BookingInput = z.infer<typeof bookingSchema>;
 export type VehicleSnapshot = z.infer<typeof vehicleSnapshotSchema>;
 export const emptyVehicle = (): VehicleSnapshot => ({ garage_id: null, type: "auto", brand: "", model: "", year: 0, plate: "" });
 export function vehicleHasData(v: VehicleSnapshot) { return !!(v.garage_id || v.brand || v.model || v.year || v.plate); }
+export function resizeVehicles(vehicles: VehicleSnapshot[], count: number, confirmRemoval: () => boolean): VehicleSnapshot[] {
+  if (!Number.isInteger(count) || count < 1 || count > 100) return vehicles;
+  if (count < vehicles.length && vehicles.slice(count).some(vehicleHasData) && !confirmRemoval()) return vehicles;
+  return Array.from({ length: count }, (_, i) => vehicles[i] ?? emptyVehicle());
+}
 export function settingsFrom(value: unknown): BookingSettings {
   const parsed = bookingSettingsSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : { ...defaultBookingSettings };
