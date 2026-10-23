@@ -5,15 +5,13 @@ import { FileText, Sparkles, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { z } from "zod";
 import {
-  BALLOT_RESULT, ballotTally, cancelBallot, castVote, closeBallot, currentMinutesVersion, decideRectification,
-  draftMinutesWithAi, loadMinutes, MINUTES_SOURCE, MINUTES_STATUS, rectifyMinutes, registerSignedMinutes,
-  saveMinutes, submitMinutesVote, VOTE_LABEL, type Meeting, type Minutes,
+  BALLOT_RESULT, ballotTally, boardClient, cancelBallot, castVote, closeBallot, currentMinutesVersion,
+  decideRectification, draftMinutesWithAi, loadMinutes, MINUTES_SOURCE, MINUTES_STATUS, rectifyMinutes,
+  registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Ballot, type Meeting, type Minutes,
 } from "@/lib/board";
 import { minutesDocx, downloadBlob } from "@/lib/board-docx";
-import { useQuery as useBallotQuery } from "@tanstack/react-query";
-import { boardClient } from "@/lib/board";
-import { z } from "zod";
 
 const openMinutesBallot = z.object({
   id: z.string(), status: z.string(), result: z.string().nullable(), tally: z.record(z.unknown()).default({}),
@@ -22,7 +20,7 @@ const openMinutesBallot = z.object({
 });
 
 function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
-  return useBallotQuery({
+  return useQuery({
     queryKey: ["board-minutes-ballot", meetingId],
     enabled: !!minutesId,
     queryFn: async () => {
