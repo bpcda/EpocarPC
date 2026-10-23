@@ -7,11 +7,12 @@ import PageMeta from "@/components/PageMeta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ConvocationWizard from "@/components/board/ConvocationWizard";
+import LiveSession from "@/components/board/LiveSession";
 import { useAuth } from "@/hooks/use-auth";
 import { groupMeetings, loadMeetings, meetingLabel, MEETING_STATUS, MODE_LABEL, respondToMeeting, romeDate, romeTime, saveMeeting, setMeetingStatus, type Meeting, type MeetingDraft } from "@/lib/board";
 import { convocationDocx, downloadBlob } from "@/lib/board-docx";
 
-function MeetingCard({ m, me, president, onEdit }: { m: Meeting; me: string; president: boolean; onEdit: (m: Meeting) => void }) {
+function MeetingCard({ m, me, president, onEdit, onEnter }: { m: Meeting; me: string; president: boolean; onEdit: (m: Meeting) => void; onEnter: (m: Meeting) => void }) {
   const qc = useQueryClient();
   const [reason, setReason] = useState("");
   const refresh = () => qc.invalidateQueries({ queryKey: ["board-meetings"] });
@@ -38,16 +39,17 @@ function MeetingCard({ m, me, president, onEdit }: { m: Meeting; me: string; pre
         <ol className="list-decimal pl-6 mt-2 space-y-1">{m.board_agenda_items.map((a) => <li key={a.id}>{a.title}</li>)}</ol>
       </details>
       <div className="flex flex-wrap gap-2">
-        {mine && open && <>
+        {m.status !== "DRAFT" && m.status !== "ANNULLATO" && <Button size="sm" onClick={() => onEnter(m)}>{m.ended_at ? "Consulta seduta" : "Entra nella seduta"}</Button>}
+        {mine && open && !m.started_at && <>
           <Button size="sm" variant={mine.response === "confirmed" ? "default" : "outline"} onClick={() => act.mutate(() => respondToMeeting(m.id, "confirmed"))}>Partecipo</Button>
           <Button size="sm" variant={mine.response === "declined" ? "default" : "outline"} onClick={() => act.mutate(() => respondToMeeting(m.id, "declined"))}>Non posso partecipare</Button>
         </>}
         <Button size="sm" variant="outline" onClick={async () => downloadBlob(await convocationDocx(m), `Convocazione_CD_${m.meeting_number ?? "bozza"}_${m.meeting_year ?? ""}.docx`)}>Scarica convocazione (Word)</Button>
-        {president && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && <Button size="sm" variant="outline" onClick={() => onEdit(m)}>Modifica</Button>}
+        {president && !m.started_at && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && <Button size="sm" variant="outline" onClick={() => onEdit(m)}>Modifica</Button>}
         {president && m.status === "DRAFT" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Convoca</Button>}
-        {president && m.status === "SOSPESO" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Riprendi convocazione</Button>}
+        {president && !m.started_at && m.status === "SOSPESO" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Riprendi convocazione</Button>}
       </div>
-      {president && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && (
+      {president && !m.started_at && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && (
         <div className="flex flex-wrap gap-2 items-center">
           <Input className="max-w-xs" aria-label="Motivazione" placeholder="Motivazione per sospendere o annullare" value={reason} onChange={(e) => setReason(e.target.value)} />
           {m.status === "CONVOCATO" && <Button size="sm" variant="outline" disabled={!reason.trim()} onClick={() => act.mutate(() => setMeetingStatus(m.id, "SOSPESO", reason))}>Sospendi</Button>}
@@ -58,7 +60,7 @@ function MeetingCard({ m, me, president, onEdit }: { m: Meeting; me: string; pre
   );
 }
 
-function Section({ title, list, ...rest }: { title: string; list: Meeting[]; me: string; president: boolean; onEdit: (m: Meeting) => void }) {
+function Section({ title, list, ...rest }: { title: string; list: Meeting[]; me: string; president: boolean; onEdit: (m: Meeting) => void; onEnter: (m: Meeting) => void }) {
   if (!list.length) return null;
   return <section className="space-y-4"><h2 className="font-headline text-3xl tracking-wider">{title}</h2><div className="grid gap-4 md:grid-cols-2">{list.map((m) => <MeetingCard key={m.id} m={m} {...rest} />)}</div></section>;
 }
@@ -67,7 +69,8 @@ export default function Consiglio() {
   const { user, isBoardMember, isBoardPresident, isAdmin, loading } = useAuth();
   const qc = useQueryClient();
   const [wizard, setWizard] = useState<{ open: boolean; m?: Meeting }>({ open: false });
-  const meetings = useQuery({ queryKey: ["board-meetings"], queryFn: loadMeetings, enabled: !!user && (isBoardMember || isAdmin) });
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const meetings = useQuery({ queryKey: ["board-meetings"], queryFn: loadMeetings, enabled: !!user && (isBoardMember || isAdmin), refetchInterval: sessionId ? 15000 : false });
 
   if (loading) return <p role="status" className="p-10">Caricamento…</p>;
   if (!user) return <Navigate to="/auth?next=/consiglio-direttivo" replace />;
@@ -76,7 +79,8 @@ export default function Consiglio() {
   );
 
   const g = groupMeetings(meetings.data ?? []);
-  const props = { me: user.id, president: isBoardPresident, onEdit: (m: Meeting) => setWizard({ open: true, m }) };
+  const currentSession = meetings.data?.find((m) => m.id === sessionId);
+  const props = { me: user.id, president: isBoardPresident, onEdit: (m: Meeting) => setWizard({ open: true, m }), onEnter: (m: Meeting) => setSessionId(m.id) };
   const submit = async (d: MeetingDraft, convene: boolean) => {
     const id = await saveMeeting(wizard.m?.id ?? null, d);
     if (convene) await setMeetingStatus(id, "CONVOCATO");
@@ -99,7 +103,8 @@ export default function Consiglio() {
         </header>
         {meetings.isLoading && <p role="status">Caricamento…</p>}
         {meetings.error && <p role="alert" className="text-destructive">Riunioni non disponibili. Se il problema persiste, il modulo potrebbe non essere ancora installato sul database.</p>}
-        {meetings.data && (
+        {currentSession && <><Button variant="outline" onClick={() => setSessionId(null)}>← Tutte le riunioni</Button><LiveSession key={currentSession.id} m={currentSession} me={user.id} president={isBoardPresident} boardMember={isBoardMember} /></>}
+        {meetings.data && !currentSession && (
           <>
             <section className="border border-border p-6 bg-card">
               <h2 className="font-headline text-2xl tracking-wider mb-2">Prossima riunione</h2>
