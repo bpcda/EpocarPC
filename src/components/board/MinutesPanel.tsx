@@ -184,7 +184,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             <p className="text-sm border-l-4 border-border pl-3">
               Esito della votazione: <strong>{BALLOT_RESULT[ballot.data.result ?? ""] ?? ballot.data.result}</strong>
               {ballot.data.tie_break ? " · decisivo il voto del Presidente" : ""} ·{" "}
-              {(() => { const t = ballotTally(ballot.data as never); return `${t.favorevoli} favorevoli, ${t.contrari} contrari, ${t.astenuti} astenuti`; })()}
+              {(() => { const t = ballotTally(ballot.data as unknown as Ballot); return `${t.favorevoli} favorevoli, ${t.contrari} contrari, ${t.astenuti} astenuti`; })()}
             </p>
           )}
 

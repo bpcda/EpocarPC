@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { boardClient, BOARD_ROLE_LABEL, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 import AudioPanel from "@/components/board/AudioPanel";
+import MinutesPanel from "@/components/board/MinutesPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
