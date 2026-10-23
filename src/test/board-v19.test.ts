@@ -73,7 +73,7 @@ describe('Board phase 5 server rules (minutes draft, review, approval)', () => {
       expect(as(PRES, `SELECT status FROM board_minutes WHERE id='${mn}'`)).toBe('IN_APPROVAZIONE');
       expect(as(PRES, `SELECT locked_at IS NOT NULL FROM board_minute_versions WHERE minutes_id='${mn}' AND version=2`)).toBe('t');
       expect(fails(CONS, `SELECT board_minutes_save('${id}','Altro testo','manuale')`)).toMatch(/bloccato/);
-      expect(fails(C5, `SELECT board_minutes_rectify('${mn}','Rettifica durante il voto')`)).toMatch(/attendere l''esito/);
+      expect(fails(C5, `SELECT board_minutes_rectify('${mn}','Rettifica durante il voto')`)).toMatch(/attendere l.esito/);
 
       // Vote name by name; rejected minutes return to review.
       as(PRES, `SELECT board_ballot_vote('${b1}','favorevole')`);
