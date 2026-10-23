@@ -47,7 +47,7 @@ describe('Board phase 3 server rules', () => {
       as(PRES, `SELECT board_set_status('${id}','CONVOCATO')`);
       const pid = (u: string) => as(PRES, `SELECT id FROM board_meeting_participants WHERE meeting_id='${id}' AND user_id='${u}'`);
       const attend = (p: string, present = true) => `SELECT board_attendance_set('${id}','${p}',${present},'remoto',true,'Identita e comunicazione verificate')`;
-      as(PRES, attend(pid(PRES))); as(CONS, attend(pid(CONS))); as(C5, attend(pid(C5)));
+      as(PRES, attend(pid(PRES))); as(CONS, attend(pid(CONS))); as(PRES, attend(pid(C5)));
       as(PRES, `SELECT board_session_action('${id}','open')`);
 
       // Only the President or the designated minute taker writes the official text.
