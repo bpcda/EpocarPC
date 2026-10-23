@@ -10,10 +10,6 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
   SELECT EXISTS (SELECT 1 FROM public.board_meetings m
     WHERE m.id = _meeting AND m.minute_taker_id = auth.uid() AND public.is_board_member(auth.uid())) $$;
 
--- Meeting owner of a deliberation (for RLS on child tables).
-CREATE OR REPLACE FUNCTION public.board_deliberation_meeting(_deliberation uuid)
-RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT meeting_id FROM public.board_deliberations WHERE id = _deliberation $$;
 
 CREATE TABLE IF NOT EXISTS public.board_deliberations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
