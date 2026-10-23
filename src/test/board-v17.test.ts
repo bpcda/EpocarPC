@@ -51,7 +51,7 @@ describe('Board phase 3 server rules', () => {
       as(PRES, `SELECT board_session_action('${id}','open')`);
 
       // Only the President or the designated minute taker writes the official text.
-      expect(fails(C5, `SELECT board_deliberation_save('${id}',NULL,${d({ title: 'X', body: 'Y' })})`)).toMatch(/Presidente o verbalizzante/);
+      expect(fails(C5, `SELECT board_deliberation_save('${id}',NULL,${d({ title: 'X', body: 'Y' })})`)).toMatch(/Presidente o il verbalizzante/);
       const d1 = as(PRES, `SELECT board_deliberation_save('${id}',NULL,${d({ title: 'Bilancio 2026', body: 'Approvare il bilancio.', documents: [{ name: 'Conto consuntivo' }] })})`);
       expect(as(PRES, `SELECT number||':'||status||':'||current_version FROM board_deliberations WHERE id='${d1}'`)).toBe('1:BOZZA:1');
       as(CONS, `SELECT board_deliberation_save('${id}','${d1}',${d({ title: 'Bilancio 2026', body: 'Approvare il bilancio rivisto.' })})`);
@@ -62,7 +62,7 @@ describe('Board phase 3 server rules', () => {
       expect(as(PRES, `SELECT body FROM board_deliberation_versions WHERE deliberation_id='${d1}' AND version=2`)).toBe('Approvare il bilancio rivisto.');
       expect(as(PRES, `SELECT count(*) FROM board_deliberation_suggestions WHERE deliberation_id='${d1}'`)).toBe('1');
       const sug = as(PRES, `SELECT id FROM board_deliberation_suggestions WHERE deliberation_id='${d1}'`);
-      expect(fails(C5, `SELECT board_deliberation_suggestion_decide('${sug}','accolta')`)).toMatch(/Presidente o verbalizzante/);
+      expect(fails(C5, `SELECT board_deliberation_suggestion_decide('${sug}','accolta')`)).toMatch(/Presidente o il verbalizzante/);
       as(CONS, `SELECT board_deliberation_suggestion_decide('${sug}','accolta')`);
       expect(as(PRES, `SELECT status FROM board_deliberation_suggestions WHERE id='${sug}'`)).toBe('accolta');
 
