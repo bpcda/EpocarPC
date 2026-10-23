@@ -22,16 +22,21 @@ export const BOARD_ROLE_LABEL: Record<string, string> = {
 const participant = z.object({
   id: z.string(), user_id: z.string().nullable(), kind: z.enum(["member", "guest"]), display_name: z.string(),
   board_roles: z.array(z.string()), can_vote: z.boolean(), response: z.enum(["pending", "confirmed", "declined"]),
+  present: z.boolean().default(false), attendance_requested_at: z.string().nullable().optional(),
+  attendance_mode: z.enum(["presenza", "remoto"]).nullable().optional(), identified_at: z.string().nullable().optional(),
+  attendance_note: z.string().nullable().optional(), last_seen_at: z.string().nullable().optional(),
 });
 const agendaItem = z.object({
   id: z.string(), position: z.number(), kind: z.string(), title: z.string(),
   description: z.string().nullable(), proposal: z.string().nullable(),
+  discussion_status: z.enum(["pending", "current", "discussed"]).default("pending"),
 });
 const meeting = z.object({
   id: z.string(), meeting_year: z.number().nullable(), meeting_number: z.number().nullable(),
   scheduled_at: z.string(), location: z.string().nullable(), mode: z.enum(["presenza", "remoto", "ibrido"]),
   video_link: z.string().nullable(), description: z.string().nullable(), urgency_reason: z.string().nullable(),
   status: z.string(), status_reason: z.string().nullable(), minute_taker_id: z.string().nullable(),
+  started_at: z.string().nullable().optional(), ended_at: z.string().nullable().optional(), active_agenda_id: z.string().nullable().optional(),
   board_meeting_participants: z.array(participant).default([]),
   board_agenda_items: z.array(agendaItem).default([]),
 });
@@ -100,6 +105,29 @@ export async function respondToMeeting(id: string, response: "confirmed" | "decl
 
 export const meetingLabel = (m: Pick<Meeting, "meeting_number" | "meeting_year">) =>
   m.meeting_number ? `Riunione n. ${m.meeting_number}/${m.meeting_year}` : "Riunione (numero assegnato alla convocazione)";
+
+export const quorumSchema = z.object({ total: z.number().int(), present: z.number().int(), required: z.number().int(), met: z.boolean() });
+const eventSchema = z.object({ id: z.number(), action: z.string(), created_at: z.string(), detail: z.record(z.unknown()) });
+export async function loadBoardSession(id: string) {
+  const [q, e] = await Promise.all([
+    boardClient.rpc("board_quorum", { _id: id }),
+    boardClient.from("board_meeting_events").select("id,action,created_at,detail").eq("meeting_id", id).order("id", { ascending: false }).limit(100),
+  ]);
+  fail(q.error); fail(e.error);
+  return { quorum: quorumSchema.parse(q.data), events: z.array(eventSchema).parse(e.data ?? []) };
+}
+export async function sessionAction(id: string, action: "open" | "suspend" | "resume" | "close", reason?: string) {
+  const { error } = await boardClient.rpc("board_session_action", { _id: id, _action: action, _reason: reason ?? null }); fail(error);
+}
+export async function requestAttendance(id: string) {
+  const { error } = await boardClient.rpc("board_attendance_request", { _id: id }); fail(error);
+}
+export async function recordAttendance(id: string, participantId: string, present: boolean, mode: string, verified: boolean, note: string) {
+  const { error } = await boardClient.rpc("board_attendance_set", { _id: id, _participant: participantId, _present: present, _mode: mode, _verified: verified, _note: note }); fail(error);
+}
+export async function selectAgenda(id: string, agendaId: string) {
+  const { error } = await boardClient.rpc("board_agenda_select", { _id: id, _agenda: agendaId }); fail(error);
+}
 
 export const romeDate = (iso: string) => new Date(iso).toLocaleDateString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit", year: "numeric" });
 export const romeTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { timeZone: "Europe/Rome", hour: "2-digit", minute: "2-digit" });
