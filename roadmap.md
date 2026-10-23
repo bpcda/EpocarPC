@@ -27,3 +27,12 @@
 - [x] Client CMS, homepage/footer collegati con fallback, pagine News/Pagine/FAQ, sponsor/partner, modelli Strapi, compose Coolify, doc, test.
 - [ ] Deploy Strapi su Coolify e VITE_STRAPI_URL su Vercel — blocked: eseguito dall'utente (docs/strapi-cms-deployment.md).
 - [ ] Import testi attuali nel CMS e rimozione fallback — dopo il deploy.
+
+## Consiglio Direttivo
+- [x] Fase 1 — accessi, pannello, convocazioni, ordine del giorno (setup/board-v15.sql da eseguire sul progetto esterno)
+- [ ] Fase 2 — seduta dal vivo, presenze, quorum
+- [ ] Fase 3 — delibere, votazioni, approvazione documenti
+- [ ] Fase 4 — audio con consenso e trascrizione IA
+- [ ] Fase 5 — verbale, revisione, approvazione
+- [ ] Fase 6 — fascicolo ZIP, archivio, cancellazione dati temporanei
+- [ ] Fase 7 — prove complete, sicurezza, verifica Statuto
