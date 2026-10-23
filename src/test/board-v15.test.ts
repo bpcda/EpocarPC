@@ -16,7 +16,7 @@ describe('Consiglio Direttivo phase 1 on isolated PostgreSQL', () => {
     chmodSync(dir, 0o777);
     const asNobody = (a: string[]) => execFileSync('runuser', ['-u', 'nobody', '--', realpathSync(`/usr/bin/${a[0]}`), ...a.slice(1)], { stdio: 'pipe' });
     const psql = (args: string[]) => execFileSync('psql', ['-h', dir, '-p', '55451', '-U', 'nobody', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', ...args], { encoding: 'utf8', stdio: 'pipe' }).trim();
-    const as = (uid: string, q: string) => psql(['-Atc', `SET ROLE authenticated; SET app.uid='${uid}'; ${q}`]);
+    const as = (uid: string, q: string) => psql(['-q', '-Atc', `SET ROLE authenticated; SET app.uid='${uid}'; ${q}`]);
     const fails = (uid: string, q: string) => { try { as(uid, q); return ''; } catch (e) { return String((e as { stderr?: string }).stderr); } };
     let started = false;
     try {
