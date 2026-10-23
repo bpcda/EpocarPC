@@ -49,7 +49,8 @@ function AiSettingsForm({ settings, onSaved }: { settings: AiSettings; onSaved: 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm space-y-1">Provider<Input value={form.provider} onChange={set("provider")} /></label>
         <label className="text-sm space-y-1">Modello di trascrizione<Input value={form.transcription_model} onChange={set("transcription_model")} /></label>
-        <label className="text-sm space-y-1 sm:col-span-2">Indirizzo API (https)<Input value={form.api_base} onChange={set("api_base")} /></label>
+        <label className="text-sm space-y-1">Modello di redazione del verbale<Input value={form.drafting_model} onChange={set("drafting_model")} /></label>
+        <label className="text-sm space-y-1">Indirizzo API (https)<Input value={form.api_base} onChange={set("api_base")} /></label>
         <label className="text-sm space-y-1">Costo stimato €/min<Input type="number" step="0.0001" min="0" value={form.cost_per_min_eur} onChange={set("cost_per_min_eur")} /></label>
         <label className="text-sm space-y-1">Limite di spesa per riunione (€)<Input type="number" step="0.5" min="0" value={form.max_cost_eur} onChange={set("max_cost_eur")} /></label>
       </div>

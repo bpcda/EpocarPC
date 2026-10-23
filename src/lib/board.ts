@@ -262,3 +262,65 @@ export async function closeBallot(ballotId: string) {
 export async function cancelBallot(ballotId: string, reason: string) {
   const { error } = await boardClient.rpc("board_ballot_cancel", { _ballot: ballotId, _reason: reason }); fail(error);
 }
+
+// ---- Phase 5: minutes draft (manual or AI), rectifications, approval vote, signed copy (setup/board-v19.sql) ----
+export const MINUTES_STATUS: Record<string, string> = {
+  BOZZA: "Bozza", IN_REVISIONE: "In revisione", IN_APPROVAZIONE: "In approvazione", APPROVATO: "Approvato",
+};
+export const MINUTES_SOURCE: Record<string, string> = { ia: "Bozza IA", manuale: "Redazione manuale", rettifica: "Versione rettificata" };
+
+const minutesVersionSchema = z.object({
+  id: z.string(), version: z.number(), body: z.string(), content_hash: z.string(),
+  source: z.enum(["ia", "manuale", "rettifica"]), created_by: z.string(), created_at: z.string(),
+  locked_at: z.string().nullable().optional(),
+});
+const rectificationSchema = z.object({
+  id: z.string(), author_name: z.string(), body: z.string(),
+  status: z.enum(["nuova", "accolta", "non_accolta"]), created_at: z.string(), handled_at: z.string().nullable().optional(),
+});
+const minutesSchema = z.object({
+  id: z.string(), meeting_id: z.string(), number: z.number().nullable(), status: z.string(),
+  current_version: z.number(), signed_path: z.string().nullable(), signed_at: z.string().nullable(),
+  board_minute_versions: z.array(minutesVersionSchema).default([]),
+  board_minute_rectifications: z.array(rectificationSchema).default([]),
+});
+export type Minutes = z.infer<typeof minutesSchema>;
+
+export async function loadMinutes(meetingId: string): Promise<Minutes | null> {
+  const { data, error } = await boardClient.from("board_minutes")
+    .select("*, board_minute_versions(*), board_minute_rectifications(*)")
+    .eq("meeting_id", meetingId).maybeSingle();
+  fail(error);
+  if (!data) return null;
+  const mn = minutesSchema.parse(data);
+  return { ...mn, board_minute_versions: [...mn.board_minute_versions].sort((a, b) => b.version - a.version) };
+}
+export const currentMinutesVersion = (mn: Minutes) =>
+  mn.board_minute_versions.find((v) => v.version === mn.current_version) ?? null;
+
+export async function saveMinutes(meetingId: string, body: string, source: "ia" | "manuale" | "rettifica") {
+  const { error } = await boardClient.rpc("board_minutes_save", { _meeting: meetingId, _body: body, _source: source });
+  fail(error);
+}
+export async function rectifyMinutes(minutesId: string, body: string) {
+  const { error } = await boardClient.rpc("board_minutes_rectify", { _minutes: minutesId, _body: body }); fail(error);
+}
+export async function decideRectification(rectificationId: string, outcome: "accolta" | "non_accolta") {
+  const { error } = await boardClient.rpc("board_minutes_rectification_decide", { _rectification: rectificationId, _status: outcome }); fail(error);
+}
+export async function submitMinutesVote(minutesId: string): Promise<string> {
+  const { data, error } = await boardClient.rpc("board_minutes_submit_vote", { _minutes: minutesId }); fail(error);
+  return data as string;
+}
+export async function draftMinutesWithAi(meetingId: string) {
+  const { data, error } = await boardClient.functions.invoke("board-draft-minutes", { body: { meeting_id: meetingId } });
+  if (error) throw new Error(error.message || "Generazione non riuscita");
+  if (data && data.ok === false) throw new Error(data.message || "Generazione non riuscita");
+}
+export async function registerSignedMinutes(minutesId: string, meetingId: string, file: File) {
+  const path = `${meetingId}/verbale_firmato-${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase() || "pdf"}`;
+  const { error: upError } = await boardClient.storage.from("board-documents").upload(path, file, { upsert: false });
+  fail(upError);
+  const { error } = await boardClient.rpc("board_minutes_signed", { _minutes: minutesId, _storage_path: path });
+  fail(error);
+}

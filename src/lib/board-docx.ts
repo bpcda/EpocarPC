@@ -63,3 +63,32 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
+
+/** Official minutes (verbale) for signature: approved text plus subscription spaces. */
+export async function minutesDocx(m: Meeting, body: string, version: number): Promise<Blob> {
+  const num = m.meeting_number ? `${m.meeting_number}/${m.meeting_year}` : "[bozza]";
+  const children: Paragraph[] = [
+    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(`EPOCAR — Verbale del Consiglio Direttivo n. ${num}`)] }),
+    new Paragraph({ spacing: { after: 200 }, children: [new TextRun({
+      text: `Riunione del ${romeDate(m.scheduled_at)} · ${MODE_LABEL[m.mode]} · Versione ${version} del documento`, italics: true })] }),
+  ];
+  for (const line of body.split("\n")) {
+    const text = line.trimEnd();
+    if (!text) { children.push(new Paragraph({})); continue; }
+    const heading = /^#{1,3}\s+/.test(text);
+    children.push(new Paragraph({
+      heading: heading ? HeadingLevel.HEADING_2 : undefined,
+      spacing: { after: 120 },
+      children: [new TextRun({ text: text.replace(/^#{1,3}\s+/, "").replace(/\*\*/g, ""), bold: heading })],
+    }));
+  }
+  children.push(
+    new Paragraph({ spacing: { before: 600 }, children: [new TextRun("Il Presidente ______________________________")] }),
+    new Paragraph({ spacing: { before: 200 }, children: [new TextRun("Il verbalizzante ______________________________")] }),
+  );
+  const doc = new Document({
+    styles: { default: { document: { run: { font: "Arial", size: 22 } } } },
+    sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1270, right: 1270, bottom: 1270, left: 1270 } } }, children }],
+  });
+  return Packer.toBlob(doc);
+}

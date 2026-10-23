@@ -33,6 +33,7 @@ export type RecordingConsent = z.infer<typeof consentSchema>;
 
 const aiSettingsSchema = z.object({
   enabled: z.boolean(), provider: z.string(), api_base: z.string(), transcription_model: z.string(),
+  drafting_model: z.string().default("gpt-4o-mini"),
   cost_per_min_eur: z.coerce.number(), max_cost_eur: z.coerce.number(), notice_version: z.string(),
 });
 export type AiSettings = z.infer<typeof aiSettingsSchema>;
@@ -97,8 +98,8 @@ export async function transcribeTrack(trackId: string) {
 export async function saveAiSettings(s: AiSettings) {
   const { error } = await boardClient.rpc("board_ai_settings_save", {
     _enabled: s.enabled, _provider: s.provider, _api_base: s.api_base,
-    _transcription_model: s.transcription_model, _cost_per_min_eur: s.cost_per_min_eur,
-    _max_cost_eur: s.max_cost_eur, _notice_version: s.notice_version,
+    _transcription_model: s.transcription_model, _drafting_model: s.drafting_model,
+    _cost_per_min_eur: s.cost_per_min_eur, _max_cost_eur: s.max_cost_eur, _notice_version: s.notice_version,
   });
   fail(error);
 }

@@ -3,16 +3,18 @@
 // La chiave del provider IA resta nel segreto BOARD_AI_API_KEY; configurazione in public.board_ai_settings.
 // Le trascrizioni sono scritte solo tramite la RPC service-only board_audio_track_update_service.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
 
 const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
 type Segment = { start: number; end: number; speaker: string | null; text: string; attribution: "verificata" | "incerta" | "non_attribuita" };
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "method_not_allowed" });
   const requestId = crypto.randomUUID();
   const fail = (status: number, error: string, message: string) => json(status, { ok: false, error, message, request_id: requestId });
