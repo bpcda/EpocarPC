@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -156,7 +156,7 @@ export default function ConvocationWizard({ open, onOpenChange, initial, onSubmi
           <div className="border border-border p-5 space-y-3 text-sm bg-card">
             <p className="font-semibold">Oggetto: Convocazione del Consiglio Direttivo EPOCAR</p>
             <p>Il Presidente, ai sensi dell’art. 17 dello Statuto, convoca il Consiglio Direttivo dell’Associazione EPOCAR alle condizioni di seguito indicate.</p>
-            <dl className="grid grid-cols-[10rem_1fr] gap-y-1">{convocationRows(preview).map(([k, v]) => <><dt key={k + "k"} className="text-muted-foreground">{k}</dt><dd key={k}>{v}</dd></>)}</dl>
+            <dl className="grid grid-cols-[10rem_1fr] gap-y-1">{convocationRows(preview).map(([k, v]) => <Fragment key={k}><dt className="text-muted-foreground">{k}</dt><dd>{v}</dd></Fragment>)}</dl>
             <p className="font-semibold">Ordine del giorno</p>
             <ol className="list-decimal pl-6">{preview.board_agenda_items.map((a) => <li key={a.id}>{a.title || "(senza titolo)"} — {AGENDA_KINDS[a.kind]}</li>)}</ol>
           </div>
