@@ -7,12 +7,16 @@ type AuthContextValue = {
   isAdmin: boolean;
   isStaff: boolean;
   isTreasurer: boolean;
+  isBoardMember: boolean;
+  isBoardPresident: boolean;
   canAccessTreasury: boolean;
   canAccessDashboard: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => ReturnType<typeof supabase.auth.signInWithPassword>;
   signOut: () => ReturnType<typeof supabase.auth.signOut>;
 };
+
+const BOARD_ROLES = ["president", "vice_president", "secretary", "treasurer", "councillor"];
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -21,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const [isTreasurer, setIsTreasurer] = useState(false);
+  const [isBoardMember, setIsBoardMember] = useState(false);
+  const [isBoardPresident, setIsBoardPresident] = useState(false);
   const [loading, setLoading] = useState(true);
   const currentUserId = useRef<string | null>(null);
   const roleCheckedFor = useRef<string | null>(null);
@@ -73,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       setIsStaff(false);
       setIsTreasurer(false);
+      setIsBoardMember(false);
+      setIsBoardPresident(false);
       setLoading(false);
       return;
     }
@@ -91,6 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(roles.includes("admin"));
         setIsStaff(roles.includes("staff"));
         setIsTreasurer(roles.includes("treasurer"));
+        // UI hint only; the database re-checks board offices on every read/write.
+        setIsBoardMember(roles.some((r) => BOARD_ROLES.includes(r)));
+        setIsBoardPresident(roles.includes("president"));
         setLoading(false);
       });
 
@@ -104,6 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin,
     isStaff,
     isTreasurer,
+    isBoardMember,
+    isBoardPresident,
     canAccessTreasury: isTreasurer, // accounting role only; admin/staff/president never imply it
     canAccessDashboard: isAdmin || isStaff || isTreasurer,
     loading,
