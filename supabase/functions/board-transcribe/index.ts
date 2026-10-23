@@ -14,6 +14,7 @@ const json = (status: number, body: unknown) =>
 type Segment = { start: number; end: number; speaker: string | null; text: string; attribution: "verificata" | "incerta" | "non_attribuita" };
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "method_not_allowed" });
   const requestId = crypto.randomUUID();
   const fail = (status: number, error: string, message: string) => json(status, { ok: false, error, message, request_id: requestId });
