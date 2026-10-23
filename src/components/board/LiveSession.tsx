@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { boardClient, BOARD_ROLE_LABEL, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
+import AudioPanel from "@/components/board/AudioPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",

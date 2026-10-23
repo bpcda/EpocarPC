@@ -220,11 +220,11 @@ export default function AudioPanel({ m, me, president, manager, active, live }: 
           </label>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" disabled={!noticeRead || act.isPending}
-              onClick={() => act.mutate(() => setRecordingConsent(m.id, true, settings?.notice_version ?? "v1")).then(() => setConsentOpen(false))}>
+              onClick={async () => { await act.mutateAsync(() => setRecordingConsent(m.id, true, settings?.notice_version ?? "v1")); setConsentOpen(false); }}>
               Acconsento alla registrazione
             </Button>
             <Button size="sm" variant="outline" disabled={!noticeRead || act.isPending}
-              onClick={() => act.mutate(() => setRecordingConsent(m.id, false, settings?.notice_version ?? "v1")).then(() => setConsentOpen(false))}>
+              onClick={async () => { await act.mutateAsync(() => setRecordingConsent(m.id, false, settings?.notice_version ?? "v1")); setConsentOpen(false); }}>
               Non acconsento
             </Button>
           </div>
