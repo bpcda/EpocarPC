@@ -1,3 +1,6 @@
+# Evento Epocar x Mossi
+- [ ] Review implementation plan for guest bookings, multiple vehicles, account activation, confirmation emails and administrative exports; external installation only, no changes to real accounts.
+
 # Association
 - [x] Prepare scoped manual B→A public-register repair with transaction, conflict guards, role/replay analysis and synthetic tests (7 passed); review-only delivery, no external execution.
 - [x] Prepare read-only external SQL diagnostics for duplicate accounts A/B and a conditional Codex handoff for safe relinking; tested on isolated synthetic PostgreSQL, no external access or account changes.
