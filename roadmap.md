@@ -31,7 +31,8 @@
 ## Consiglio Direttivo
 - [x] Fase 1 — accessi, pannello, convocazioni, ordine del giorno; SQL v15 caricato dall'utente.
 - [x] Fase 2 — codice e SQL v16: seduta condivisa, identificazione/presenze, quorum server, agenda, registro, sospensione/ripresa/chiusura; test PostgreSQL isolati e UI simulata desktop/mobile superati.
-- [ ] Fase 2 — attivazione e verifica reale: installare setup/board-v16.sql dopo v15 e distribuire sito; prova con due account/dispositivi e Realtime — blocked: progetto esterno non accessibile dal workspace.
+- [x] Fase 2 — attivazione e verifica reale: v16 installato dopo v15, sito distribuito, seduta dal vivo provata dall'utente.
+- [ ] Fase 2 — residui da osservare in prova: Realtime vs aggiornamento a 15s, uscita con perdita quorum, accesso admin in sola lettura.
 - [ ] Fase 3 — delibere, votazioni, approvazione documenti
 - [ ] Fase 4 — audio con consenso e trascrizione IA
 - [ ] Fase 5 — verbale, revisione, approvazione
