@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound.tsx";
 import CmsPage from "./pages/CmsPage.tsx";
 import { NewsList, NewsDetail } from "./pages/News.tsx";
 import Faq from "./pages/Faq.tsx";
+import Consiglio from "./pages/Consiglio.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth.ts";
@@ -55,6 +56,7 @@ const App = () => (
           <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/pagine/:slug" element={<CmsPage />} />
           <Route path="/faq" element={<Faq />} />
+          <Route path="/consiglio-direttivo" element={<Consiglio />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/account"
