@@ -45,12 +45,12 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); };
+    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes-ballot", m.id] }); };
     const channel = boardClient.channel(`board-session-${m.id}`);
-    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents"]) {
+    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents", "board_minutes"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `meeting_id=eq.${m.id}` }, refreshData);
     }
-    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents"]) {
+    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents", "board_minute_versions", "board_minute_rectifications"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshData);
     }
     channel.on("postgres_changes", { event: "*", schema: "public", table: "board_meetings", filter: `id=eq.${m.id}` }, refreshData)
