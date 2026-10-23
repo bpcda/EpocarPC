@@ -22,7 +22,7 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
   active: boolean; live: boolean; quorumMet: boolean;
 }) {
   const qc = useQueryClient();
-  const [editor, setEditor] = useState<{ open: boolean; id: string | null }>({ open: false });
+  const [editor, setEditor] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [draft, setDraft] = useState<DeliberationDraft>(emptyDraft());
   const [docName, setDocName] = useState("");
   const [ask, setAsk] = useState<{ kind: "suggest" | "withdraw" | "cancel" | "close"; target: string; label: string } | null>(null);
