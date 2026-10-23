@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { boardClient, BOARD_ROLE_LABEL, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
+import AudioPanel from "@/components/board/AudioPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
@@ -16,6 +17,8 @@ const eventLabels: Record<string, string> = {
   deliberation_created: "Delibera scritta", deliberation_version: "Testo della delibera aggiornato", deliberation_suggested: "Suggerimento di modifica",
   deliberation_suggestion_decided: "Suggerimento valutato", deliberation_withdrawn: "Delibera ritirata",
   ballot_open: "Votazione aperta", ballot_vote: "Voto registrato", ballot_close: "Votazione conclusa", ballot_cancel: "Votazione annullata",
+  recording_consent: "Consenso alla registrazione", audio_track_start: "Registrazione avviata", audio_track_finish: "Registrazione caricata",
+  audio_track_delete: "Traccia eliminata", audio_transcribed: "Trascrizione completata", audio_error: "Errore di trascrizione",
 };
 
 export default function LiveSession({ m, me, president, boardMember }: { m: Meeting; me: string; president: boolean; boardMember: boolean }) {
@@ -39,9 +42,9 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); };
+    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); };
     const channel = boardClient.channel(`board-session-${m.id}`);
-    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots"]) {
+    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `meeting_id=eq.${m.id}` }, refreshData);
     }
     for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents"]) {
@@ -82,7 +85,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
         {m.board_meeting_participants.map((p) => <article key={p.id} className="border-b border-border py-3 space-y-1 break-words">
           <strong>{p.display_name}</strong><p className="text-xs text-muted-foreground">{p.kind === "guest" ? "Invitato · senza voto" : p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(" · ")}</p>
           <p className="text-sm">{p.present ? `Presente · ${p.attendance_mode === "remoto" ? "da remoto" : "in presenza"}` : "Presenza non confermata"}</p>
-          <p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"} · audio non attivo</p>
+          <p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"}</p>
           {p.attendance_requested_at && <p className="text-sm">Identificazione richiesta</p>}
           {manager && active && <Button size="sm" variant="outline" disabled={act.isPending || !session.data} onClick={() => { setSelected(p); setVerified(false); setNote(""); setMode(p.attendance_mode ?? (m.mode === "remoto" ? "remoto" : "presenza")); }}>{p.present ? "Registra uscita" : "Verifica presenza"}</Button>}
         </article>)}
@@ -101,6 +104,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     </div>
     <DeliberationsPanel m={m} me={me} president={president} boardMember={boardMember} manager={manager}
       active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
+    <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
