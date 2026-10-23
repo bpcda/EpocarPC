@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Gavel, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react";
+import { Gavel, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import {
 
 const emptyDraft = (): DeliberationDraft => ({ agenda_item_id: "", title: "", body: "", documents: [] });
 const short = (h: string) => h.slice(0, 8);
+const romeShort = (iso: string) => new Date(iso).toLocaleString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export default function DeliberationsPanel({ m, me, president, boardMember, manager, active, live, quorumMet }: {
   m: Meeting; me: string; president: boolean; boardMember: boolean; manager: boolean;
@@ -179,6 +180,3 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
     </Dialog>
   </section>;
 }
-
-const romeShort = (iso: string) => new Date(iso).toLocaleString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const _unusedX = X;
