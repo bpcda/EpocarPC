@@ -35,7 +35,8 @@
 - [ ] Fase 2 — residui da osservare in prova: Realtime vs aggiornamento a 15s, uscita con perdita quorum, accesso admin in sola lettura.
 - [x] Fase 3 — codice e SQL v17: testo ufficiale solo da Presidente/verbalizzante, suggerimenti dagli altri, voto nominale, quorum verificato all'apertura e alla chiusura, voto prevalente del Presidente solo in parità, documenti collegati; test PostgreSQL isolati superati.
 - [ ] Fase 3 — attivazione sul progetto esterno: eseguire setup/board-v17.sql dopo v15/v16 e distribuire il sito (docs/board-phase3.md) — blocked: external project is not connected to this workspace.
-- [ ] Fase 4 — audio con consenso e trascrizione IA
+- [x] Fase 4 — codice e SQL v18: consenso registrato a registro, tracce individuali/condivise, bucket privato board-audio, trascrizione via Edge Function board-transcribe (service-only, limiti di spesa, IA disattivabile); test PostgreSQL isolati.
+- [ ] Fase 4 — attivazione sul progetto esterno: eseguire setup/board-v18.sql dopo v15/v16/v17, distribuire board-transcribe, impostare il segreto BOARD_AI_API_KEY e distribuire il sito (docs/board-phase4.md) — blocked: external project is not connected to this workspace.
 - [ ] Fase 5 — verbale, revisione, approvazione
 - [ ] Fase 6 — fascicolo ZIP, archivio, cancellazione dati temporanei
 - [ ] Fase 7 — prove complete, sicurezza, verifica Statuto
