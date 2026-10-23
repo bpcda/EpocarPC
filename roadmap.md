@@ -30,7 +30,7 @@
 
 ## Consiglio Direttivo
 - [x] Fase 1 — accessi, pannello, convocazioni, ordine del giorno (setup/board-v15.sql da eseguire sul progetto esterno)
-- [ ] Fase 2 — seduta dal vivo, presenze, quorum
+- [ ] Fase 2 — in lavorazione: seduta dal vivo, presenze effettive e quorum; SQL v15 caricato dall'utente, nessun accesso esterno.
 - [ ] Fase 3 — delibere, votazioni, approvazione documenti
 - [ ] Fase 4 — audio con consenso e trascrizione IA
 - [ ] Fase 5 — verbale, revisione, approvazione
