@@ -29,8 +29,9 @@
 - [ ] Import testi attuali nel CMS e rimozione fallback — dopo il deploy.
 
 ## Consiglio Direttivo
-- [x] Fase 1 — accessi, pannello, convocazioni, ordine del giorno (setup/board-v15.sql da eseguire sul progetto esterno)
-- [ ] Fase 2 — in lavorazione: seduta dal vivo, presenze effettive e quorum; SQL v15 caricato dall'utente, nessun accesso esterno.
+- [x] Fase 1 — accessi, pannello, convocazioni, ordine del giorno; SQL v15 caricato dall'utente.
+- [x] Fase 2 — codice e SQL v16: seduta condivisa, identificazione/presenze, quorum server, agenda, registro, sospensione/ripresa/chiusura; test PostgreSQL isolati e UI simulata desktop/mobile superati.
+- [ ] Fase 2 — attivazione e verifica reale: installare setup/board-v16.sql dopo v15 e distribuire sito; prova con due account/dispositivi e Realtime — blocked: progetto esterno non accessibile dal workspace.
 - [ ] Fase 3 — delibere, votazioni, approvazione documenti
 - [ ] Fase 4 — audio con consenso e trascrizione IA
 - [ ] Fase 5 — verbale, revisione, approvazione
