@@ -106,7 +106,9 @@ describe('Board phase 3 server rules', () => {
       // One vote at a time; a vote opened in error can be cancelled with a reason.
       const d4 = as(CONS, `SELECT board_deliberation_save('${id}',NULL,${d({ title: 'Assicurazione', body: 'Rinnovare la polizza.' })})`);
       const b4 = as(PRES, `SELECT board_ballot_open('${d4}')`);
-      expect(fails(PRES, `SELECT board_ballot_open('${d4}')`)).toMatch(/già una votazione in corso/);
+      const d5 = as(CONS, `SELECT board_deliberation_save('${id}',NULL,${d({ title: 'Sito web', body: 'Approvare il nuovo sito.' })})`);
+      expect(fails(PRES, `SELECT board_ballot_open('${d5}')`)).toMatch(/già una votazione in corso/);
+      expect(fails(PRES, `SELECT board_ballot_open('${d4}')`)).toMatch(/solo una bozza/);
       expect(fails(PRES, `SELECT board_ballot_cancel('${b4}','')`)).toMatch(/motivazione obbligatoria/);
       as(PRES, `SELECT board_ballot_cancel('${b4}','Errore di procedura')`);
       expect(as(PRES, `SELECT status FROM board_deliberations WHERE id='${d4}'`)).toBe('BOZZA');
