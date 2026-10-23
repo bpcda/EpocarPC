@@ -145,3 +145,120 @@ export function groupMeetings(list: Meeting[], now = new Date()) {
     concluded: list.filter((m) => !active(m) && !["DRAFT", "IN_CORSO"].includes(m.status) && !(m.status === "SOSPESO" && m.started_at && !m.ended_at) || active(m) && new Date(m.scheduled_at) < now),
   };
 }
+
+// ---- Phase 3: deliberations, recorded votes, document approval (setup/board-v17.sql) ----
+export const DELIBERATION_STATUS: Record<string, string> = {
+  BOZZA: "Bozza", IN_VOTAZIONE: "In votazione", APPROVATA: "Approvata", RESPINTA: "Respinta",
+  SENZA_QUORUM: "Senza quorum", RITIRATA: "Ritirata",
+};
+export const VOTE_LABEL: Record<string, string> = { favorevole: "Favorevole", contrario: "Contrario", astenuto: "Astenuto" };
+export const BALLOT_RESULT: Record<string, string> = { approvata: "Approvata", respinta: "Respinta", senza_quorum: "Senza quorum" };
+export const DOCUMENT_KIND: Record<string, string> = { documento: "Documento", allegato: "Allegato", relazione: "Relazione" };
+
+const versionSchema = z.object({
+  id: z.string(), version: z.number(), title: z.string(), body: z.string(), content_hash: z.string(),
+  created_by: z.string(), created_at: z.string(), locked_at: z.string().nullable().optional(),
+});
+const suggestionSchema = z.object({
+  id: z.string(), author_name: z.string(), body: z.string(),
+  status: z.enum(["nuova", "accolta", "non_accolta"]), created_at: z.string(), handled_at: z.string().nullable().optional(),
+});
+const documentSchema = z.object({
+  id: z.string(), name: z.string(), kind: z.string(), status: z.enum(["bozza", "approvato", "respinto"]),
+  approved_at: z.string().nullable().optional(),
+});
+const voteSchema = z.object({ id: z.string(), display_name: z.string(), vote: z.enum(["favorevole", "contrario", "astenuto"]), recorded_at: z.string() });
+const ballotSchema = z.object({
+  id: z.string(), status: z.enum(["aperta", "chiusa", "annullata"]), result: z.string().nullable(),
+  tally: z.record(z.unknown()).default({}), quorum: z.record(z.unknown()).default({}),
+  tie_break: z.boolean().default(false), reason: z.string().nullable().optional(),
+  opened_at: z.string(), closed_at: z.string().nullable().optional(), board_votes: z.array(voteSchema).default([]),
+});
+const deliberationSchema = z.object({
+  id: z.string(), meeting_id: z.string(), agenda_item_id: z.string().nullable(), number: z.number(),
+  title: z.string(), status: z.string(), current_version: z.number(), closed_reason: z.string().nullable(),
+  board_deliberation_versions: z.array(versionSchema).default([]),
+  board_deliberation_suggestions: z.array(suggestionSchema).default([]),
+  board_deliberation_documents: z.array(documentSchema).default([]),
+  board_ballots: z.array(ballotSchema).default([]),
+});
+export type Deliberation = z.infer<typeof deliberationSchema>;
+export type Ballot = z.infer<typeof ballotSchema>;
+export type DeliberationDraft = { agenda_item_id: string; title: string; body: string; documents: { name: string; kind: string }[] };
+
+/** Local mirror of the database checks; returns the first problem or null. */
+export function deliberationProblem(d: DeliberationDraft): string | null {
+  if (!d.title.trim()) return "Il titolo della delibera è obbligatorio.";
+  if (d.title.trim().length > 300) return "Il titolo non può superare 300 caratteri.";
+  if (!d.body.trim()) return "Il testo della delibera è obbligatorio.";
+  if (d.body.trim().length > 20000) return "Il testo non può superare 20000 caratteri.";
+  if (d.documents.some((x) => !x.name.trim())) return "Ogni documento deve avere un nome.";
+  if (d.documents.length > 20) return "Una delibera può avere al massimo 20 documenti.";
+  return null;
+}
+
+export async function loadDeliberations(meetingId: string): Promise<Deliberation[]> {
+  const { data, error } = await boardClient.from("board_deliberations")
+    .select("*, board_deliberation_versions(*), board_deliberation_suggestions(*), board_deliberation_documents(*), board_ballots(*, board_votes(*))")
+    .eq("meeting_id", meetingId).order("number", { ascending: true });
+  fail(error);
+  return z.array(deliberationSchema).parse(data ?? []).map((d) => ({
+    ...d,
+    board_deliberation_versions: [...d.board_deliberation_versions].sort((a, b) => b.version - a.version),
+    board_ballots: [...d.board_ballots].sort((a, b) => b.opened_at.localeCompare(a.opened_at))
+      .map((b) => ({ ...b, board_votes: [...b.board_votes].sort((x, y) => x.recorded_at.localeCompare(y.recorded_at)) })),
+  }));
+}
+
+/** The text version currently in force. */
+export const currentVersion = (d: Deliberation) => d.board_deliberation_versions.find((v) => v.version === d.current_version) ?? null;
+/** The vote in progress on this deliberation, if any. */
+export const openBallotOf = (d: Deliberation) => d.board_ballots.find((b) => b.status === "aperta") ?? null;
+
+/** Counts and name-by-name record of a vote: stored result once closed, live counts while open. */
+export function ballotTally(b: Ballot) {
+  if (b.status !== "aperta" && Object.keys(b.tally).length) {
+    const nomi = Array.isArray(b.tally.nomi) ? (b.tally.nomi as { name: string; vote: string }[]) : [];
+    return {
+      favorevoli: Number(b.tally.favorevoli ?? 0), contrari: Number(b.tally.contrari ?? 0),
+      astenuti: Number(b.tally.astenuti ?? 0), nomi,
+    };
+  }
+  return {
+    favorevoli: b.board_votes.filter((v) => v.vote === "favorevole").length,
+    contrari: b.board_votes.filter((v) => v.vote === "contrario").length,
+    astenuti: b.board_votes.filter((v) => v.vote === "astenuto").length,
+    nomi: b.board_votes.map((v) => ({ name: v.display_name, vote: v.vote })),
+  };
+}
+
+export async function saveDeliberation(meetingId: string, id: string | null, d: DeliberationDraft): Promise<string> {
+  const { data, error } = await boardClient.rpc("board_deliberation_save", {
+    _meeting: meetingId, _id: id,
+    _payload: { agenda_item_id: d.agenda_item_id || null, title: d.title.trim(), body: d.body.trim(), documents: d.documents },
+  });
+  fail(error);
+  return data as string;
+}
+export async function suggestDeliberation(deliberationId: string, body: string) {
+  const { error } = await boardClient.rpc("board_deliberation_suggest", { _deliberation: deliberationId, _body: body }); fail(error);
+}
+export async function decideSuggestion(suggestionId: string, outcome: "accolta" | "non_accolta") {
+  const { error } = await boardClient.rpc("board_deliberation_suggestion_decide", { _suggestion: suggestionId, _status: outcome }); fail(error);
+}
+export async function withdrawDeliberation(deliberationId: string, reason: string) {
+  const { error } = await boardClient.rpc("board_deliberation_withdraw", { _deliberation: deliberationId, _reason: reason }); fail(error);
+}
+export async function openBallotFor(deliberationId: string): Promise<string> {
+  const { data, error } = await boardClient.rpc("board_ballot_open", { _deliberation: deliberationId }); fail(error);
+  return data as string;
+}
+export async function castVote(ballotId: string, vote: "favorevole" | "contrario" | "astenuto") {
+  const { error } = await boardClient.rpc("board_ballot_vote", { _ballot: ballotId, _vote: vote }); fail(error);
+}
+export async function closeBallot(ballotId: string) {
+  const { error } = await boardClient.rpc("board_ballot_close", { _ballot: ballotId }); fail(error);
+}
+export async function cancelBallot(ballotId: string, reason: string) {
+  const { error } = await boardClient.rpc("board_ballot_cancel", { _ballot: ballotId, _reason: reason }); fail(error);
+}
