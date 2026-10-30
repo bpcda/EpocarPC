@@ -6,12 +6,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Trash2, FileDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { FormField } from "@/lib/form-fields";
+import EventBookingsPanel from "./EventBookingsPanel";
+import { settingsFrom } from "@/lib/event-booking-schema";
 import { useAuth } from "@/hooks/use-auth";
 
 interface EventOption {
   id: string;
   title: string;
   form_fields: FormField[] | null;
+  booking_settings?: unknown;
 }
 
 interface Registration {
@@ -90,7 +93,7 @@ export default function RegistrationsTab() {
   useEffect(() => {
     supabase
       .from("events")
-      .select("id, title, form_fields")
+      .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
         if (data) {
@@ -216,6 +219,7 @@ export default function RegistrationsTab() {
         <span className="text-sm text-muted-foreground">{regs.length} iscrizioni</span>
       </div>
 
+      {currentEvent && settingsFrom(currentEvent.booking_settings).enabled && <EventBookingsPanel key={selectedEvent} eventId={selectedEvent} />}
       {regs.length === 0 ? (
         <p className="text-muted-foreground text-sm py-12 text-center">
           Nessuna iscrizione per questo evento.
@@ -254,7 +258,7 @@ export default function RegistrationsTab() {
                             return (
                               <button
                                 type="button"
-                                onClick={() => openRegistrationFile(o.path!)}
+                                onClick={() => o.path && openRegistrationFile(o.path)}
                                 className="inline-flex items-center gap-1 underline"
                               >
                                 <FileDown className="h-3 w-3" />

@@ -6,6 +6,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
 import EventRegistrationForm from "@/components/EventRegistrationForm";
+import EventBookingForm from "@/components/EventBookingForm";
+import { settingsFrom } from "@/lib/event-booking-schema";
 import type { FormField } from "@/lib/form-fields";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -20,6 +22,7 @@ interface EventData {
   registration_enabled: boolean | null;
   allow_guests: boolean | null;
   form_fields: FormField[] | null;
+  booking_settings?: unknown;
 }
 
 export default function EventoIscrizione() {
@@ -35,7 +38,7 @@ export default function EventoIscrizione() {
     (async () => {
       const { data } = await supabase
         .from("events")
-        .select("id, title, description, date, location, image_url, registration_enabled, allow_guests, form_fields")
+        .select("*")
         .eq("id", id)
         .eq("published", true)
         .maybeSingle();
@@ -45,7 +48,8 @@ export default function EventoIscrizione() {
   }, [id]);
 
   useEffect(() => {
-    if (!auth.user || !id) {
+    const userId = auth.user?.id;
+    if (!userId || !id) {
       setAlreadyRegistered(false);
       return;
     }
@@ -54,7 +58,7 @@ export default function EventoIscrizione() {
         .from("event_registrations")
         .select("id")
         .eq("event_id", id)
-        .eq("user_id", auth.user!.id)
+        .eq("user_id", userId)
         .maybeSingle();
       setAlreadyRegistered(!!data);
     })();
@@ -70,12 +74,12 @@ export default function EventoIscrizione() {
       <Navbar />
       <main className="bg-foreground min-h-screen pt-32 pb-24">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
-          <button
+          <Button variant="ghost"
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 text-primary-foreground/60 hover:text-primary-foreground text-sm font-headline tracking-widest mb-8"
           >
             <ArrowLeft className="w-4 h-4" /> INDIETRO
-          </button>
+          </Button>
 
           {loading ? (
             <p className="text-primary-foreground/50">Caricamento…</p>
@@ -91,6 +95,11 @@ export default function EventoIscrizione() {
               </h1>
               <div className="w-24 h-0.5 bg-primary-foreground/30 mt-4 mb-8" />
 
+              {settingsFrom(event.booking_settings).enabled && <>
+                {event.image_url && <img src={event.image_url} alt={event.title} className="w-full aspect-[16/9] object-cover mb-6" />}
+                {event.description && <p className="whitespace-pre-wrap text-primary-foreground/80 mb-6">{event.description}</p>}
+                {settingsFrom(event.booking_settings).programme && <p className="whitespace-pre-wrap text-primary-foreground/80 mb-6">{settingsFrom(event.booking_settings).programme}</p>}
+              </>}
               <div className="flex flex-wrap gap-8 mb-10">
                 {event.date && (
                   <div>
@@ -99,7 +108,7 @@ export default function EventoIscrizione() {
                       {new Date(event.date).toLocaleDateString("it-IT", {
                         day: "numeric",
                         month: "long",
-                        year: "numeric",
+                        year: "numeric", timeZone: "Europe/Rome",
                       })}
                     </p>
                   </div>
@@ -118,6 +127,8 @@ export default function EventoIscrizione() {
                     Le iscrizioni per questo evento non sono attive.
                   </p>
                 </div>
+              ) : settingsFrom(event.booking_settings).enabled ? (
+                <EventBookingForm key={event.id} eventId={event.id} settings={settingsFrom(event.booking_settings)} />
               ) : alreadyRegistered ? (
                 <div className="border border-primary-foreground/30 p-8 bg-primary-foreground/5 space-y-4">
                   <p className="font-headline text-2xl text-primary-foreground tracking-wider">

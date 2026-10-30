@@ -1,4 +1,5 @@
 # Architecture rules
+- Enhanced event bookings are opt-in settings with private snapshots and service-only capacity/idempotency RPCs; external function source stays in setup/functions to avoid deploying to the unrelated managed project, and guest garage claims require an OTP-authenticated session.
 - Authentication error presentation uses a safe message helper; never serialize whole errors, so empty service responses remain diagnosable without leaking request details.
 - Association data access lives in a dedicated validated module using the existing client; managed generated types are not edited because the external schema is installed independently.
 - Association membership requests are separate from event registrations, with private user-scoped storage, unique requests per user, and server-enforced admin/staff read permissions.

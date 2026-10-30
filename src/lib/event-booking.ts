@@ -6,9 +6,9 @@ export interface EventBooking {
   id: string; reference: string; event_id: string; user_id: string | null;
   mode: "without_vehicle" | "with_vehicle"; first_name: string; last_name: string; email: string; phone: string;
   participants: number; drive: boolean; exhibition: boolean; vehicles: VehicleSnapshot[];
-  email_status: "pending" | "sent" | "failed"; account_requested: boolean; garage_saved_at: string | null; created_at: string;
+  email_status: "pending" | "sent" | "failed"; activation_status?: string; account_requested: boolean; garage_saved_at: string | null; created_at: string;
 }
-export interface BookingReceipt { ok: true; id: string; reference: string; email_status: string; account_requested: boolean; }
+export interface BookingReceipt { ok: true; id: string; reference: string; email_status: string; activation_status?: string; account_requested: boolean; }
 async function invoke<T>(body: unknown): Promise<T> {
   const { data, error } = await supabase.functions.invoke("event-booking", { body });
   if (error) {
