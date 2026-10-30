@@ -1,15 +1,16 @@
 import { it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, chmodSync, rmSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 const eid='00000000-0000-4000-8000-000000000010', uid='00000000-0000-4000-8000-000000000001', other='00000000-0000-4000-8000-000000000002';
-it('enforces private bookings, owned garage, idempotency, capacity and OTP claims in isolated PostgreSQL',()=>{
+it('enforces private bookings, owned garage, idempotency, capacity and OTP claims in isolated PostgreSQL',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'epocar-bookings-'));chmodSync(dir,0o777);let started=false;
  const nobody=(a:string[])=>execFileSync('runuser',['-u','nobody','--',realpathSync(`/usr/bin/${a[0]}`),...a.slice(1)],{stdio:'pipe'});
  const sql=(q:string)=>execFileSync('psql',['-h',dir,'-p','55465','-U','nobody','-d','postgres','-v','ON_ERROR_STOP=1','-qAtc',q],{encoding:'utf8',stdio:'pipe'}).trim();
  const fail=(q:string)=>{try{sql(q);return '';}catch(e){return String((e as {stderr?:string}).stderr);}};
  const b={event_id:eid,idempotency_key:'00000000-0000-4000-8000-000000000011',mode:'without_vehicle',first_name:'Mario',last_name:'Rossi',email:'test@example.invalid',phone:'3331234567',participants:2,drive:false,exhibition:false,vehicles:[],privacy_accepted:true,privacy_version:'1',account_requested:false,account_terms_accepted:false,account_terms_version:''};
+ const concurrent=(q:string)=>new Promise<number|null>(resolve=>{const child=spawn('psql',['-h',dir,'-p','55465','-U','nobody','-d','postgres','-v','ON_ERROR_STOP=1','-qAtc',q],{stdio:'ignore'});child.on('close',resolve);});
  const book=(x:unknown,user='NULL')=>`SET ROLE service_role; SELECT event_booking_create('${JSON.stringify(x)}','${user}'::uuid)` .replace("'NULL'::uuid","NULL");
  try{
  nobody(['initdb','-D',join(dir,'data'),'-A','trust','--no-locale']);nobody(['pg_ctl','-D',join(dir,'data'),'-l',join(dir,'log'),'-o',`-k ${dir} -p 55465 -h ''`,'-w','start']);started=true;
@@ -32,5 +33,10 @@ it('enforces private bookings, owned garage, idempotency, capacity and OTP claim
  expect(sql(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${uid}','test@example.invalid',true)`)).toBe('0');
  expect(sql(`SELECT count(*) FROM vehicles WHERE user_id='${uid}'`)).toBe('1');
  expect(fail(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${other}','test@example.invalid',true)`)).toContain('Booking not owned');
+ sql(`UPDATE events SET booking_settings=booking_settings||jsonb_build_object('max_people',7)`);
+ const r=await Promise.all([concurrent(book({...b,idempotency_key:'00000000-0000-4000-8000-000000000014'})),concurrent(book({...b,idempotency_key:'00000000-0000-4000-8000-000000000015'}))]);
+ expect(r.filter(code=>code===0)).toHaveLength(1);expect(sql(`SELECT sum(participants) FROM event_bookings WHERE event_id='${eid}'`)).toBe('6');
+ sql(`UPDATE events SET booking_settings=booking_settings-'max_people'||jsonb_build_object('max_vehicles',1)`);
+ expect(fail(book({...vb,idempotency_key:'00000000-0000-4000-8000-000000000016',vehicles:[{...v,garage_id:null}]}))).toContain('Vehicle capacity reached');
  }finally{if(started)nobody(['pg_ctl','-D',join(dir,'data'),'-m','immediate','stop']);rmSync(dir,{recursive:true,force:true});}
 },30000);
