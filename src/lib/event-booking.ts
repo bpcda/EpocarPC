@@ -6,9 +6,9 @@ export interface EventBooking {
   id: string; reference: string; event_id: string; user_id: string | null;
   mode: "without_vehicle" | "with_vehicle"; first_name: string; last_name: string; email: string; phone: string;
   participants: number; drive: boolean; exhibition: boolean; vehicles: VehicleSnapshot[];
-  email_status: "pending" | "sent" | "failed"; account_requested: boolean; garage_saved_at: string | null; created_at: string;
+  email_status: "pending" | "sent" | "failed"; activation_status?: string; account_requested: boolean; garage_saved_at: string | null; created_at: string;
 }
-export interface BookingReceipt { ok: true; id: string; reference: string; email_status: string; account_requested: boolean; }
+export interface BookingReceipt { ok: true; id: string; reference: string; email_status: string; activation_status?: string; account_requested: boolean; }
 async function invoke<T>(body: unknown): Promise<T> {
   const { data, error } = await supabase.functions.invoke("event-booking", { body });
   if (error) {
@@ -26,12 +26,13 @@ export const claimBooking = (id: string) => invoke<{ ok: true; saved: number }>(
 export const resendBooking = (id: string) => invoke<BookingReceipt>({ action: "resend", booking_id: id });
 
 // The schema is installed independently on the external instance; generated types stay untouched.
-type BookingQuery = { select: (s: string) => { eq: (k: string, v: string) => { order: (k: string) => { range: (a: number, b: number) => Promise<{ data: EventBooking[] | null; error: { message: string } | null }> } } } };
+type OrderedBookingQuery = { order: (k: string) => OrderedBookingQuery; range: (a: number, b: number) => Promise<{ data: EventBooking[] | null; error: { message: string } | null }> };
+type BookingQuery = { select: (s: string) => { eq: (k: string, v: string) => OrderedBookingQuery } };
 export async function loadEventBookings(eventId: string): Promise<EventBooking[]> {
   const client = supabase as unknown as { from: (table: string) => BookingQuery };
   const result: EventBooking[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await client.from("event_bookings").select("*").eq("event_id", eventId).order("created_at").range(offset, offset + 499);
+    const { data, error } = await client.from("event_bookings").select("*").eq("event_id", eventId).order("created_at").order("id").range(offset, offset + 499);
     if (error) throw new Error(error.message);
     result.push(...(data ?? []));
     if ((data?.length ?? 0) < 500) return result;

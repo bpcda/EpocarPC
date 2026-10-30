@@ -1,0 +1,42 @@
+import { it, expect } from 'vitest';
+import { execFileSync, spawn } from 'node:child_process';
+import { mkdtempSync, chmodSync, rmSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+const eid='00000000-0000-4000-8000-000000000010', uid='00000000-0000-4000-8000-000000000001', other='00000000-0000-4000-8000-000000000002';
+it('enforces private bookings, owned garage, idempotency, capacity and OTP claims in isolated PostgreSQL',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'epocar-bookings-'));chmodSync(dir,0o777);let started=false;
+ const nobody=(a:string[])=>execFileSync('runuser',['-u','nobody','--',realpathSync(`/usr/bin/${a[0]}`),...a.slice(1)],{stdio:'pipe'});
+ const sql=(q:string)=>execFileSync('psql',['-h',dir,'-p','55465','-U','nobody','-d','postgres','-v','ON_ERROR_STOP=1','-qAtc',q],{encoding:'utf8',stdio:'pipe'}).trim();
+ const fail=(q:string)=>{try{sql(q);return '';}catch(e){return String((e as {stderr?:string}).stderr);}};
+ const b={event_id:eid,idempotency_key:'00000000-0000-4000-8000-000000000011',mode:'without_vehicle',first_name:'Mario',last_name:'Rossi',email:'test@example.invalid',phone:'3331234567',participants:2,drive:false,exhibition:false,vehicles:[],privacy_accepted:true,privacy_version:'1',account_requested:false,account_terms_accepted:false,account_terms_version:''};
+ const concurrent=(q:string)=>new Promise<number|null>(resolve=>{const child=spawn('psql',['-h',dir,'-p','55465','-U','nobody','-d','postgres','-v','ON_ERROR_STOP=1','-qAtc',q],{stdio:'ignore'});child.on('close',resolve);});
+ const book=(x:unknown,user='NULL')=>`SET ROLE service_role; SELECT event_booking_create('${JSON.stringify(x)}','${user}'::uuid)` .replace("'NULL'::uuid","NULL");
+ try{
+ nobody(['initdb','-D',join(dir,'data'),'-A','trust','--no-locale']);nobody(['pg_ctl','-D',join(dir,'data'),'-l',join(dir,'log'),'-o',`-k ${dir} -p 55465 -h ''`,'-w','start']);started=true;
+ sql(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role BYPASSRLS;CREATE SCHEMA auth;CREATE TYPE app_role AS ENUM('admin','staff');CREATE TYPE vehicle_type AS ENUM('auto','moto','vespa');CREATE TABLE profiles(user_id uuid PRIMARY KEY);CREATE TABLE user_roles(user_id uuid,role app_role);CREATE TABLE vehicles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid,type vehicle_type,brand text,model text,year int,plate text);CREATE TABLE events(id uuid PRIMARY KEY,title text,published boolean,registration_enabled boolean,allow_guests boolean);CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$SELECT nullif(current_setting('app.uid',true),'')::uuid$$;CREATE FUNCTION has_role(uuid,app_role) RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$SELECT EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role=$2)$$;GRANT USAGE ON SCHEMA auth TO authenticated;INSERT INTO profiles VALUES('${uid}'),('${other}');`);
+ execFileSync('psql',['-h',dir,'-p','55465','-U','nobody','-d','postgres','-v','ON_ERROR_STOP=1','-f',resolve('setup/events-booking-v20.sql')],{stdio:'pipe'});
+ sql(`INSERT INTO events VALUES('${eid}','Synthetic',true,true,true,'{"enabled":true,"privacy_text":"Privacy","privacy_version":"1","account_terms":"Terms","account_terms_version":"1","max_people":3}')`);
+ const receipt=JSON.parse(sql(book(b)));expect(receipt.ok).toBe(true);expect(JSON.parse(sql(book(b))).id).toBe(receipt.id);
+ expect(fail(book({...b,participants:1}))).toContain('Retry conflict');
+ expect(fail(book({...b,idempotency_key:'00000000-0000-4000-8000-000000000012'}))).toContain('capacity reached');
+ expect(fail('SET ROLE anon; SELECT count(*) FROM event_bookings')).toContain('permission denied');
+ expect(sql(`SET ROLE authenticated;SET app.uid='${other}';SELECT count(*) FROM event_bookings`)).toBe('0');
+ expect(fail(`SET ROLE authenticated;SELECT event_booking_create('{}',NULL)`)).toContain('permission denied');
+ sql(`UPDATE events SET booking_settings=booking_settings-'max_people';INSERT INTO vehicles(user_id,type,brand,model,year,plate) VALUES('${other}','auto','Fiat','500',1970,'AB123')`);
+ const gid=sql('SELECT id FROM vehicles LIMIT 1');const v={garage_id:gid,type:'auto',brand:'Fiat',model:'500',year:1970,plate:'AB123'};
+ const vb={...b,idempotency_key:'00000000-0000-4000-8000-000000000013',mode:'with_vehicle',vehicles:[v],account_requested:true,account_terms_accepted:true,account_terms_version:'1'};
+ expect(fail(book(vb,uid))).toContain('Garage vehicle not owned');
+ const guest=JSON.parse(sql(book({...vb,vehicles:[{...v,garage_id:null}]})));
+ expect(fail(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${uid}','test@example.invalid',false)`)).toContain('Verified activation required');
+ expect(sql(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${uid}','test@example.invalid',true)`)).toBe('1');
+ expect(sql(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${uid}','test@example.invalid',true)`)).toBe('0');
+ expect(sql(`SELECT count(*) FROM vehicles WHERE user_id='${uid}'`)).toBe('1');
+ expect(fail(`SET ROLE service_role;SELECT event_booking_claim('${guest.id}','${other}','test@example.invalid',true)`)).toContain('Booking not owned');
+ sql(`UPDATE events SET booking_settings=booking_settings||jsonb_build_object('max_people',7)`);
+ const r=await Promise.all([concurrent(book({...b,idempotency_key:'00000000-0000-4000-8000-000000000014'})),concurrent(book({...b,idempotency_key:'00000000-0000-4000-8000-000000000015'}))]);
+ expect(r.filter(code=>code===0)).toHaveLength(1);expect(sql(`SELECT sum(participants) FROM event_bookings WHERE event_id='${eid}'`)).toBe('6');
+ sql(`UPDATE events SET booking_settings=booking_settings-'max_people'||jsonb_build_object('max_vehicles',1)`);
+ expect(fail(book({...vb,idempotency_key:'00000000-0000-4000-8000-000000000016',vehicles:[{...v,garage_id:null}]}))).toContain('Vehicle capacity reached');
+ }finally{if(started)nobody(['pg_ctl','-D',join(dir,'data'),'-m','immediate','stop']);rmSync(dir,{recursive:true,force:true});}
+},30000);

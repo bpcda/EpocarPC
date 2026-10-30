@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { isoToRomeInput, romeInputToISO } from "@/lib/event-time";
 import FormBuilder from "@/components/admin/FormBuilder";
+import EventBookingSettings from "@/components/admin/EventBookingSettings";
+import { defaultBookingSettings, settingsFrom, bookingSettingsSchema } from "@/lib/event-booking-schema";
 import type { FormField } from "@/lib/form-fields";
 import { ArrowLeft, Upload, X, Image as ImageIcon } from "lucide-react";
 
@@ -26,6 +28,7 @@ const emptyForm = {
   registration_enabled: false,
   allow_guests: false,
   form_fields: [] as FormField[],
+  booking_settings: { ...defaultBookingSettings },
 };
 
 type EventForm = typeof emptyForm;
@@ -38,6 +41,7 @@ export default function AdminEventEditor() {
   const { user } = useAuth();
 
   const [form, setForm] = useState<EventForm>(emptyForm);
+  const [bookingInstalled, setBookingInstalled] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -68,7 +72,9 @@ export default function AdminEventEditor() {
             registration_enabled: (data as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
             allow_guests: (data as unknown as { allow_guests?: boolean }).allow_guests ?? false,
             form_fields: ((data as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
+            booking_settings: settingsFrom((data as unknown as { booking_settings?: unknown }).booking_settings),
           };
+          setBookingInstalled("booking_settings" in data);
           preview = data.image_url || null;
         }
       }
@@ -122,7 +128,10 @@ export default function AdminEventEditor() {
   };
 
   const handleSave = async () => {
-    if (!form.title) return;
+    if (!form.title || (!isNew && !id)) return;
+    const settings = bookingSettingsSchema.safeParse(form.booking_settings);
+    if (!settings.success) { alert("Controlla impostazioni e limiti delle prenotazioni."); return; }
+    if (settings.data.enabled && (!settings.data.privacy_text || !settings.data.privacy_version)) { alert("Inserisci informativa privacy e versione."); return; }
     setLoading(true);
     let imageUrl = form.image_url || null;
     if (imageFile) {
@@ -144,9 +153,12 @@ export default function AdminEventEditor() {
       registration_enabled: form.registration_enabled,
       allow_guests: form.allow_guests,
       form_fields: form.form_fields as never,
+      ...(settings.data.enabled || bookingInstalled ? { booking_settings: settings.data } : {}),
     };
     if (payload.end_date && payload.date && payload.end_date < payload.date) { setLoading(false); alert("La fine deve essere successiva all'inizio."); return; }
-    const { error } = isNew ? await supabase.from("events").insert(payload) : await supabase.from("events").update(payload).eq("id", id!);
+    // The external schema is installed independently; preserve the runtime extension without changing generated types.
+    const typedPayload = payload as Omit<typeof payload, "booking_settings">;
+    const { error } = isNew ? await supabase.from("events").insert(typedPayload) : await supabase.from("events").update(typedPayload).eq("id", id ?? "");
     if (error) { setLoading(false); alert(`Salvataggio non riuscito: ${error.message}`); return; }
     localStorage.removeItem(draftKey);
     setLoading(false);
@@ -277,6 +289,7 @@ export default function AdminEventEditor() {
                   Consenti iscrizioni da ospiti (non registrati)
                 </span>
               </div>
+              <EventBookingSettings value={form.booking_settings} onChange={booking_settings => setForm({ ...form, booking_settings, allow_guests: booking_settings.enabled ? true : form.allow_guests })} />
               <FormBuilder
                 fields={form.form_fields}
                 onChange={(fields) => setForm({ ...form, form_fields: fields })}

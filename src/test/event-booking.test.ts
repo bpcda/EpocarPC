@@ -1,0 +1,22 @@
+import { describe, it, expect, vi } from 'vitest';
+import { bookingSchema, emptyVehicle, resizeVehicles, settingsFrom } from '@/lib/event-booking-schema';
+import { bookingTotals, bookingsCsv, csvCell, type EventBooking } from '@/lib/event-booking';
+vi.mock('@/integrations/supabase/client',()=>({supabase:{}}));
+const vehicle={garage_id:null,type:'auto' as const,brand:'Fiat',model:'500',year:1970,plate:'AB123'};
+export const sampleBooking={event_id:'00000000-0000-4000-8000-000000000010',idempotency_key:'00000000-0000-4000-8000-000000000011',mode:'without_vehicle' as const,first_name:'Mario',last_name:'Rossi',email:'test@example.invalid',phone:'+39 3331234567',participants:2,drive:false,exhibition:false,vehicles:[],privacy_accepted:true as const,privacy_version:'1',account_requested:false,account_terms_accepted:false,account_terms_version:''};
+describe('Mossi booking rules',()=>{
+ it('allows guests without vehicles and two participants',()=>expect(bookingSchema.parse(sampleBooking).participants).toBe(2));
+ it('requires privacy acceptance',()=>expect(bookingSchema.safeParse({...sampleBooking,privacy_accepted:false}).success).toBe(false));
+ it('requires personal contact fields',()=>expect(bookingSchema.safeParse({...sampleBooking,phone:''}).success).toBe(false));
+ it('requires at least one vehicle in historic mode',()=>expect(bookingSchema.safeParse({...sampleBooking,mode:'with_vehicle'}).success).toBe(false));
+ it('rejects vehicles and motor activities in vehicle-free mode',()=>expect(bookingSchema.safeParse({...sampleBooking,drive:true,vehicles:[vehicle]}).success).toBe(false));
+ it('accepts three independent vehicles and both activities',()=>{const r=bookingSchema.parse({...sampleBooking,mode:'with_vehicle',drive:true,exhibition:true,vehicles:[vehicle,{...vehicle,plate:'CD456'},{...vehicle,plate:'EF789'}]});expect(r.vehicles).toHaveLength(3);expect(r.drive&&r.exhibition).toBe(true);});
+ it('rejects duplicate normalized plates',()=>expect(bookingSchema.safeParse({...sampleBooking,mode:'with_vehicle',vehicles:[vehicle,{...vehicle,plate:'ab-123'}]}).success).toBe(false));
+ it('requires separate account conditions',()=>expect(bookingSchema.safeParse({...sampleBooking,mode:'with_vehicle',vehicles:[vehicle],account_requested:true}).success).toBe(false));
+ it('preserves filled cards when removal is declined',()=>{const before=[vehicle,{...vehicle,plate:'CD456'}];expect(resizeVehicles(before,1,()=>false)).toBe(before);});
+ it('removes filled cards only after confirmation',()=>expect(resizeVehicles([vehicle,vehicle],1,()=>true)).toHaveLength(1));
+ it('creates independent empty vehicle cards',()=>{const a=resizeVehicles([vehicle],3,()=>true);a[1].brand='Lancia';expect(a[2].brand).toBe('');expect(a[0].brand).toBe('Fiat');});
+ it('has no invented capacity by default',()=>expect(settingsFrom({}).max_people).toBeNull());
+ it('counts people only once per reservation, not per vehicle',()=>{const b={...sampleBooking,id:'x',reference:'EPC-X',user_id:null,created_at:'2026-10-23',mode:'with_vehicle',vehicles:[vehicle,vehicle,vehicle],drive:true,exhibition:true,email_status:'pending',garage_saved_at:null} as EventBooking;expect(bookingTotals([b])).toEqual({reservations:1,people:2,vehicles:3,drive:3,exhibition:3});expect(bookingsCsv([b]).split('\r\n')).toHaveLength(2);expect(bookingsCsv([b],true).split('\r\n')).toHaveLength(4);});
+ it('escapes spreadsheet formulas even after whitespace',()=>expect(csvCell(' \t=SUM(1,2)')).toBe('"\' \t=SUM(1,2)"'));
+});

@@ -48,7 +48,7 @@ export const bookingSchema = z.object({
   if (b.mode === "without_vehicle" && (b.vehicles.length || b.drive || b.exhibition || b.account_requested)) ctx.addIssue({ code: "custom", message: "La partecipazione senza veicolo non include veicoli, attività motoristiche o creazione account" });
   if (b.account_requested && (!b.account_terms_accepted || !b.account_terms_version)) ctx.addIssue({ code: "custom", path: ["account_terms_accepted"], message: "Accetta le condizioni di creazione account" });
   const plates = b.vehicles.map(v => v.plate.replace(/[ .-]/g, ""));
-  if (new Set(plates).size !== plates.length) ctx.addIssue({ code: "custom", path: ["vehicles"], message: "Lo stesso veicolo è indicato più volte" });
+  if (plates.some(p => !p) || new Set(plates).size !== plates.length) ctx.addIssue({ code: "custom", path: ["vehicles"], message: "Targa non valida o veicolo indicato più volte" });
 });
 export type BookingInput = z.infer<typeof bookingSchema>;
 export type VehicleSnapshot = z.infer<typeof vehicleSnapshotSchema>;

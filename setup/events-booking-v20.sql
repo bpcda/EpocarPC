@@ -14,7 +14,7 @@ BEGIN
   IF s ? k AND s->k <> 'null'::jsonb THEN
    IF jsonb_typeof(s->k) <> 'number' OR (s->>k) !~ '^[0-9]+$' THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
    n := (s->>k)::integer;
-   IF n < 1 OR n > CASE WHEN k IN ('people_per_booking','vehicles_per_booking') THEN 100 ELSE 100000 END THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
+   IF n < 1 OR n > (CASE WHEN k IN ('people_per_booking','vehicles_per_booking') THEN 100 ELSE 100000 END) THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
   END IF;
  END LOOP;
  FOREACH k IN ARRAY ARRAY['programme','price_without','price_with','privacy_text','privacy_version','account_terms','account_terms_version'] LOOP
@@ -101,11 +101,11 @@ BEGIN
  FOR v IN SELECT value FROM jsonb_array_elements(_booking->'vehicles') LOOP
   IF jsonb_typeof(v) IS DISTINCT FROM 'object' OR coalesce(v->>'type','') NOT IN ('auto','moto','vespa') THEN RAISE EXCEPTION 'Invalid vehicle type'; END IF;
   FOREACH k IN ARRAY ARRAY['brand','model','plate'] LOOP
-   IF jsonb_typeof(v->k) IS DISTINCT FROM 'string' OR length(trim(v->>k)) NOT BETWEEN 1 AND CASE WHEN k='plate' THEN 20 ELSE 100 END THEN RAISE EXCEPTION 'Invalid vehicle: %',k; END IF;
+   IF jsonb_typeof(v->k) IS DISTINCT FROM 'string' OR length(trim(v->>k)) NOT BETWEEN 1 AND (CASE WHEN k='plate' THEN 20 ELSE 100 END) THEN RAISE EXCEPTION 'Invalid vehicle: %',k; END IF;
   END LOOP;
   IF jsonb_typeof(v->'year') IS DISTINCT FROM 'number' OR (v->>'year') !~ '^[0-9]+$' OR (v->>'year')::integer NOT BETWEEN 1886 AND 2100 OR (v->>'plate') !~ '^[A-Za-z0-9 .-]+$' THEN RAISE EXCEPTION 'Invalid vehicle year/plate'; END IF;
   plate_key:=upper(regexp_replace(v->>'plate','[ .-]','','g'));
-  IF plate_key=ANY(plates) THEN RAISE EXCEPTION 'Duplicate vehicle'; END IF; plates:=array_append(plates,plate_key);
+  IF plate_key='' OR plate_key=ANY(plates) THEN RAISE EXCEPTION 'Duplicate or invalid vehicle'; END IF; plates:=array_append(plates,plate_key);
   IF v->>'garage_id' IS NOT NULL AND (_user_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.vehicles WHERE id=(v->>'garage_id')::uuid AND user_id=_user_id)) THEN RAISE EXCEPTION 'Garage vehicle not owned'; END IF;
  END LOOP;
  SELECT coalesce(sum(participants),0),coalesce(sum(jsonb_array_length(vehicles)),0) INTO used_people,used_vehicles FROM public.event_bookings WHERE event_id=eid;
