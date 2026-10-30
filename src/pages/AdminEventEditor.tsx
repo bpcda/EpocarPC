@@ -157,7 +157,7 @@ export default function AdminEventEditor() {
     };
     if (payload.end_date && payload.date && payload.end_date < payload.date) { setLoading(false); alert("La fine deve essere successiva all'inizio."); return; }
     // The external schema is installed independently; preserve the runtime extension without changing generated types.
-    const typedPayload = payload as Parameters<typeof supabase.from<"events">>[0] extends never ? never : Omit<typeof payload, "booking_settings">;
+    const typedPayload = payload as Omit<typeof payload, "booking_settings">;
     const { error } = isNew ? await supabase.from("events").insert(typedPayload) : await supabase.from("events").update(typedPayload).eq("id", id ?? "");
     if (error) { setLoading(false); alert(`Salvataggio non riuscito: ${error.message}`); return; }
     localStorage.removeItem(draftKey);
