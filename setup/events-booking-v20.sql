@@ -14,7 +14,7 @@ BEGIN
   IF s ? k AND s->k <> 'null'::jsonb THEN
    IF jsonb_typeof(s->k) <> 'number' OR (s->>k) !~ '^[0-9]+$' THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
    n := (s->>k)::integer;
-   IF n < 1 OR n > CASE WHEN k IN ('people_per_booking','vehicles_per_booking') THEN 100 ELSE 100000 END THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
+   IF n < 1 OR n > (CASE WHEN k IN ('people_per_booking','vehicles_per_booking') THEN 100 ELSE 100000 END) THEN RAISE EXCEPTION 'Invalid limit: %',k; END IF;
   END IF;
  END LOOP;
  FOREACH k IN ARRAY ARRAY['programme','price_without','price_with','privacy_text','privacy_version','account_terms','account_terms_version'] LOOP
@@ -101,7 +101,7 @@ BEGIN
  FOR v IN SELECT value FROM jsonb_array_elements(_booking->'vehicles') LOOP
   IF jsonb_typeof(v) IS DISTINCT FROM 'object' OR coalesce(v->>'type','') NOT IN ('auto','moto','vespa') THEN RAISE EXCEPTION 'Invalid vehicle type'; END IF;
   FOREACH k IN ARRAY ARRAY['brand','model','plate'] LOOP
-   IF jsonb_typeof(v->k) IS DISTINCT FROM 'string' OR length(trim(v->>k)) NOT BETWEEN 1 AND CASE WHEN k='plate' THEN 20 ELSE 100 END THEN RAISE EXCEPTION 'Invalid vehicle: %',k; END IF;
+   IF jsonb_typeof(v->k) IS DISTINCT FROM 'string' OR length(trim(v->>k)) NOT BETWEEN 1 AND (CASE WHEN k='plate' THEN 20 ELSE 100 END) THEN RAISE EXCEPTION 'Invalid vehicle: %',k; END IF;
   END LOOP;
   IF jsonb_typeof(v->'year') IS DISTINCT FROM 'number' OR (v->>'year') !~ '^[0-9]+$' OR (v->>'year')::integer NOT BETWEEN 1886 AND 2100 OR (v->>'plate') !~ '^[A-Za-z0-9 .-]+$' THEN RAISE EXCEPTION 'Invalid vehicle year/plate'; END IF;
   plate_key:=upper(regexp_replace(v->>'plate','[ .-]','','g'));
