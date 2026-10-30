@@ -41,6 +41,7 @@ export default function AdminEventEditor() {
   const { user } = useAuth();
 
   const [form, setForm] = useState<EventForm>(emptyForm);
+  const [bookingInstalled, setBookingInstalled] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -71,8 +72,9 @@ export default function AdminEventEditor() {
             registration_enabled: (data as unknown as { registration_enabled?: boolean }).registration_enabled ?? false,
             allow_guests: (data as unknown as { allow_guests?: boolean }).allow_guests ?? false,
             form_fields: ((data as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
+            booking_settings: settingsFrom((data as unknown as { booking_settings?: unknown }).booking_settings),
           };
-          base.booking_settings = settingsFrom((data as unknown as { booking_settings?: unknown }).booking_settings);
+          setBookingInstalled("booking_settings" in data);
           preview = data.image_url || null;
         }
       }
@@ -151,10 +153,12 @@ export default function AdminEventEditor() {
       registration_enabled: form.registration_enabled,
       allow_guests: form.allow_guests,
       form_fields: form.form_fields as never,
-      ...(settings.data.enabled ? { booking_settings: settings.data } : {}),
+      ...(settings.data.enabled || bookingInstalled ? { booking_settings: settings.data } : {}),
     };
     if (payload.end_date && payload.date && payload.end_date < payload.date) { setLoading(false); alert("La fine deve essere successiva all'inizio."); return; }
-    const { error } = isNew ? await supabase.from("events").insert(payload) : await supabase.from("events").update(payload).eq("id", id ?? "");
+    // The external schema is installed independently; preserve the runtime extension without changing generated types.
+    const typedPayload = payload as Parameters<typeof supabase.from<"events">>[0] extends never ? never : Omit<typeof payload, "booking_settings">;
+    const { error } = isNew ? await supabase.from("events").insert(typedPayload) : await supabase.from("events").update(typedPayload).eq("id", id ?? "");
     if (error) { setLoading(false); alert(`Salvataggio non riuscito: ${error.message}`); return; }
     localStorage.removeItem(draftKey);
     setLoading(false);
