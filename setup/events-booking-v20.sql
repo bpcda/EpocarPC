@@ -105,7 +105,7 @@ BEGIN
   END LOOP;
   IF jsonb_typeof(v->'year') IS DISTINCT FROM 'number' OR (v->>'year') !~ '^[0-9]+$' OR (v->>'year')::integer NOT BETWEEN 1886 AND 2100 OR (v->>'plate') !~ '^[A-Za-z0-9 .-]+$' THEN RAISE EXCEPTION 'Invalid vehicle year/plate'; END IF;
   plate_key:=upper(regexp_replace(v->>'plate','[ .-]','','g'));
-  IF plate_key=ANY(plates) THEN RAISE EXCEPTION 'Duplicate vehicle'; END IF; plates:=array_append(plates,plate_key);
+  IF plate_key='' OR plate_key=ANY(plates) THEN RAISE EXCEPTION 'Duplicate or invalid vehicle'; END IF; plates:=array_append(plates,plate_key);
   IF v->>'garage_id' IS NOT NULL AND (_user_id IS NULL OR NOT EXISTS(SELECT 1 FROM public.vehicles WHERE id=(v->>'garage_id')::uuid AND user_id=_user_id)) THEN RAISE EXCEPTION 'Garage vehicle not owned'; END IF;
  END LOOP;
  SELECT coalesce(sum(participants),0),coalesce(sum(jsonb_array_length(vehicles)),0) INTO used_people,used_vehicles FROM public.event_bookings WHERE event_id=eid;

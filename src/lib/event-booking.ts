@@ -26,12 +26,13 @@ export const claimBooking = (id: string) => invoke<{ ok: true; saved: number }>(
 export const resendBooking = (id: string) => invoke<BookingReceipt>({ action: "resend", booking_id: id });
 
 // The schema is installed independently on the external instance; generated types stay untouched.
-type BookingQuery = { select: (s: string) => { eq: (k: string, v: string) => { order: (k: string) => { range: (a: number, b: number) => Promise<{ data: EventBooking[] | null; error: { message: string } | null }> } } } };
+type OrderedBookingQuery = { order: (k: string) => OrderedBookingQuery; range: (a: number, b: number) => Promise<{ data: EventBooking[] | null; error: { message: string } | null }> };
+type BookingQuery = { select: (s: string) => { eq: (k: string, v: string) => OrderedBookingQuery } };
 export async function loadEventBookings(eventId: string): Promise<EventBooking[]> {
   const client = supabase as unknown as { from: (table: string) => BookingQuery };
   const result: EventBooking[] = [];
   for (let offset = 0; ; offset += 500) {
-    const { data, error } = await client.from("event_bookings").select("*").eq("event_id", eventId).order("created_at").range(offset, offset + 499);
+    const { data, error } = await client.from("event_bookings").select("*").eq("event_id", eventId).order("created_at").order("id").range(offset, offset + 499);
     if (error) throw new Error(error.message);
     result.push(...(data ?? []));
     if ((data?.length ?? 0) < 500) return result;
