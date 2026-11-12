@@ -38,10 +38,13 @@
 - [x] Fase 2 — attivazione e verifica reale: v16 installato dopo v15, sito distribuito, seduta dal vivo provata dall'utente.
 - [ ] Fase 2 — residui da osservare in prova: Realtime vs aggiornamento a 15s, uscita con perdita quorum, accesso admin in sola lettura.
 - [x] Fase 3 — codice e SQL v17: testo ufficiale solo da Presidente/verbalizzante, suggerimenti dagli altri, voto nominale, quorum verificato all'apertura e alla chiusura, voto prevalente del Presidente solo in parità, documenti collegati; test PostgreSQL isolati superati.
-- [ ] Fase 3 — attivazione sul progetto esterno: eseguire setup/board-v17.sql dopo v15/v16 e distribuire il sito (docs/board-phase3.md) — blocked: external project is not connected to this workspace.
+- [x] Fase 3 — SQL presente sul progetto esterno e aggiornato fino a v22 via MCP; frontend consegnato su main per Coolify (docs/board-phase3.md).
 - [x] Fase 4 — codice e SQL v18: consenso registrato a registro, tracce individuali/condivise, bucket privato board-audio, trascrizione via Edge Function board-transcribe (service-only, limiti di spesa, IA disattivabile); test PostgreSQL isolati.
-- [ ] Fase 4 — attivazione sul progetto esterno: eseguire setup/board-v18.sql dopo v15/v16/v17, distribuire board-transcribe, impostare il segreto BOARD_AI_API_KEY e distribuire il sito (docs/board-phase4.md) — blocked: external project is not connected to this workspace.
+- [ ] Fase 4 — SQL presente e board-transcribe v4 distribuita via MCP; restano verifica del provider e collaudo con account reali. Segreti e impostazioni IA invariati durante il rilascio (docs/board-phase4.md).
 - [x] Fase 5 — codice e SQL v19: verbale con versioni (manuale/IA/rettifica), rettifiche dei componenti, approvazione col sistema di voto (quorum, maggioranza, voto prevalente), versione firmata nel bucket board-documents, Edge Function board-draft-minutes; test PostgreSQL isolati superati.
-- [ ] Fase 5 — attivazione sul progetto esterno: eseguire setup/board-v19.sql dopo v15–v18, distribuire board-draft-minutes e il sito (docs/board-phase5.md) — blocked: external project is not connected to this workspace.
-- [ ] Fase 6 — fascicolo ZIP, archivio, cancellazione dati temporanei
+- [ ] Fase 5 — SQL fino a v22 e board-draft-minutes v2 distribuiti via MCP; frontend consegnato su main per Coolify, resta il collaudo autenticato e IA reale (docs/board-phase5.md).
+- [x] Fase 6 — codice e SQL v20: fascicolo ZIP con indice SHA-256, copia firmata vincolata alla versione, archivio immutabile e pulizia riprendibile di audio/trascrizioni solo dopo verifica e conferma; test ZIP/UI e fixture PostgreSQL isolate (docs/board-phase6.md).
+- [ ] Fase 6 — v20/correzione privilegi/v21/v22 e board-dossier v1 installati via MCP il 12/11/2026; frontend consegnato su main per Coolify. Resta il collaudo autenticato di Storage API e interruzioni su dati sintetici (docs/board-phase6.md).
+- [x] Integrazione, passo 1 — v21 installata via MCP; approvazione nella seduta, chiusura motivata senza approvazione, blocco della chiusura durante il voto; test SQL su PostgreSQL nativo isolato e frontend.
+- [x] Integrazione, passo 2 — v22 e frontend: voto serializzato, identità per ID, maggioranza dei presenti con criterio concordato, presidenza sostitutiva e conflitti sul singolo punto; 34 test pertinenti superati da checkout pulito. Migrazione ed Edge Function distribuite via MCP, frontend consegnato su main per Coolify (docs/board-integration-plan.md).
 - [ ] Fase 7 — prove complete, sicurezza, verifica Statuto

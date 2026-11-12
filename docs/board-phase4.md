@@ -2,10 +2,12 @@
 
 ## Attivazione sul progetto esterno
 1. Revisionare ed eseguire `setup/board-v18.sql` **dopo** `board-v15.sql`, `board-v16.sql` e `board-v17.sql`. Lo script è rieseguibile e crea anche il bucket privato `board-audio`.
-2. Distribuire la Edge Function `board-transcribe` (`supabase/functions/board-transcribe`).
+2. Dopo la migrazione v22, distribuire la Edge Function `board-transcribe` dal sorgente `setup/functions/board-transcribe` sul progetto esterno. La funzione usa l'autorità della seduta e la carica attuale del verbalizzante; non distribuirla sul progetto managed in `supabase/config.toml`.
 3. Impostare il segreto `BOARD_AI_API_KEY` con la chiave del provider di trascrizione (mai nel frontend, mai nel database).
 4. Distribuire il sito aggiornato.
 5. Il Presidente apre una seduta e attiva la trascrizione da «Impostazioni trascrizione IA» (provider, modello, limiti di spesa).
+
+Il 12/11/2026 `board-transcribe` è stata aggiornata alla versione 4 via MCP sul progetto esterno, con JWT obbligatorio e libreria Supabase fissata alla versione verificata. Non sono stati cambiati segreti o provider, né avviate trascrizioni reali. Il percorso locale/servizio economico discusso resta una scelta successiva; audio e video in diretta non fanno parte di questa funzione.
 
 ## Chi fa cosa
 - **Ogni componente**: legge l'informativa e presta o nega il consenso; la scelta è registrata a verbale e modificabile in qualunque momento. Il mancato consenso non esclude dalla riunione.

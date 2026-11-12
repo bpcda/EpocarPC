@@ -36,6 +36,7 @@ const meeting = z.object({
   scheduled_at: z.string(), location: z.string().nullable(), mode: z.enum(["presenza", "remoto", "ibrido"]),
   video_link: z.string().nullable(), description: z.string().nullable(), urgency_reason: z.string().nullable(),
   status: z.string(), status_reason: z.string().nullable(), minute_taker_id: z.string().nullable(),
+  chair_id: z.string().nullable().optional(), chair_kind: z.enum(["president", "vice", "designated"]).nullable().optional(),
   started_at: z.string().nullable().optional(), ended_at: z.string().nullable().optional(), active_agenda_id: z.string().nullable().optional(),
   board_meeting_participants: z.array(participant).default([]),
   board_agenda_items: z.array(agendaItem).default([]),
@@ -108,13 +109,24 @@ export const meetingLabel = (m: Pick<Meeting, "meeting_number" | "meeting_year">
 
 export const quorumSchema = z.object({ total: z.number().int(), present: z.number().int(), required: z.number().int(), met: z.boolean() });
 const eventSchema = z.object({ id: z.number(), action: z.string(), created_at: z.string(), detail: z.record(z.unknown()) });
-export async function loadBoardSession(id: string) {
-  const [q, e] = await Promise.all([
+export async function loadBoardSession(id: string, userId: string) {
+  const [q, e, mn, ballots, chair, eligible] = await Promise.all([
     boardClient.rpc("board_quorum", { _id: id }),
     boardClient.from("board_meeting_events").select("id,action,created_at,detail").eq("meeting_id", id).order("id", { ascending: false }).limit(100),
+    boardClient.from("board_minutes").select("status").eq("meeting_id", id).maybeSingle(),
+    boardClient.from("board_ballots").select("id").eq("meeting_id", id).eq("status", "aperta").limit(1),
+    boardClient.rpc("board_chair_user", { _meeting: id }),
+    boardClient.rpc("board_voter_eligible", { _meeting: id, _user: userId, _deliberation: null }),
   ]);
-  fail(q.error); fail(e.error);
-  return { quorum: quorumSchema.parse(q.data), events: z.array(eventSchema).parse(e.data ?? []) };
+  fail(q.error); fail(e.error); fail(mn.error); fail(ballots.error); fail(chair.error); fail(eligible.error);
+  return {
+    quorum: quorumSchema.parse(q.data), events: z.array(eventSchema).parse(e.data ?? []),
+    minutesApproved: z.object({ status: z.string() }).nullable().parse(mn.data)?.status === "APPROVATO",
+    hasOpenBallot: z.array(z.object({ id: z.string() })).parse(ballots.data ?? []).length > 0,
+    openBallotId: z.array(z.object({ id: z.string() })).parse(ballots.data ?? [])[0]?.id ?? null,
+    chairUserId: z.string().nullable().parse(chair.data),
+    voterEligible: z.boolean().parse(eligible.data),
+  };
 }
 export async function sessionAction(id: string, action: "open" | "suspend" | "resume" | "close", reason?: string) {
   const { error } = await boardClient.rpc("board_session_action", { _id: id, _action: action, _reason: reason ?? null }); fail(error);
@@ -127,6 +139,13 @@ export async function recordAttendance(id: string, participantId: string, presen
 }
 export async function selectAgenda(id: string, agendaId: string) {
   const { error } = await boardClient.rpc("board_agenda_select", { _id: id, _agenda: agendaId }); fail(error);
+}
+
+export async function assignChair(meetingId: string, userId: string, reason: string, designation: string) {
+  const { error } = await boardClient.rpc("board_chair_assign", { _meeting: meetingId, _user: userId, _reason: reason, _designation: designation || null }); fail(error);
+}
+export async function setConflict(deliberationId: string, action: "declare" | "return", reason?: string) {
+  const { error } = await boardClient.rpc("board_conflict_set", { _deliberation: deliberationId, _action: action, _reason: reason ?? null }); fail(error);
 }
 
 export const romeDate = (iso: string) => new Date(iso).toLocaleDateString("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit", year: "numeric" });
@@ -167,8 +186,8 @@ const documentSchema = z.object({
   id: z.string(), name: z.string(), kind: z.string(), status: z.enum(["bozza", "approvato", "respinto"]),
   approved_at: z.string().nullable().optional(),
 });
-const voteSchema = z.object({ id: z.string(), display_name: z.string(), vote: z.enum(["favorevole", "contrario", "astenuto"]), recorded_at: z.string() });
-const ballotSchema = z.object({
+const voteSchema = z.object({ id: z.string(), user_id: z.string(), participant_id: z.string(), display_name: z.string(), vote: z.enum(["favorevole", "contrario", "astenuto"]), recorded_at: z.string() });
+export const ballotSchema = z.object({
   id: z.string(), status: z.enum(["aperta", "chiusa", "annullata"]), result: z.string().nullable(),
   tally: z.record(z.unknown()).default({}), quorum: z.record(z.unknown()).default({}),
   tie_break: z.boolean().default(false), reason: z.string().nullable().optional(),
@@ -181,6 +200,7 @@ const deliberationSchema = z.object({
   board_deliberation_suggestions: z.array(suggestionSchema).default([]),
   board_deliberation_documents: z.array(documentSchema).default([]),
   board_ballots: z.array(ballotSchema).default([]),
+  board_deliberation_conflicts: z.array(z.object({ participant_id: z.string(), reason: z.string(), returned_at: z.string().nullable() })).default([]),
 });
 export type Deliberation = z.infer<typeof deliberationSchema>;
 export type Ballot = z.infer<typeof ballotSchema>;
@@ -199,7 +219,7 @@ export function deliberationProblem(d: DeliberationDraft): string | null {
 
 export async function loadDeliberations(meetingId: string): Promise<Deliberation[]> {
   const { data, error } = await boardClient.from("board_deliberations")
-    .select("*, board_deliberation_versions(*), board_deliberation_suggestions(*), board_deliberation_documents(*), board_ballots(*, board_votes(*))")
+    .select("*, board_deliberation_versions(*), board_deliberation_suggestions(*), board_deliberation_documents(*), board_deliberation_conflicts(*), board_ballots(*, board_votes(*))")
     .eq("meeting_id", meetingId).order("number", { ascending: true });
   fail(error);
   return z.array(deliberationSchema).parse(data ?? []).map((d) => ({
@@ -218,17 +238,18 @@ export const openBallotOf = (d: Deliberation) => d.board_ballots.find((b) => b.s
 /** Counts and name-by-name record of a vote: stored result once closed, live counts while open. */
 export function ballotTally(b: Ballot) {
   if (b.status !== "aperta" && Object.keys(b.tally).length) {
-    const nomi = Array.isArray(b.tally.nomi) ? (b.tally.nomi as { name: string; vote: string }[]) : [];
+    const nomi = Array.isArray(b.tally.nomi) ? (b.tally.nomi as { name: string; vote: string; counted?: boolean }[]) : [];
     return {
       favorevoli: Number(b.tally.favorevoli ?? 0), contrari: Number(b.tally.contrari ?? 0),
-      astenuti: Number(b.tally.astenuti ?? 0), nomi,
+      astenuti: Number(b.tally.astenuti ?? 0), mancanti: typeof b.tally.mancanti === "number" ? b.tally.mancanti : null, nomi,
     };
   }
   return {
     favorevoli: b.board_votes.filter((v) => v.vote === "favorevole").length,
     contrari: b.board_votes.filter((v) => v.vote === "contrario").length,
     astenuti: b.board_votes.filter((v) => v.vote === "astenuto").length,
-    nomi: b.board_votes.map((v) => ({ name: v.display_name, vote: v.vote })),
+    mancanti: null,
+    nomi: b.board_votes.map((v) => ({ name: v.display_name, vote: v.vote, counted: true })),
   };
 }
 

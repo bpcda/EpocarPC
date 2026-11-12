@@ -5,19 +5,12 @@ import { FileText, Sparkles, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { z } from "zod";
 import {
-  BALLOT_RESULT, ballotTally, boardClient, cancelBallot, castVote, closeBallot, currentMinutesVersion,
+  BALLOT_RESULT, ballotSchema, ballotTally, boardClient, cancelBallot, castVote, closeBallot, currentMinutesVersion,
   decideRectification, draftMinutesWithAi, loadMinutes, MINUTES_SOURCE, MINUTES_STATUS, rectifyMinutes,
-  registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Ballot, type Meeting, type Minutes,
+  registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Meeting, type Minutes,
 } from "@/lib/board";
 import { minutesDocx, downloadBlob } from "@/lib/board-docx";
-
-const openMinutesBallot = z.object({
-  id: z.string(), status: z.string(), result: z.string().nullable(), tally: z.record(z.unknown()).default({}),
-  tie_break: z.boolean().default(false), opened_at: z.string(), closed_at: z.string().nullable().optional(),
-  board_votes: z.array(z.object({ id: z.string(), display_name: z.string(), vote: z.enum(["favorevole", "contrario", "astenuto"]), recorded_at: z.string() })).default([]),
-});
 
 function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
   return useQuery({
@@ -28,13 +21,13 @@ function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
         .select("*, board_votes(*)").eq("minutes_id", minutesId!).order("opened_at", { ascending: false }).limit(1);
       if (error) throw new Error(error.message);
       const row = data?.[0];
-      return row ? openMinutesBallot.parse(row) : null;
+      return row ? ballotSchema.parse(row) : null;
     },
   });
 }
 
-export default function MinutesPanel({ m, me, president, manager, boardMember, live, quorumMet }: {
-  m: Meeting; me: string; president: boolean; manager: boolean; boardMember: boolean; live: boolean; quorumMet: boolean;
+export default function MinutesPanel({ m, me, president, manager, boardMember, live, quorumMet, eligible }: {
+  m: Meeting; me: string; president: boolean; manager: boolean; boardMember: boolean; live: boolean; quorumMet: boolean; eligible: boolean;
 }) {
   const qc = useQueryClient();
   const minutes = useQuery({ queryKey: ["board-minutes", m.id], queryFn: () => loadMinutes(m.id) });
@@ -57,9 +50,12 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
 
   const mn: Minutes | null | undefined = minutes.data;
   const version = mn ? currentMinutesVersion(mn) : null;
+  const unsaved = draft !== null && draft.trim() !== version?.body.trim();
   const openBallot = ballot.data?.status === "aperta" ? ballot.data : null;
   const editable = manager && mn && ["BOZZA", "IN_REVISIONE"].includes(mn.status);
-  const myVote = openBallot?.board_votes.find((v) => v.display_name === m.board_meeting_participants.find((p) => p.user_id === me)?.display_name);
+  const myVote = openBallot?.board_votes.find((v) => v.user_id === me);
+  const voter = m.board_meeting_participants.find((p) => p.user_id === me);
+  const canVote = eligible && boardMember && live && voter?.kind === "member" && voter.can_vote && voter.present && !!voter.identified_at;
 
   if (minutes.error) {
     return <section className="border border-border p-5 bg-card" aria-label="Verbale">
@@ -99,7 +95,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
                 value={draft ?? version.body} onChange={(e) => setDraft(e.target.value)} />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={act.isPending || draft === null || draft.trim().length < 1}
-                  onClick={() => act.mutate(() => saveMinutes(m.id, (draft ?? "").trim(), mn.status === "APPROVATO" ? "rettifica" : "manuale"))}>
+                  onClick={() => act.mutate(() => saveMinutes(m.id, (draft ?? "").trim(), "manuale"))}>
                   Salva nuova versione
                 </Button>
                 <Button size="sm" variant="outline" disabled={act.isPending}
@@ -143,15 +139,17 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
           )}
 
           {president && live && !openBallot && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && (
-            <Button size="sm" disabled={act.isPending || !quorumMet} onClick={() => act.mutate(async () => { await submitMinutesVote(mn.id); })}>
+            <Button size="sm" disabled={act.isPending || !quorumMet || unsaved} onClick={() => act.mutate(async () => { await submitMinutesVote(mn.id); })}>
               Sottoponi il verbale ad approvazione{!quorumMet ? " (quorum non raggiunto)" : ""}
             </Button>
           )}
+          {president && live && unsaved && <p className="text-sm text-muted-foreground">Salva il testo prima di sottoporlo al voto.</p>}
 
           {openBallot && (
             <div className="border border-primary p-4 space-y-3" role="status">
               <p className="font-semibold">Votazione in corso sull'approvazione del verbale (versione {mn.current_version})</p>
-              {boardMember && live && !myVote && (
+              <p className="text-sm">Maggioranza dei presenti; in parità tra sì e no prevale il voto di chi presiede. Astensioni e voti mancanti non sono favorevoli.</p>
+              {canVote && !myVote && (
                 <div className="flex flex-wrap gap-2">
                   {(["favorevole", "contrario", "astenuto"] as const).map((v) => (
                     <Button key={v} size="sm" variant="outline" disabled={act.isPending}
@@ -160,7 +158,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
                 </div>
               )}
               {myVote && <p className="text-sm">Hai votato: <strong>{VOTE_LABEL[myVote.vote]}</strong> (puoi cambiare voto fino alla chiusura)</p>}
-              {myVote && live && (
+              {myVote && canVote && (
                 <div className="flex flex-wrap gap-2">
                   {(["favorevole", "contrario", "astenuto"] as const).filter((v) => v !== myVote.vote).map((v) => (
                     <Button key={v} size="sm" variant="ghost" disabled={act.isPending}
@@ -184,7 +182,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             <p className="text-sm border-l-4 border-border pl-3">
               Esito della votazione: <strong>{BALLOT_RESULT[ballot.data.result ?? ""] ?? ballot.data.result}</strong>
               {ballot.data.tie_break ? " · decisivo il voto del Presidente" : ""} ·{" "}
-              {(() => { const t = ballotTally(ballot.data as unknown as Ballot); return `${t.favorevoli} favorevoli, ${t.contrari} contrari, ${t.astenuti} astenuti`; })()}
+              {(() => { const t = ballotTally(ballot.data); return `${t.favorevoli} favorevoli, ${t.contrari} contrari, ${t.astenuti} astenuti`; })()}
             </p>
           )}
 
@@ -206,7 +204,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
               </div>
               {mn.signed_at && <p className="text-sm">Versione firmata registrata il {new Date(mn.signed_at).toLocaleDateString("it-IT")}.</p>}
               {manager && (
-                <p className="text-xs text-muted-foreground">Per correggere il verbale approvato salva una «versione rettificata»: il testo torna in revisione e richiede una nuova approvazione.</p>
+                <p className="text-xs text-muted-foreground">Le rettifiche dopo la chiusura si trattano in una nuova seduta, conservando il verbale originario.</p>
               )}
             </div>
           )}

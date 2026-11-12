@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import {
   BALLOT_RESULT, DELIBERATION_STATUS, DOCUMENT_KIND, VOTE_LABEL, ballotTally, cancelBallot, castVote,
   closeBallot, currentVersion, decideSuggestion, deliberationProblem, loadDeliberations, openBallotFor,
-  openBallotOf, saveDeliberation, suggestDeliberation, withdrawDeliberation,
+  openBallotOf, saveDeliberation, setConflict, suggestDeliberation, withdrawDeliberation,
   type Deliberation, type DeliberationDraft, type Meeting,
 } from "@/lib/board";
 
@@ -25,13 +25,14 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
   const [editor, setEditor] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [draft, setDraft] = useState<DeliberationDraft>(emptyDraft());
   const [docName, setDocName] = useState("");
-  const [ask, setAsk] = useState<{ kind: "suggest" | "withdraw" | "cancel" | "close"; target: string; label: string } | null>(null);
+  const [ask, setAsk] = useState<{ kind: "suggest" | "withdraw" | "cancel" | "close" | "conflict"; target: string; label: string } | null>(null);
   const [note, setNote] = useState("");
   const list = useQuery({ queryKey: ["board-deliberations", m.id], queryFn: () => loadDeliberations(m.id), refetchInterval: active ? 15000 : false });
   const refresh = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }),
       qc.invalidateQueries({ queryKey: ["board-session", m.id] }),
+      qc.invalidateQueries({ queryKey: ["board-meetings"] }),
     ]);
   };
   const act = useMutation({
@@ -41,9 +42,11 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
   });
 
   const meParticipant = m.board_meeting_participants.find((p) => p.user_id === me);
+  const temporarilyAway = list.data?.some((d) => d.board_deliberation_conflicts.some((c) => c.participant_id === meParticipant?.id && !c.returned_at));
   const canVote = !!meParticipant && meParticipant.kind === "member" && meParticipant.can_vote
-    && meParticipant.present && !!meParticipant.identified_at && boardMember && live;
-  const editable = (d: Deliberation) => manager && active && !["APPROVATA", "RITIRATA", "IN_VOTAZIONE"].includes(d.status) && !openBallotOf(d);
+    && meParticipant.present && !!meParticipant.identified_at && boardMember && live && !temporarilyAway;
+  const conflicted = (d: Deliberation) => d.board_deliberation_conflicts.some((c) => c.participant_id === meParticipant?.id);
+  const editable = (d: Deliberation) => manager && active && !temporarilyAway && !conflicted(d) && !["APPROVATA", "RITIRATA", "IN_VOTAZIONE"].includes(d.status) && !openBallotOf(d);
   const openEditor = (d?: Deliberation) => {
     const v = d ? currentVersion(d) : null;
     setDraft(d ? {
@@ -70,7 +73,8 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
     <div className="grid gap-4 lg:grid-cols-2">
       {list.data?.map((d) => {
         const v = currentVersion(d); const ballot = openBallotOf(d); const closed = d.board_ballots.filter((b) => b.status !== "aperta");
-        const mine = ballot?.board_votes.find((x) => x.display_name === meParticipant?.display_name);
+        const mine = ballot?.board_votes.find((x) => x.user_id === me);
+        const conflict = d.board_deliberation_conflicts.find((c) => c.participant_id === meParticipant?.id);
         return <article key={d.id} className="border border-border bg-card p-4 space-y-3 break-words">
           <header className="flex flex-wrap items-start justify-between gap-2">
             <div><p className="text-xs uppercase tracking-widest text-muted-foreground">Delibera n. {d.number}</p>
@@ -80,20 +84,22 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
           </header>
           {v && <p className="whitespace-pre-wrap text-sm border-l-4 border-border pl-3">{v.body}</p>}
           {d.closed_reason && <p className="text-sm">Motivazione: {d.closed_reason}</p>}
+          {conflict && <p className="text-sm">Conflitto dichiarato: sei escluso dalla discussione e dal voto su questa delibera.{!conflict.returned_at ? " Uscita temporanea registrata." : " Rientro registrato per gli altri punti."}</p>}
           {d.board_deliberation_documents.length > 0 && <ul className="text-sm space-y-1">
             {d.board_deliberation_documents.map((x) => <li key={x.id}>· {x.name} <span className="text-xs uppercase tracking-widest text-muted-foreground">({DOCUMENT_KIND[x.kind] ?? x.kind} · {x.status})</span></li>)}
           </ul>}
 
           {ballot && <div className="border border-primary p-3 space-y-3">
             <p className="text-sm uppercase tracking-widest"><Gavel className="h-4 w-4 inline mr-2" />Votazione in corso · {VOTE_LABEL.favorevole} / {VOTE_LABEL.contrario} / {VOTE_LABEL.astenuto}</p>
-            {canVote && <div className="flex flex-wrap gap-2">
+            <p className="text-sm">Maggioranza dei presenti; in parità tra sì e no prevale il voto di chi presiede. Astensioni e voti mancanti non sono favorevoli.</p>
+            {canVote && !conflict && <div className="flex flex-wrap gap-2">
               {(["favorevole", "contrario", "astenuto"] as const).map((x) => <Button key={x} size="sm" variant={mine?.vote === x ? "default" : "outline"} disabled={act.isPending}
                 onClick={() => act.mutate(() => castVote(ballot.id, x))}>{VOTE_LABEL[x]}</Button>)}
             </div>}
-            {!canVote && <p className="text-sm text-muted-foreground">Il voto è riservato ai componenti con presenza verificata.</p>}
+            {(!canVote || conflict) && <p className="text-sm text-muted-foreground">Il voto richiede presenza verificata e assenza di conflitti sul punto.</p>}
             {(() => { const t = ballotTally(ballot); return <p className="text-sm">{t.favorevoli} favorevoli · {t.contrari} contrari · {t.astenuti} astenuti</p>; })()}
             {president && <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => { setNote(""); setAsk({ kind: "close", target: ballot.id, label: askLabel(d) }); }}>Chiudi votazione</Button>
+              {!conflict && <Button size="sm" onClick={() => { setNote(""); setAsk({ kind: "close", target: ballot.id, label: askLabel(d) }); }}>Chiudi votazione</Button>}
               <Button size="sm" variant="outline" onClick={() => { setNote(""); setAsk({ kind: "cancel", target: ballot.id, label: askLabel(d) }); }}>Annulla votazione</Button>
             </div>}
           </div>}
@@ -101,8 +107,8 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
           {closed.map((b) => { const t = ballotTally(b); return <div key={b.id} className="border-l-4 border-border pl-3 space-y-1">
             <p className="text-sm"><strong>{b.status === "annullata" ? "Votazione annullata" : `Esito: ${BALLOT_RESULT[b.result ?? ""] ?? b.result}`}</strong>
               {b.tie_break ? " · con voto prevalente del Presidente" : ""} · {romeShort(b.closed_at ?? b.opened_at)}</p>
-            <p className="text-xs text-muted-foreground">{t.favorevoli} favorevoli · {t.contrari} contrari · {t.astenuti} astenuti</p>
-            {t.nomi.length > 0 && <p className="text-xs">{t.nomi.map((x) => `${x.name}: ${VOTE_LABEL[x.vote] ?? x.vote}`).join(" · ")}</p>}
+            <p className="text-xs text-muted-foreground">{t.favorevoli} favorevoli · {t.contrari} contrari · {t.astenuti} astenuti{t.mancanti !== null ? ` · ${t.mancanti} voti mancanti` : ""}</p>
+            {t.nomi.length > 0 && <p className="text-xs">{t.nomi.map((x) => `${x.name}: ${VOTE_LABEL[x.vote] ?? x.vote}${x.counted === false ? " (non conteggiato alla chiusura)" : ""}`).join(" · ")}</p>}
             {b.reason && <p className="text-xs text-muted-foreground">Motivazione: {b.reason}</p>}
           </div>})}
 
@@ -122,9 +128,11 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
 
           <div className="flex flex-wrap gap-2">
             {editable(d) && <Button size="sm" variant="outline" onClick={() => openEditor(d)}><Pencil className="h-4 w-4 mr-2" />Modifica testo</Button>}
-            {president && live && quorumMet && d.status === "BOZZA" && !ballot && <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => openBallotFor(d.id))}><Gavel className="h-4 w-4 mr-2" />Metti ai voti</Button>}
+            {president && !conflict && live && quorumMet && d.status === "BOZZA" && !ballot && <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => openBallotFor(d.id))}><Gavel className="h-4 w-4 mr-2" />Metti ai voti</Button>}
             {president && live && !quorumMet && d.status === "BOZZA" && <p className="text-xs text-muted-foreground self-center">Quorum non raggiunto: il voto non è consentito.</p>}
-            {boardMember && active && !["APPROVATA", "RITIRATA"].includes(d.status) && <Button size="sm" variant="outline" onClick={() => { setNote(""); setAsk({ kind: "suggest", target: d.id, label: askLabel(d) }); }}>Suggerisci modifica</Button>}
+            {boardMember && active && !temporarilyAway && !conflict && !["APPROVATA", "RITIRATA"].includes(d.status) && <Button size="sm" variant="outline" onClick={() => { setNote(""); setAsk({ kind: "suggest", target: d.id, label: askLabel(d) }); }}>Suggerisci modifica</Button>}
+            {boardMember && active && meParticipant?.present && meParticipant.identified_at && !conflict && ["BOZZA", "IN_VOTAZIONE"].includes(d.status) && <Button size="sm" variant="outline" onClick={() => { setNote(""); setAsk({ kind: "conflict", target: d.id, label: askLabel(d) }); }}>Dichiara conflitto e uscita</Button>}
+            {conflict && !conflict.returned_at && active && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => setConflict(d.id, "return"))}>Registra rientro dopo il punto</Button>}
             {editable(d) && <Button size="sm" variant="destructive" onClick={() => { setNote(""); setAsk({ kind: "withdraw", target: d.id, label: askLabel(d) }); }}>Ritira</Button>}
           </div>
         </article>;
@@ -165,13 +173,14 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
 
     <Dialog open={!!ask} onOpenChange={(open) => { if (!open) setAsk(null); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{ask?.kind === "close" ? "Chiudere la votazione?" : ask?.kind === "cancel" ? "Annullare la votazione?" : ask?.kind === "withdraw" ? "Ritirare la delibera?" : "Suggerimento di modifica"}</DialogTitle>
+        <DialogHeader><DialogTitle>{ask?.kind === "conflict" ? "Dichiarare conflitto e uscita?" : ask?.kind === "close" ? "Chiudere la votazione?" : ask?.kind === "cancel" ? "Annullare la votazione?" : ask?.kind === "withdraw" ? "Ritirare la delibera?" : "Suggerimento di modifica"}</DialogTitle>
           <DialogDescription>{ask?.label}{ask?.kind === "close" ? " — le schede espresse saranno registrate nome per nome." : ask?.kind === "cancel" ? " — la delibera torna in bozza." : ask?.kind === "withdraw" ? " — la delibera non potrà più essere riaperta." : " — il testo ufficiale non viene modificato."}</DialogDescription></DialogHeader>
-        <Textarea value={note} maxLength={ask?.kind === "suggest" ? 4000 : 1000} onChange={(e) => setNote(e.target.value)}
-          placeholder={ask?.kind === "suggest" ? "Cosa proponi?" : "Motivazione"} />
-        <Button disabled={act.isPending || !note.trim()} onClick={() => {
+        {ask?.kind !== "close" && <Textarea aria-label="Motivazione" value={note} maxLength={ask?.kind === "suggest" ? 4000 : 1000} onChange={(e) => setNote(e.target.value)}
+          placeholder={ask?.kind === "suggest" ? "Cosa proponi?" : "Motivazione"} />}
+        <Button disabled={act.isPending || ask?.kind !== "close" && !note.trim()} onClick={() => {
           if (!ask) return;
-          if (ask.kind === "suggest") act.mutate(() => suggestDeliberation(ask.target, note));
+          if (ask.kind === "conflict") act.mutate(() => setConflict(ask.target, "declare", note));
+          else if (ask.kind === "suggest") act.mutate(() => suggestDeliberation(ask.target, note));
           else if (ask.kind === "withdraw") act.mutate(() => withdrawDeliberation(ask.target, note));
           else if (ask.kind === "cancel") act.mutate(() => cancelBallot(ask.target, note));
           else act.mutate(() => closeBallot(ask.target));

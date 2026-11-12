@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { boardClient, BOARD_ROLE_LABEL, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
+import { assignChair, boardClient, BOARD_ROLE_LABEL, cancelBallot, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 import AudioPanel from "@/components/board/AudioPanel";
 import MinutesPanel from "@/components/board/MinutesPanel";
+import DossierPanel from "@/components/board/DossierPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
@@ -22,6 +23,9 @@ const eventLabels: Record<string, string> = {
   audio_track_delete: "Traccia eliminata", audio_transcribed: "Trascrizione completata", audio_error: "Errore di trascrizione",
   minutes_version: "Versione del verbale", minutes_rectification: "Rettifica proposta al verbale",
   minutes_rectification_decided: "Rettifica valutata", minutes_ballot_open: "Verbale sottoposto al voto", minutes_signed: "Verbale firmato registrato",
+  dossier_created: "Fascicolo preparato", dossier_verified: "Fascicolo verificato", dossier_archived: "Seduta archiviata e materiali temporanei eliminati",
+  chair_assigned: "Presidenza della seduta registrata", conflict_declared: "Conflitto di interessi dichiarato",
+  conflict_leave: "Uscita per conflitto di interessi", conflict_return: "Rientro dopo il punto",
 };
 
 export default function LiveSession({ m, me, president, boardMember }: { m: Meeting; me: string; president: boolean; boardMember: boolean }) {
@@ -35,10 +39,15 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   const [full, setFull] = useState(false);
   const [connection, setConnection] = useState("Collegamento in corso");
   const [clock, setClock] = useState(Date.now());
+  const [chairTarget, setChairTarget] = useState("");
+  const [chairReason, setChairReason] = useState("");
+  const [designation, setDesignation] = useState("");
   const active = !m.ended_at && ["CONVOCATO", "IN_CORSO", "SOSPESO"].includes(m.status);
-  const manager = president || boardMember && m.minute_taker_id === me;
+  const frozen = ["ESPORTATO", "ARCHIVIATO"].includes(m.status);
   const mine = m.board_meeting_participants.find((p) => p.user_id === me);
-  const session = useQuery({ queryKey: ["board-session", m.id], queryFn: () => loadBoardSession(m.id), refetchInterval: active ? 15000 : false });
+  const session = useQuery({ queryKey: ["board-session", m.id], queryFn: () => loadBoardSession(m.id, me), refetchInterval: active ? 15000 : false });
+  const chair = boardMember && session.data?.chairUserId === me;
+  const manager = !frozen && (chair || boardMember && m.minute_taker_id === me);
   const refresh = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ["board-meetings"] }), qc.invalidateQueries({ queryKey: ["board-session", m.id] })]); };
   const act = useMutation({ mutationFn: (f: () => Promise<void>) => f(), onSuccess: async () => { setSelected(null); setCommand(null); await refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : "Operazione non riuscita") });
 
@@ -50,7 +59,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents", "board_minutes"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `meeting_id=eq.${m.id}` }, refreshData);
     }
-    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents", "board_minute_versions", "board_minute_rectifications"]) {
+    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents", "board_deliberation_conflicts", "board_minute_versions", "board_minute_rectifications"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshData);
     }
     channel.on("postgres_changes", { event: "*", schema: "public", table: "board_meetings", filter: `id=eq.${m.id}` }, refreshData)
@@ -70,18 +79,34 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
       <div><h2 className="font-headline text-3xl">{meetingLabel(m)}</h2><p className="text-xs text-muted-foreground" role="status">{active ? connection : "Seduta conclusa"}</p></div>
       <div className="flex flex-wrap gap-2">
-        {president && m.status === "CONVOCATO" && !m.started_at && <Button disabled={act.isPending || !session.data} onClick={() => act.mutate(() => sessionAction(m.id, "open"))}><Play className="h-4 w-4 mr-2" />Apri seduta</Button>}
-        {president && m.status === "IN_CORSO" && <Button variant="outline" disabled={act.isPending} onClick={() => { setReason(""); setCommand("suspend"); }}><Pause className="h-4 w-4 mr-2" />Sospendi</Button>}
-        {president && m.status === "SOSPESO" && m.started_at && <Button disabled={act.isPending} onClick={() => act.mutate(() => sessionAction(m.id, "resume"))}><Play className="h-4 w-4 mr-2" />Riprendi seduta</Button>}
-        {president && m.started_at && active && <Button variant="outline" onClick={() => { setReason(""); setCommand("close"); }}><Square className="h-4 w-4 mr-2" />Chiudi seduta</Button>}
+        {chair && m.status === "CONVOCATO" && !m.started_at && <Button disabled={act.isPending || !session.data} onClick={() => act.mutate(() => sessionAction(m.id, "open"))}><Play className="h-4 w-4 mr-2" />Apri seduta</Button>}
+        {chair && m.status === "IN_CORSO" && <Button variant="outline" disabled={act.isPending} onClick={() => { setReason(""); setCommand("suspend"); }}><Pause className="h-4 w-4 mr-2" />Sospendi</Button>}
+        {chair && m.status === "SOSPESO" && m.started_at && <Button disabled={act.isPending} onClick={() => act.mutate(() => sessionAction(m.id, "resume"))}><Play className="h-4 w-4 mr-2" />Riprendi seduta</Button>}
+        {chair && m.started_at && active && <Button variant="outline" onClick={() => { setReason(""); setCommand("close"); }}><Square className="h-4 w-4 mr-2" />Chiudi seduta</Button>}
         <Button size="icon" variant="outline" aria-label={full ? "Esci da schermo intero" : "Schermo intero"} title="Schermo intero" onClick={() => setFull(!full)}>{full ? <Minimize className="h-4 w-4" /> : <Expand className="h-4 w-4" />}</Button>
       </div>
     </header>
-    {session.error && <p role="alert" className="text-destructive">Seduta non disponibile: occorre installare l'aggiornamento SQL della Fase 2.</p>}
+    {session.error && <p role="alert" className="text-destructive">Seduta non disponibile. Verifica la connessione e l'installazione del modulo Consiglio.</p>}
     {q && !m.ended_at && <div className={`border-l-4 p-4 bg-muted ${q.met ? "border-primary" : "border-destructive"}`} role="status">
       <strong>{q.present}/{q.total} componenti presenti · quorum richiesto: {q.required}</strong>
       <p>{q.met ? "Quorum raggiunto" : "Quorum non raggiunto · non è possibile deliberare"}</p>
     </div>}
+    {session.data?.chairUserId && <p className="text-sm">Presiede: {m.board_meeting_participants.find((p) => p.user_id === session.data.chairUserId)?.display_name ?? "Componente incaricato"}</p>}
+    {active && session.data?.chairUserId === null && session.data.openBallotId && (president || manager) && <div className="border border-border p-3 space-y-2">
+      <p className="text-sm">La presidenza non è più valida. Annulla la votazione aperta prima di registrare una nuova presidenza.</p>
+      <Input aria-label="Motivo annullamento per presidenza decaduta" value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} />
+      <Button size="sm" disabled={act.isPending || !reason.trim()} onClick={() => act.mutate(() => cancelBallot(session.data.openBallotId!, reason))}>Annulla voto senza presidenza valida</Button>
+    </div>}
+    {active && boardMember && (president || mine?.board_roles.includes("vice_president") || m.minute_taker_id === me) && <details className="border border-border p-3 space-y-3">
+      <summary className="cursor-pointer text-sm">Registra la presidenza o una sostituzione</summary>
+      <p className="text-sm text-muted-foreground">Registra prima l'assenza di chi è impedito. Il Vicepresidente deve attivare la sostituzione. In assenza di entrambi, il verbalizzante registra con quorum il riferimento alla designazione del Consiglio.</p>
+      <label className="block text-sm">Componente che presiede<select aria-label="Componente che presiede" className="w-full border border-border bg-background p-2" value={chairTarget} onChange={(e) => setChairTarget(e.target.value)}>
+        <option value="">Seleziona</option>{m.board_meeting_participants.filter((p) => p.kind === "member" && p.present && p.identified_at).map((p) => <option key={p.id} value={p.user_id ?? ""}>{p.display_name} · {p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(", ")}</option>)}
+      </select></label>
+      <Input aria-label="Causale della presidenza" placeholder="Causale dell'attivazione o sostituzione" value={chairReason} maxLength={1000} onChange={(e) => setChairReason(e.target.value)} />
+      <Input aria-label="Designazione del Consiglio" placeholder="Riferimento alla designazione del Consiglio (se diverso dal Vicepresidente)" value={designation} maxLength={1000} onChange={(e) => setDesignation(e.target.value)} />
+      <Button size="sm" disabled={act.isPending || !chairTarget || !chairReason.trim() || session.data?.hasOpenBallot} onClick={() => act.mutate(async () => { await assignChair(m.id, chairTarget, chairReason, designation); setChairReason(""); setDesignation(""); })}>Registra presidenza</Button>
+    </details>}
     <div className="grid gap-6 lg:grid-cols-[minmax(230px,1fr)_minmax(300px,1.6fr)_minmax(230px,1fr)]">
       <aside className="space-y-3 min-w-0"><h3 className="font-headline text-2xl">Presenze</h3>
         {mine && boardMember && active && !mine.present && <Button className="max-w-full whitespace-normal h-auto py-2" variant="outline" disabled={act.isPending || !!mine.attendance_requested_at || !session.data} onClick={() => act.mutate(() => requestAttendance(m.id))}><UserCheck className="h-4 w-4 mr-2 shrink-0" />{mine.attendance_requested_at ? "Identificazione richiesta" : "Richiedi conferma presenza"}</Button>}
@@ -98,24 +123,40 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
           <p className="text-xs uppercase text-muted-foreground">{a.discussion_status === "current" ? "In discussione" : a.discussion_status === "discussed" ? "Trattato" : "Da trattare"}</p>
           <h4 className="font-headline text-2xl">{a.position}. {a.title}</h4>
           {a.description && <p className="whitespace-pre-wrap text-sm">{a.description}</p>}{a.proposal && <p className="whitespace-pre-wrap text-sm"><strong>Proposta: </strong>{a.proposal}</p>}
-          {president && m.status === "IN_CORSO" && m.active_agenda_id !== a.id && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => selectAgenda(m.id, a.id))}>Apri punto</Button>}
+          {chair && m.status === "IN_CORSO" && m.active_agenda_id !== a.id && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => selectAgenda(m.id, a.id))}>Apri punto</Button>}
         </article>)}
       </div>
       <aside className="min-w-0"><h3 className="font-headline text-2xl mb-3">Attività della seduta</h3><ol className="max-h-[650px] overflow-y-auto space-y-3">
         {session.data?.events.map((e) => <li key={e.id} className="border-b border-border pb-3 text-sm break-words"><time className="text-xs text-muted-foreground">{romeTime(e.created_at)}</time><p>{eventLabels[e.action] ?? "Aggiornamento della riunione"}{typeof e.detail.name === "string" ? ` · ${e.detail.name}` : ""}</p>{typeof e.detail.note === "string" && <p className="text-muted-foreground">{e.detail.note}</p>}{typeof e.detail.reason === "string" && <p className="text-muted-foreground">{e.detail.reason}</p>}</li>)}
       </ol></aside>
     </div>
-    <DeliberationsPanel m={m} me={me} president={president} boardMember={boardMember} manager={manager}
+    <DeliberationsPanel m={m} me={me} president={chair} boardMember={boardMember} manager={manager}
       active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
     <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
-    {m.started_at && <MinutesPanel m={m} me={me} president={president} manager={manager} boardMember={boardMember}
-      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />}
+    {m.started_at && <MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember && !frozen}
+      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} />}
+    {m.ended_at && <DossierPanel m={m} manager={chair || boardMember && m.minute_taker_id === me} />}
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
       <label className="space-y-2 text-sm">{selected?.present ? "Motivo o verifica dell'uscita" : "Metodo di identificazione e verifica"}<Input value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} /></label>
       <Button disabled={act.isPending || !note.trim() || !selected?.present && !verified} onClick={() => { if (selected) act.mutate(() => recordAttendance(m.id, selected.id, !selected.present, mode, verified, note)); }}><Check className="h-4 w-4 mr-2" />Conferma</Button>
     </DialogContent></Dialog>
-    <Dialog open={!!command} onOpenChange={(v) => { if (!v) setCommand(null); }}><DialogContent><DialogHeader><DialogTitle>{command === "close" ? "Chiudere la seduta?" : "Sospendere la seduta?"}</DialogTitle><DialogDescription>{command === "close" ? "Le presenze saranno bloccate. Il verbale non è ancora approvato." : "Indica la motivazione della sospensione."}</DialogDescription></DialogHeader><Input aria-label="Motivazione della seduta" value={reason} onChange={(e) => setReason(e.target.value)} /><Button disabled={act.isPending || command === "suspend" && !reason.trim()} onClick={() => { if (command) act.mutate(() => sessionAction(m.id, command, reason)); }}>Conferma {command === "close" ? "chiusura" : "sospensione"}</Button></DialogContent></Dialog>
+    <Dialog open={!!command} onOpenChange={(v) => { if (!v) setCommand(null); }}><DialogContent><DialogHeader>
+      <DialogTitle>{command === "close" ? "Chiudere la seduta?" : "Sospendere la seduta?"}</DialogTitle>
+      <DialogDescription>{command === "close"
+        ? session.data?.minutesApproved
+          ? "Il verbale è approvato. Dopo la chiusura restano la firma e il fascicolo; le rettifiche si trattano in una nuova seduta."
+          : "Il verbale non è approvato. Puoi approvarlo prima di chiudere oppure indicare il motivo della chiusura senza approvazione. La chiusura blocca presenze e votazioni."
+        : "Indica la motivazione della sospensione."}</DialogDescription>
+    </DialogHeader>
+      {command === "close" && session.data?.hasOpenBallot && <p role="alert" className="text-destructive">Concludi o annulla la votazione aperta prima di chiudere la seduta.</p>}
+      <Input aria-label="Motivazione della seduta" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <Button disabled={act.isPending || !session.data || !!session.error || command === "close" && session.data.hasOpenBallot
+        || (command === "suspend" || !session.data.minutesApproved) && !reason.trim()}
+        onClick={() => { if (command) act.mutate(() => sessionAction(m.id, command, reason)); }}>
+        Conferma {command === "close" ? "chiusura" : "sospensione"}
+      </Button>
+    </DialogContent></Dialog>
   </section>;
 }

@@ -2,8 +2,8 @@
 // Chiamata dal browser con il JWT dell'utente: solo Presidente o verbalizzante della riunione.
 // La chiave del provider IA resta nel segreto BOARD_AI_API_KEY; configurazione in public.board_ai_settings.
 // Le trascrizioni sono scritte solo tramite la RPC service-only board_audio_track_update_service.
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2.110.2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2.110.2/cors";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_AUDIO_BYTES = 200 * 1024 * 1024;
@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await userClient.auth.getUser();
   if (userError || !userData.user) return fail(401, "unauthorized", "Sessione non valida");
-  const uid = userData.user.id;
 
   let trackId = "";
   try {
@@ -43,9 +42,11 @@ Deno.serve(async (req) => {
   if (!track) return fail(404, "not_found", "Traccia non trovata");
   if (!["caricata", "errore"].includes(track.status)) return fail(409, "invalid_state", "La traccia non è pronta per la trascrizione");
 
-  const { data: meeting } = await db.from("board_meetings").select("id, minute_taker_id").eq("id", track.meeting_id).maybeSingle();
-  const { data: presRole } = await db.from("user_roles").select("role").eq("user_id", uid).eq("role", "president").maybeSingle();
-  const isManager = !!presRole || (!!meeting && meeting.minute_taker_id === uid);
+  const [chair, minuteTaker] = await Promise.all([
+    userClient.rpc("board_is_chair", { _meeting: track.meeting_id }),
+    userClient.rpc("board_is_minute_taker", { _meeting: track.meeting_id }),
+  ]);
+  const isManager = !chair.error && !minuteTaker.error && (chair.data === true || minuteTaker.data === true);
   if (!isManager) return fail(403, "forbidden", "Solo il Presidente o il verbalizzante possono avviare la trascrizione");
 
   const { data: settings } = await db.from("board_ai_settings").select("*").eq("id", true).maybeSingle();

@@ -4,8 +4,8 @@
 // la RPC board_minutes_save, quindi l'autore a registro resta l'utente che l'ha richiesta.
 // Regole imposte al modello: nessuna delibera inventata, esiti di voto solo dal sistema di voto,
 // interventi incerti marcati come tali. Il verbale resta sempre una bozza da revisionare.
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from "npm:@supabase/supabase-js@2.110.2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2.110.2/cors";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TRANSCRIPT_CHARS = 100_000;
@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await userClient.auth.getUser();
   if (userError || !userData.user) return fail(401, "unauthorized", "Sessione non valida");
-  const uid = userData.user.id;
 
   let meetingId = "";
   try {
@@ -42,8 +41,11 @@ Deno.serve(async (req) => {
   const { data: meeting } = await db.from("board_meetings").select("*").eq("id", meetingId).maybeSingle();
   if (!meeting) return fail(404, "not_found", "Riunione non trovata");
   if (!meeting.started_at) return fail(409, "invalid_state", "Il verbale si predispone per una seduta avviata");
-  const { data: presRole } = await db.from("user_roles").select("role").eq("user_id", uid).eq("role", "president").maybeSingle();
-  if (!presRole && meeting.minute_taker_id !== uid) {
+  const [chair, minuteTaker] = await Promise.all([
+    userClient.rpc("board_is_chair", { _meeting: meetingId }),
+    userClient.rpc("board_is_minute_taker", { _meeting: meetingId }),
+  ]);
+  if (chair.error || minuteTaker.error || (chair.data !== true && minuteTaker.data !== true)) {
     return fail(403, "forbidden", "Solo il Presidente o il verbalizzante possono generare la bozza");
   }
 
