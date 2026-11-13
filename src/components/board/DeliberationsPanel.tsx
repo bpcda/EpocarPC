@@ -64,14 +64,14 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
   };
   const askLabel = (d: Deliberation) => `Delibera n. ${d.number} — ${d.title}`;
 
-  return <section className="space-y-4 border-t border-border pt-6" aria-label="Delibere e votazioni">
+  return <section className="space-y-4" aria-label="Delibere e votazioni">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <h3 className="font-headline text-3xl tracking-wider">Delibere e votazioni</h3>
       {manager && active && <Button size="sm" onClick={() => openEditor()}><Plus className="h-4 w-4 mr-2" />Nuova delibera</Button>}
     </header>
-    {list.error && <p role="alert" className="text-destructive">Delibere non disponibili: occorre installare l'aggiornamento SQL della Fase 3.</p>}
+    {list.error && <p role="alert" className="text-destructive">Delibere non disponibili. Verifica la connessione e riprova.</p>}
     {list.data && list.data.length === 0 && <p className="text-muted-foreground">Nessuna delibera. Il Presidente o il verbalizzante possono scriverne una.</p>}
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4">
       {list.data?.map((d) => {
         const v = currentVersion(d); const ballot = openBallotOf(d); const closed = d.board_ballots.filter((b) => b.status !== "aperta");
         const mine = ballot?.board_votes.find((x) => x.user_id === me);
@@ -108,13 +108,13 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
             </div>}
           </div>}
 
-          {closed.map((b) => { const t = ballotTally(b); return <div key={b.id} className="border-l-4 border-border pl-3 space-y-1">
+          {!!closed.length && <details><summary className="cursor-pointer text-sm text-muted-foreground">Votazioni concluse ({closed.length})</summary><div className="mt-3 space-y-3">{closed.map((b) => { const t = ballotTally(b); return <div key={b.id} className="border-l-4 border-border pl-3 space-y-1">
             <p className="text-sm"><strong>{b.status === "annullata" ? "Votazione annullata" : `Esito: ${BALLOT_RESULT[b.result ?? ""] ?? b.result}`}</strong>
               {b.tie_break ? " · con voto prevalente del Presidente" : ""} · {romeShort(b.closed_at ?? b.opened_at)}</p>
             <p className="text-xs text-muted-foreground">{t.favorevoli} favorevoli · {t.contrari} contrari · {t.astenuti} astenuti{t.mancanti !== null ? ` · ${t.mancanti} voti mancanti` : ""}</p>
             {t.nomi.length > 0 && <p className="text-xs">{t.nomi.map((x) => `${x.name}: ${VOTE_LABEL[x.vote] ?? x.vote}${x.counted === false ? " (non conteggiato alla chiusura)" : ""}`).join(" · ")}</p>}
             {b.reason && <p className="text-xs text-muted-foreground">Motivazione: {b.reason}</p>}
-          </div>})}
+          </div>})}</div></details>}
 
           {d.board_deliberation_suggestions.length > 0 && <details open={d.board_deliberation_suggestions.some((s) => s.status === "nuova")}>
             <summary className="cursor-pointer text-sm uppercase tracking-widest">Suggerimenti ({d.board_deliberation_suggestions.length})</summary>

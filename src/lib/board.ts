@@ -114,7 +114,7 @@ export async function loadBoardSession(id: string, userId: string) {
     boardClient.rpc("board_quorum", { _id: id }),
     boardClient.from("board_meeting_events").select("id,action,created_at,detail").eq("meeting_id", id).order("id", { ascending: false }).limit(100),
     boardClient.from("board_minutes").select("status,origin_minutes_id").eq("meeting_id", id),
-    boardClient.from("board_ballots").select("id").eq("meeting_id", id).eq("status", "aperta").limit(1),
+    boardClient.from("board_ballots").select("id,minutes_id").eq("meeting_id", id).eq("status", "aperta").limit(1),
     boardClient.rpc("board_chair_user", { _meeting: id }),
     boardClient.rpc("board_voter_eligible", { _meeting: id, _user: userId, _deliberation: null }),
   ]);
@@ -125,6 +125,7 @@ export async function loadBoardSession(id: string, userId: string) {
       && (mn.data ?? []).every((n) => n.status === "APPROVATO"),
     hasOpenBallot: z.array(z.object({ id: z.string() })).parse(ballots.data ?? []).length > 0,
     openBallotId: z.array(z.object({ id: z.string() })).parse(ballots.data ?? [])[0]?.id ?? null,
+    openBallotMinutesId: z.array(z.object({ minutes_id: z.string().nullable() })).parse(ballots.data ?? [])[0]?.minutes_id ?? null,
     chairUserId: z.string().nullable().parse(chair.data),
     voterEligible: z.boolean().parse(eligible.data),
   };

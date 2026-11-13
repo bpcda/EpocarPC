@@ -1,4 +1,5 @@
 # Architecture rules
+- Coolify operations are authorized only within the existing EpocarPC project (`b51m2xv0i8hcc2wlpjw17g2v`), including its audio/video resources; broader API permissions never expand this scope. Keep audio/video inside EpocarPC, preserve the existing CMS and unrelated resources, and do not modify other projects or shared server/team configuration without explicit authorization.
 - Enhanced event bookings are opt-in settings with private snapshots and service-only capacity/idempotency RPCs; external function source stays in setup/functions to avoid deploying to the unrelated managed project, and guest garage claims require an OTP-authenticated session.
 - Authentication error presentation uses a safe message helper; never serialize whole errors, so empty service responses remain diagnosable without leaking request details.
 - Association data access lives in a dedicated validated module using the existing client; managed generated types are not edited because the external schema is installed independently.

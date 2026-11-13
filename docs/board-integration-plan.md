@@ -176,4 +176,6 @@ V23–v26 installate via MCP sul progetto esterno. Edge Function aggiornate: tra
 
 ## Prossimo intervento
 
-Attivazione pubblica della stanza sullo stesso server Coolify, dopo la scelta del dominio e la configurazione DNS/TLS/porte/segreti; collaudo con account e dispositivi reali. Implementazione e limiti sono descritti in [board-completion.md](board-completion.md) e [guida Coolify](../deploy/board-live/README.md).
+Valutazione del nuovo layout durante una seduta reale. Audio e video sono stati confermati funzionanti dall'utente con due persone; la successiva revisione UI/UX è implementata e verificata con dati sintetici su desktop e mobile. Implementazione e limiti sono descritti in [board-completion.md](board-completion.md) e [guida Coolify](../deploy/board-live/README.md).
+
+Ripresa del 13/11/2026: risorsa Coolify `Epocar Audio Video` avviata nell'ambiente `audio-video` del progetto EpocarPC, stato `running:healthy`, deploy automatico disabilitato. Dominio `riunioni.epocarpc.com`, DNS/HTTPS, API autenticata e supervisore verificati. I tre segreti LiveKit sono stati importati dall'utente nelle Edge Function Supabase e verificati tramite impronte corrispondenti; il sito pubblicato contiene il collegamento alla stanza. Audio e video confermati dall'utente con due persone; resta la valutazione del nuovo layout durante una seduta reale. Il limite operativo al solo progetto EpocarPC è registrato in AGENTS.md. Stato e parametri per proseguire in [board-coolify-handoff.md](board-coolify-handoff.md).

@@ -218,6 +218,7 @@ export default function AudioPanel({
   manager,
   active,
   live,
+  onRecordingChange,
 }: {
   m: Meeting;
   me: string;
@@ -225,6 +226,7 @@ export default function AudioPanel({
   manager: boolean;
   active: boolean;
   live: boolean;
+  onRecordingChange?: (status: string | null) => void;
 }) {
   const qc = useQueryClient();
   const data = useQuery({
@@ -238,6 +240,9 @@ export default function AudioPanel({
     trackId: string;
     paused: boolean;
   } | null>(null);
+  useEffect(() => {
+    onRecordingChange?.(recording ? recording.paused ? "Registrazione in pausa" : "Registrazione in corso" : null);
+  }, [recording, onRecordingChange]);
   const [pending, setPending] = useState<LocalRecording[]>([]);
   const [included, setIncluded] = useState<string[]>([]);
   const [sharedEvidence, setSharedEvidence] = useState("");
@@ -713,8 +718,7 @@ export default function AudioPanel({
 
       {data.error && (
         <p role="alert" className="text-destructive text-sm">
-          Modulo audio non disponibile: occorre installare l'aggiornamento SQL
-          della Fase 4.
+          Registrazioni non disponibili. Verifica la connessione e riprova.
         </p>
       )}
       {settings && !settings.enabled && (
@@ -777,7 +781,10 @@ export default function AudioPanel({
       )}
 
       {president && settings && (
-        <AiSettingsForm settings={settings} onSaved={refresh} />
+        <details className="rounded-lg border border-border p-4">
+          <summary className="cursor-pointer font-medium">Impostazioni IA e limiti di spesa</summary>
+          <div className="mt-4"><AiSettingsForm settings={settings} onSaved={refresh} /></div>
+        </details>
       )}
 
       <Dialog open={consentOpen} onOpenChange={setConsentOpen}>

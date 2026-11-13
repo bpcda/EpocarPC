@@ -65,7 +65,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
   if (minutes.error) {
     return <section className="border border-border p-5 bg-card" aria-label="Verbale">
       <h3 className="font-headline text-2xl tracking-wider mb-2">Verbale della seduta</h3>
-      <p role="alert" className="text-destructive text-sm">Modulo verbale non disponibile: occorre installare l'aggiornamento SQL della Fase 5.</p>
+      <p role="alert" className="text-destructive text-sm">Verbale non disponibile. Verifica la connessione e riprova.</p>
     </section>;
   }
 
@@ -78,11 +78,11 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
 
       {!mn && manager && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={act.isPending}
+          <Button size="sm" disabled={act.isPending}
             onClick={() => act.mutate(() => saveMinutes(m.id, "# Verbale\n\n", "manuale"))}>
             <FileText className="h-4 w-4 mr-2" />Scrivi il verbale manualmente
           </Button>
-          <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
+          <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
             <Sparkles className="h-4 w-4 mr-2" />Genera bozza del verbale con IA
           </Button>
         </div>
@@ -90,13 +90,10 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
 
       {mn && version && (
         <>
-          <p className="text-sm text-muted-foreground">
-            Versione {version.version} · {MINUTES_SOURCE[version.source]} · impronta {version.content_hash.slice(0, 8)}
-            {version.locked_at ? " · bloccata per il voto" : ""}
-          </p>
+          <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">Versione {version.version} · {MINUTES_SOURCE[version.source]}{version.locked_at ? " · bloccata per il voto" : ""}</summary><p className="mt-2 break-all">Impronta del testo: {version.content_hash}</p></details>
           {editable && !openBallot ? (
             <div className="space-y-2">
-              <Textarea disabled={act.isPending} aria-label="Testo del verbale" className="min-h-[320px] font-mono text-sm"
+              <Textarea disabled={act.isPending} aria-label="Testo del verbale" className="min-h-[360px] md:min-h-[480px] font-sans text-base leading-relaxed"
                 value={draft ?? version.body} onChange={(e) => setDraft(e.target.value)} />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={act.isPending || draft === null || draft.trim().length < 1}
@@ -174,10 +171,9 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
               {president && (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => closeBallot(openBallot.id))}>Chiudi la votazione</Button>
-                  <Input className="max-w-xs" aria-label="Motivazione annullamento" placeholder="Motivazione annullamento"
-                    value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
-                  <Button size="sm" variant="destructive" disabled={act.isPending || !cancelReason.trim()}
-                    onClick={() => act.mutate(() => cancelBallot(openBallot.id, cancelReason.trim()))}>Annulla votazione</Button>
+                  <details className="w-full"><summary className="cursor-pointer text-sm text-muted-foreground">Annulla questa votazione</summary><div className="mt-2 flex flex-wrap gap-2"><Input className="max-w-xs" aria-label="Motivazione annullamento" placeholder="Motivazione annullamento"
+                    value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} /><Button size="sm" variant="destructive" disabled={act.isPending || !cancelReason.trim()}
+                    onClick={() => act.mutate(() => cancelBallot(openBallot.id, cancelReason.trim()))}>Annulla votazione</Button></div></details>
                 </div>
               )}
             </div>

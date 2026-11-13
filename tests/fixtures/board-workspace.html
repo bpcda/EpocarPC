@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collaudo spazio di lavoro Consiglio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+      import LiveSession from "/src/components/board/LiveSession.tsx";
+      import "/src/index.css";
+      // Synthetic fixture only: requests are intercepted by the browser test.
+      const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+      const role = new URLSearchParams(location.search).get("role") || "secretary";
+      const me = role === "president" ? uuid(2) : uuid(4);
+      const stamp = "2026-11-13T17:00:00Z";
+      const meeting = {
+        id: uuid(1), meeting_year: 2026, meeting_number: 3,
+        scheduled_at: stamp, location: null, mode: "remoto", video_link: null,
+        description: null, urgency_reason: null, status: "IN_CORSO", status_reason: null,
+        minute_taker_id: uuid(4), started_at: stamp, ended_at: null, active_agenda_id: uuid(10),
+        board_meeting_participants: [
+          [2, 3, "Giulia Rossi", "president"], [4, 7, "Luca Bianchi", "secretary"],
+          [5, 8, "Anna Verdi", "councillor"], [6, 9, "Marco Neri", "councillor"],
+        ].map(([user, id, name, office]) => ({
+          id: uuid(id), user_id: uuid(user), kind: "member", display_name: name,
+          board_roles: [office], can_vote: true, response: "confirmed", present: true,
+          identified_at: stamp, attendance_mode: "remoto", last_seen_at: new Date().toISOString(),
+        })),
+        board_agenda_items: [
+          { id: uuid(10), position: 1, kind: "deliberazione", title: "Programma delle attività associative", description: "Esame delle proposte per i prossimi incontri e delle attività da organizzare insieme ai soci.", proposal: "Approvare il programma degli incontri illustrato al Consiglio.", discussion_status: "current" },
+          { id: uuid(11), position: 2, kind: "discussione", title: "Comunicazioni e prossimi appuntamenti", description: "Aggiornamento del calendario e disponibilità dei componenti.", proposal: null, discussion_status: "pending" },
+        ],
+      };
+      createRoot(document.getElementById("root")).render(
+        React.createElement(QueryClientProvider, {
+          client: new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}}),
+        }, React.createElement("main", { className: "mx-auto max-w-[1600px] px-4 py-6 md:px-8" },
+          React.createElement(LiveSession, {m:meeting,me,president:role === "president",boardMember:true}))),
+      );
+    </script>
+  </body>
+</html>

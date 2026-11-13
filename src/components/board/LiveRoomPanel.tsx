@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Headphones, Mic, MicOff, Video, VideoOff, LogOut, Volume2 } from "lucide-react";
 import { boardClient, type Meeting } from "@/lib/board";
 import type { Room, RemoteTrack } from "livekit-client";
 
@@ -102,7 +103,7 @@ export default function LiveRoomPanel({
             "aria-label",
             `Webcam di ${participant.name || "componente"}`,
           );
-          element.className = "max-h-48 max-w-full";
+          element.className = "max-h-48 w-full rounded-lg object-contain bg-black";
         }
         container.current?.appendChild(element);
         elements.set(track, { element, identity: participant.identity });
@@ -144,7 +145,7 @@ export default function LiveRoomPanel({
       await r.startAudio();
       refresh();
       setConnected(true);
-      setStatus("Collegato · microfono spento");
+      setStatus("Collegato");
     } catch (e) {
       if (attempt !== generation.current) return;
       leave();
@@ -172,44 +173,45 @@ export default function LiveRoomPanel({
   if (!active) return null;
   return (
     <section
-      className="border border-border bg-card p-5 space-y-3"
+      className="rounded-xl border border-border bg-card p-4 space-y-4"
       aria-label="Stanza audio e video"
     >
-      <h3 className="font-headline text-2xl">Audio della seduta</h3>
-      <p role="status" className="text-sm">
-        {status}
-      </p>
-      <p className="text-sm">
-        Il collegamento usa il server dell’associazione. Microfono e webcam si
-        attivano su richiesta; entrare nella stanza non conferma la presenza e
-        non avvia una registrazione.
-      </p>
-      <div className="flex gap-2 flex-wrap">
+      <header className="space-y-2">
+        <h3 className="flex items-center gap-2 text-base font-semibold"><Headphones className="h-5 w-5 text-primary" aria-hidden />Audio e video</h3>
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><span className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-primary" : "bg-muted-foreground"}`} aria-hidden />{status}{connected && status === "Collegato" ? ` · microfono ${mic ? "acceso" : "spento"}` : ""}</p>
+      </header>
+      <div className={connected ? "grid grid-cols-4 gap-2 xl:grid-cols-2" : "grid gap-2"}>
         {!connected ? (
-          <Button disabled={joining} onClick={() => void join()}>
-            Entra nella stanza
+          <Button className="min-h-11" disabled={joining} onClick={() => void join()}>
+            <Headphones className="mr-2 h-4 w-4" aria-hidden />{joining ? "Collegamento…" : "Entra nella stanza"}
           </Button>
         ) : (
           <>
             <Button
-              variant="outline"
+              variant={mic ? "default" : "outline"}
+              className="h-auto min-h-11 flex-col justify-center gap-1 whitespace-normal px-2 py-2 text-center text-xs xl:flex-row xl:justify-start xl:gap-2 xl:px-3 xl:text-left xl:text-sm"
+              aria-label={`${mic ? "Spegni" : "Accendi"} microfono`}
               aria-pressed={mic}
               onClick={() => void toggle("mic")}
             >
-              {mic ? "Spegni" : "Accendi"} microfono
+              {mic ? <Mic className="h-4 w-4 shrink-0" aria-hidden /> : <MicOff className="h-4 w-4 shrink-0" aria-hidden />}<span className="hidden xl:inline">{mic ? "Spegni" : "Accendi"} microfono</span><span className="xl:hidden">Microfono</span>
             </Button>
             <Button
-              variant="outline"
+              variant={camera ? "default" : "outline"}
+              className="h-auto min-h-11 flex-col justify-center gap-1 whitespace-normal px-2 py-2 text-center text-xs xl:flex-row xl:justify-start xl:gap-2 xl:px-3 xl:text-left xl:text-sm"
+              aria-label={`${camera ? "Spegni" : "Accendi"} webcam`}
               aria-pressed={camera}
               onClick={() => void toggle("camera")}
             >
-              {camera ? "Spegni" : "Accendi"} webcam
+              {camera ? <Video className="h-4 w-4 shrink-0" aria-hidden /> : <VideoOff className="h-4 w-4 shrink-0" aria-hidden />}<span className="hidden xl:inline">{camera ? "Spegni" : "Accendi"} webcam</span><span className="xl:hidden">Webcam</span>
             </Button>
-            <Button variant="outline" onClick={leave}>
-              Esci dalla stanza
+            <Button variant="outline" aria-label="Esci dalla stanza" className="h-auto min-h-11 flex-col justify-center gap-1 whitespace-normal px-2 py-2 text-center text-xs xl:flex-row xl:justify-start xl:gap-2 xl:px-3 xl:text-left xl:text-sm" onClick={leave}>
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden /><span className="hidden xl:inline">Esci dalla stanza</span><span className="xl:hidden">Esci</span>
             </Button>
             <Button
               variant="outline"
+              className="h-auto min-h-11 flex-col justify-center gap-1 whitespace-normal px-2 py-2 text-center text-xs xl:flex-row xl:justify-start xl:gap-2 xl:px-3 xl:text-left xl:text-sm"
+              aria-label="Abilita ascolto"
               onClick={() =>
                 void room.current
                   ?.startAudio()
@@ -218,20 +220,24 @@ export default function LiveRoomPanel({
                   )
               }
             >
-              Abilita ascolto
+              <Volume2 className="h-4 w-4 shrink-0" aria-hidden /><span className="hidden xl:inline">Abilita ascolto</span><span className="xl:hidden">Ascolto</span>
             </Button>
           </>
         )}
       </div>
       {!!names.length && (
-        <p className="text-sm">Collegati: {names.join(", ")}</p>
+        <div><p className="mb-2 text-xs font-medium text-muted-foreground">Collegati ({names.length})</p><ul className="flex flex-wrap gap-1.5">{names.map((name, index) => <li key={index} className="rounded-full bg-muted px-2.5 py-1 text-xs break-words">{name}</li>)}</ul></div>
       )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
-      <div ref={container} className="flex flex-wrap gap-3" />
+      <div ref={container} className="grid gap-3 empty:hidden" />
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer">Come funziona il collegamento</summary>
+        <p className="mt-2 leading-relaxed">Microfono e webcam si attivano su richiesta. Entrare nella stanza non conferma la presenza e non avvia una registrazione. Il collegamento usa il server dell’associazione.</p>
+      </details>
     </section>
   );
 }

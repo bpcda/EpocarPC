@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 import MinutesPanel from "@/components/board/MinutesPanel";
-import { loadDeliberations, type Meeting } from "@/lib/board";
+import { loadBoardSession, loadDeliberations, type Meeting } from "@/lib/board";
 
 const mock = vi.hoisted(() => ({ rows: {} as Record<string, unknown>, rpc: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
@@ -54,6 +54,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); clients.splice(0).forEach((c) => c.clear()); });
 
 describe("Recorded voting identities and controls", () => {
+  it("retains the server's minutes target so the workspace can find a regular or corrected minutes ballot", async () => {
+    mock.rows.board_minutes = [];
+    mock.rows.board_ballots = [{ id: "ballot", minutes_id: "corrected-minutes" }];
+    mock.rpc.mockImplementation(async (name: string) => ({ error: null, data: name === "board_quorum"
+      ? { total: 7, present: 4, required: 4, met: true } : name === "board_chair_user" ? "me" : true }));
+    expect((await loadBoardSession("meeting", "me")).openBallotMinutesId).toBe("corrected-minutes");
+    mock.rows.board_ballots = [{ id: "ballot", minutes_id: null }];
+    expect((await loadBoardSession("meeting", "me")).openBallotMinutesId).toBeNull();
+  });
   it("retains voting identities when parsing server rows and selects the right vote for homonyms", async () => {
     const data = await loadDeliberations("meeting");
     expect(data[0].board_ballots[0].board_votes.map((v) => v.user_id)).toEqual(["other", "me"]);

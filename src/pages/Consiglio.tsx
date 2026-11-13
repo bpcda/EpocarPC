@@ -50,11 +50,11 @@ function MeetingCard({ m, me, president, onEdit, onEnter }: { m: Meeting; me: st
         {president && !m.started_at && m.status === "SOSPESO" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Riprendi convocazione</Button>}
       </div>
       {president && !m.started_at && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && (
-        <div className="flex flex-wrap gap-2 items-center">
+        <details className="border-t border-border pt-3"><summary className="cursor-pointer text-sm text-muted-foreground">Sospendi o annulla convocazione</summary><div className="mt-3 flex flex-wrap gap-2 items-center">
           <Input className="max-w-xs" aria-label="Motivazione" placeholder="Motivazione per sospendere o annullare" value={reason} onChange={(e) => setReason(e.target.value)} />
           {m.status === "CONVOCATO" && <Button size="sm" variant="outline" disabled={!reason.trim()} onClick={() => act.mutate(() => setMeetingStatus(m.id, "SOSPESO", reason))}>Sospendi</Button>}
           <Button size="sm" variant="destructive" disabled={!reason.trim()} onClick={() => act.mutate(() => setMeetingStatus(m.id, "ANNULLATO", reason))}>Annulla</Button>
-        </div>
+        </div></details>
       )}
     </article>
   );
@@ -95,28 +95,29 @@ export default function Consiglio() {
     <>
       <PageMeta title="Consiglio Direttivo — Epocar" description="Area riservata del Consiglio Direttivo" path="/consiglio-direttivo" />
       <Navbar />
-      <main className="min-h-screen pt-28 pb-24 px-6 lg:px-8 max-w-6xl mx-auto space-y-10">
+      <main className={`min-h-screen pt-24 lg:pt-28 pb-16 px-4 md:px-6 lg:px-8 mx-auto ${currentSession ? "max-w-[1600px] space-y-5" : "max-w-6xl space-y-8"}`}>
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="font-headline text-5xl md:text-7xl tracking-wider leading-none">Consiglio Direttivo</h1>
+            {currentSession && <Button className="mb-2 -ml-3" variant="ghost" size="sm" onClick={() => setSessionId(null)}>← Tutte le riunioni</Button>}
+            <h1 className={`font-headline tracking-wider leading-none ${currentSession ? "text-xl text-muted-foreground" : "text-4xl md:text-5xl"}`}>Consiglio Direttivo</h1>
             {!isBoardMember && <p className="text-muted-foreground mt-2">Accesso tecnico in sola lettura.</p>}
           </div>
-          {isBoardPresident && <Button size="lg" onClick={() => setWizard({ open: true })}>+ Convoca Consiglio Direttivo</Button>}
+          {isBoardPresident && !currentSession && <Button size="lg" onClick={() => setWizard({ open: true })}>+ Convoca Consiglio Direttivo</Button>}
         </header>
         {meetings.isLoading && <p role="status">Caricamento…</p>}
         {meetings.error && <p role="alert" className="text-destructive">Riunioni non disponibili. Se il problema persiste, il modulo potrebbe non essere ancora installato sul database.</p>}
-        {currentSession && <><Button variant="outline" onClick={() => setSessionId(null)}>← Tutte le riunioni</Button><LiveSession key={currentSession.id} m={currentSession} me={user.id} president={isBoardPresident} boardMember={isBoardMember} /></>}
+        {currentSession && <LiveSession key={currentSession.id} m={currentSession} me={user.id} president={isBoardPresident} boardMember={isBoardMember} />}
         {meetings.data && !currentSession && (
           <>
             <section className="border border-border p-6 bg-card">
               <h2 className="font-headline text-2xl tracking-wider mb-2">Prossima riunione</h2>
-              {g.next ? <p className="text-lg">{meetingLabel(g.next)} — {romeDate(g.next.scheduled_at)} ore {romeTime(g.next.scheduled_at)}</p> : <p className="text-muted-foreground">Nessuna riunione convocata.</p>}
+              {g.next ? <div className="flex flex-wrap items-center justify-between gap-4"><p className="text-lg">{meetingLabel(g.next)} — {romeDate(g.next.scheduled_at)} ore {romeTime(g.next.scheduled_at)}</p><Button onClick={() => setSessionId(g.next!.id)}>Entra nella seduta</Button></div> : <p className="text-muted-foreground">Nessuna riunione convocata.</p>}
               {toAnswer.length > 0 && <p className="mt-2">Hai {toAnswer.length} convocazion{toAnswer.length === 1 ? "e" : "i"} a cui rispondere.</p>}
             </section>
             <Section title="In corso" list={g.live} {...props} />
             <Section title="Programmate" list={g.upcoming} {...props} />
             {isBoardPresident && <Section title="Bozze" list={g.drafts} {...props} />}
-            <Section title="Concluse e archivio" list={g.concluded} {...props} />
+            {!!g.concluded.length && <details className="rounded-xl border border-border p-5"><summary className="cursor-pointer text-base font-medium">Concluse e archivio ({g.concluded.length})</summary><div className="mt-5"><Section title="Sedute concluse" list={g.concluded} {...props} /></div></details>}
           </>
         )}
       </main>

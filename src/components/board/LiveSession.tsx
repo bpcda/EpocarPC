@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Expand, Minimize, Play, Pause, Square, Check, UserCheck } from "lucide-react";
+import { Expand, Minimize, Play, Pause, Square, Check, UserCheck, History, Users, ListOrdered, Gavel, FileText, Mic, FolderArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { assignChair, boardClient, BOARD_ROLE_LABEL, cancelBallot, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
+import { assignChair, boardClient, BOARD_ROLE_LABEL, MEETING_STATUS, cancelBallot, loadBoardSession, meetingLabel, recordAttendance, requestAttendance, romeDate, romeTime, selectAgenda, sessionAction, type Meeting, type Participant } from "@/lib/board";
 import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 import AudioPanel from "@/components/board/AudioPanel";
 import MinutesPanel from "@/components/board/MinutesPanel";
@@ -44,6 +46,8 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   const [chairTarget, setChairTarget] = useState("");
   const [chairReason, setChairReason] = useState("");
   const [designation, setDesignation] = useState("");
+  const [tab, setTab] = useState(m.ended_at ? "verbale" : m.started_at ? "ordine" : "presenze");
+  const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
   const active = !m.ended_at && ["CONVOCATO", "IN_CORSO", "SOSPESO"].includes(m.status);
   const frozen = ["ESPORTATO", "ARCHIVIATO"].includes(m.status);
   const mine = m.board_meeting_participants.find((p) => p.user_id === me);
@@ -77,70 +81,133 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   }, [m.id, m.started_at, active, boardMember, qc]);
 
   const q = session.data?.quorum;
-  return <section className={full ? "fixed inset-0 z-40 overflow-auto bg-background p-4 md:p-8 space-y-5" : "space-y-5"} aria-label="Seduta dal vivo">
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-      <div><h2 className="font-headline text-3xl">{meetingLabel(m)}</h2><p className="text-xs text-muted-foreground" role="status">{active ? connection : "Seduta conclusa"}</p></div>
-      <div className="flex flex-wrap gap-2">
-        {chair && m.status === "CONVOCATO" && !m.started_at && <Button disabled={act.isPending || !session.data} onClick={() => act.mutate(() => sessionAction(m.id, "open"))}><Play className="h-4 w-4 mr-2" />Apri seduta</Button>}
-        {chair && m.status === "IN_CORSO" && <Button variant="outline" disabled={act.isPending} onClick={() => { setReason(""); setCommand("suspend"); }}><Pause className="h-4 w-4 mr-2" />Sospendi</Button>}
+  const requests = m.board_meeting_participants.filter((p) => !p.present && p.attendance_requested_at).length;
+  const chairName = m.board_meeting_participants.find((p) => p.user_id === session.data?.chairUserId)?.display_name;
+  const personalActions = active && (mine && boardMember && !mine.present || requests > 0 && manager || chair && m.started_at) || !!recordingStatus;
+  const tabs = [
+    { value: "presenze", label: "Presenze", icon: Users },
+    { value: "ordine", label: "Ordine del giorno", icon: ListOrdered },
+    { value: "delibere", label: "Delibere", icon: Gavel },
+    { value: "verbale", label: "Verbale", icon: FileText },
+    { value: "registrazione", label: "Registrazione", icon: Mic },
+    ...(m.ended_at ? [{ value: "fascicolo", label: "Fascicolo", icon: FolderArchive }] : []),
+  ];
+  const panelClass = "mt-0 space-y-5 data-[state=inactive]:hidden";
+  return <section className={`${full ? "fixed inset-0 z-50 overflow-auto bg-background p-4 md:p-8 space-y-5" : "space-y-5"} [&_button]:font-body [&_button]:tracking-normal`} aria-label="Seduta dal vivo">
+    <header className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-headline text-3xl md:text-4xl">{meetingLabel(m)}</h2>
+          <span className="rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium">{MEETING_STATUS[m.status] ?? m.status}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">{romeDate(m.scheduled_at)} · ore {romeTime(m.scheduled_at)}{chairName ? ` · Presiede ${chairName}` : ""}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {chair && m.status === "CONVOCATO" && !m.started_at && <Button disabled={act.isPending || !q?.met} onClick={() => act.mutate(async () => { await sessionAction(m.id, "open"); setTab("ordine"); })}><Play className="h-4 w-4 mr-2" />Apri seduta</Button>}
         {chair && m.status === "SOSPESO" && m.started_at && <Button disabled={act.isPending} onClick={() => act.mutate(() => sessionAction(m.id, "resume"))}><Play className="h-4 w-4 mr-2" />Riprendi seduta</Button>}
-        {chair && m.started_at && active && <Button variant="outline" onClick={() => { setReason(""); setCommand("close"); }}><Square className="h-4 w-4 mr-2" />Chiudi seduta</Button>}
-        <Button size="icon" variant="outline" aria-label={full ? "Esci da schermo intero" : "Schermo intero"} title="Schermo intero" onClick={() => setFull(!full)}>{full ? <Minimize className="h-4 w-4" /> : <Expand className="h-4 w-4" />}</Button>
+        <Sheet>
+          <SheetTrigger asChild><Button variant="outline" size="sm"><History className="h-4 w-4 mr-2" />Registro attività</Button></SheetTrigger>
+          <SheetContent className="overflow-y-auto sm:max-w-lg">
+            <SheetHeader><SheetTitle>Registro della seduta</SheetTitle><SheetDescription>Presenze, decisioni e operazioni registrate in ordine dal più recente.</SheetDescription></SheetHeader>
+            <ol className="mt-6 space-y-4">
+              {session.data?.events.map((e) => <li key={e.id} className="border-b border-border pb-3 text-sm break-words"><time className="text-xs text-muted-foreground">{romeTime(e.created_at)}</time><p>{eventLabels[e.action] ?? "Aggiornamento della riunione"}{typeof e.detail.name === "string" ? ` · ${e.detail.name}` : ""}</p>{typeof e.detail.note === "string" && <p className="text-muted-foreground">{e.detail.note}</p>}{typeof e.detail.reason === "string" && <p className="text-muted-foreground">{e.detail.reason}</p>}</li>)}
+            </ol>
+            {!session.data?.events.length && <p className="mt-6 text-sm text-muted-foreground">Nessuna attività da mostrare.</p>}
+          </SheetContent>
+        </Sheet>
+        <Button size="icon" variant="outline" aria-label={full ? "Esci da schermo intero" : "Schermo intero"} title={full ? "Esci da schermo intero" : "Schermo intero"} onClick={() => setFull(!full)}>{full ? <Minimize className="h-4 w-4" /> : <Expand className="h-4 w-4" />}</Button>
       </div>
     </header>
     {session.error && <p role="alert" className="text-destructive">Seduta non disponibile. Verifica la connessione e l'installazione del modulo Consiglio.</p>}
-    {q && !m.ended_at && <div className={`border-l-4 p-4 bg-muted ${q.met ? "border-primary" : "border-destructive"}`} role="status">
-      <strong>{q.present}/{q.total} componenti presenti · quorum richiesto: {q.required}</strong>
-      <p>{q.met ? "Quorum raggiunto" : "Quorum non raggiunto · non è possibile deliberare"}</p>
-    </div>}
-    {session.data?.chairUserId && <p className="text-sm">Presiede: {m.board_meeting_participants.find((p) => p.user_id === session.data.chairUserId)?.display_name ?? "Componente incaricato"}</p>}
-    {active && session.data?.chairUserId === null && session.data.openBallotId && (president || manager) && <div className="border border-border p-3 space-y-2">
-      <p className="text-sm">La presidenza non è più valida. Annulla la votazione aperta prima di registrare una nuova presidenza.</p>
-      <Input aria-label="Motivo annullamento per presidenza decaduta" value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} />
-      <Button size="sm" disabled={act.isPending || !reason.trim()} onClick={() => act.mutate(() => cancelBallot(session.data.openBallotId!, reason))}>Annulla voto senza presidenza valida</Button>
-    </div>}
-    {active && boardMember && (president || mine?.board_roles.includes("vice_president") || m.minute_taker_id === me) && <details className="border border-border p-3 space-y-3">
-      <summary className="cursor-pointer text-sm">Registra la presidenza o una sostituzione</summary>
-      <p className="text-sm text-muted-foreground">Registra prima l'assenza di chi è impedito. Il Vicepresidente deve attivare la sostituzione. In assenza di entrambi, il verbalizzante registra con quorum il riferimento alla designazione del Consiglio.</p>
-      <label className="block text-sm">Componente che presiede<select aria-label="Componente che presiede" className="w-full border border-border bg-background p-2" value={chairTarget} onChange={(e) => setChairTarget(e.target.value)}>
-        <option value="">Seleziona</option>{m.board_meeting_participants.filter((p) => p.kind === "member" && p.present && p.identified_at).map((p) => <option key={p.id} value={p.user_id ?? ""}>{p.display_name} · {p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(", ")}</option>)}
-      </select></label>
-      <Input aria-label="Causale della presidenza" placeholder="Causale dell'attivazione o sostituzione" value={chairReason} maxLength={1000} onChange={(e) => setChairReason(e.target.value)} />
-      <Input aria-label="Designazione del Consiglio" placeholder="Riferimento alla designazione del Consiglio (se diverso dal Vicepresidente)" value={designation} maxLength={1000} onChange={(e) => setDesignation(e.target.value)} />
-      <Button size="sm" disabled={act.isPending || !chairTarget || !chairReason.trim() || session.data?.hasOpenBallot} onClick={() => act.mutate(async () => { await assignChair(m.id, chairTarget, chairReason, designation); setChairReason(""); setDesignation(""); })}>Registra presidenza</Button>
-    </details>}
-    <div className="grid gap-6 lg:grid-cols-[minmax(230px,1fr)_minmax(300px,1.6fr)_minmax(230px,1fr)]">
-      <aside className="space-y-3 min-w-0"><h3 className="font-headline text-2xl">Presenze</h3>
-        {mine && boardMember && active && !mine.present && <Button className="max-w-full whitespace-normal h-auto py-2" variant="outline" disabled={act.isPending || !!mine.attendance_requested_at || !session.data} onClick={() => act.mutate(() => requestAttendance(m.id))}><UserCheck className="h-4 w-4 mr-2 shrink-0" />{mine.attendance_requested_at ? "Identificazione richiesta" : "Richiedi conferma presenza"}</Button>}
-        {m.board_meeting_participants.map((p) => <article key={p.id} className="border-b border-border py-3 space-y-1 break-words">
-          <strong>{p.display_name}</strong><p className="text-xs text-muted-foreground">{p.kind === "guest" ? "Invitato · senza voto" : p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(" · ")}</p>
-          <p className="text-sm">{p.present ? `Presente · ${p.attendance_mode === "remoto" ? "da remoto" : "in presenza"}` : "Presenza non confermata"}</p>
-          <p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"}</p>
-          {p.attendance_requested_at && <p className="text-sm">Identificazione richiesta</p>}
-          {manager && active && <Button size="sm" variant="outline" disabled={act.isPending || !session.data} onClick={() => { setSelected(p); setVerified(false); setNote(""); setMode(p.attendance_mode ?? (m.mode === "remoto" ? "remoto" : "presenza")); }}>{p.present ? "Registra uscita" : "Verifica presenza"}</Button>}
-        </article>)}
-      </aside>
-      <div className="space-y-4 min-w-0"><h3 className="font-headline text-2xl">Ordine del giorno</h3>
-        {m.board_agenda_items.map((a) => <article key={a.id} className={`border-l-4 pl-4 py-3 space-y-2 break-words ${m.active_agenda_id === a.id ? "border-primary bg-muted" : "border-border"}`}>
-          <p className="text-xs uppercase text-muted-foreground">{a.discussion_status === "current" ? "In discussione" : a.discussion_status === "discussed" ? "Trattato" : "Da trattare"}</p>
-          <h4 className="font-headline text-2xl">{a.position}. {a.title}</h4>
-          {a.description && <p className="whitespace-pre-wrap text-sm">{a.description}</p>}{a.proposal && <p className="whitespace-pre-wrap text-sm"><strong>Proposta: </strong>{a.proposal}</p>}
-          {chair && m.status === "IN_CORSO" && m.active_agenda_id !== a.id && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => selectAgenda(m.id, a.id))}>Apri punto</Button>}
-        </article>)}
-      </div>
-      <aside className="min-w-0"><h3 className="font-headline text-2xl mb-3">Attività della seduta</h3><ol className="max-h-[650px] overflow-y-auto space-y-3">
-        {session.data?.events.map((e) => <li key={e.id} className="border-b border-border pb-3 text-sm break-words"><time className="text-xs text-muted-foreground">{romeTime(e.created_at)}</time><p>{eventLabels[e.action] ?? "Aggiornamento della riunione"}{typeof e.detail.name === "string" ? ` · ${e.detail.name}` : ""}</p>{typeof e.detail.note === "string" && <p className="text-muted-foreground">{e.detail.note}</p>}{typeof e.detail.reason === "string" && <p className="text-muted-foreground">{e.detail.reason}</p>}</li>)}
-      </ol></aside>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      {q && !m.ended_at ? <div className="flex flex-wrap items-center gap-x-4 gap-y-1" role="status">
+        <strong className="text-sm">{q.present}/{q.total} componenti presenti · quorum richiesto: {q.required}</strong>
+        <p className={`text-sm ${q.met ? "text-primary" : "text-destructive"}`}>{q.met ? "Quorum raggiunto" : "Quorum non raggiunto · non è possibile deliberare"}</p>
+      </div> : <p className="text-sm">{m.ended_at ? "Seduta conclusa · atti consultabili" : "Verifica delle presenze in corso…"}</p>}
+      <p className="text-xs text-muted-foreground" role="status">{active ? connection : "Seduta conclusa"}</p>
     </div>
-    <LiveRoomPanel m={m} boardMember={boardMember}/>
-    <DeliberationsPanel m={m} me={me} president={chair} boardMember={boardMember} manager={manager}
-      active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
-    <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
-    {m.started_at && <MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember}
-      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} />}
-    {m.started_at && <CorrectionsPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember}
-      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} />}
-    {m.ended_at && <DossierPanel m={m} manager={chair || boardMember && m.minute_taker_id === me} />}
+    {session.data?.hasOpenBallot && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary bg-primary/5 p-4" role="status">
+      <div><p className="font-semibold">Votazione in corso</p><p className="text-sm text-muted-foreground">{session.data.openBallotMinutesId ? "È in approvazione un verbale." : "È in votazione una delibera."} Il voto resta disponibile fino alla chiusura.</p></div>
+      <Button onClick={() => setTab(session.data.openBallotMinutesId ? "verbale" : "delibere")}>Vai alla votazione</Button>
+    </div>}
+    {active && session.data?.chairUserId === null && session.data.openBallotId && (president || manager) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive p-4" role="alert"><p className="text-sm">La presidenza va aggiornata. Prima annulla la votazione aperta, conservando i voti registrati.</p><Button variant="outline" onClick={() => setTab("presenze")}>Verifica presidenza</Button></div>}
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <aside className={`min-w-0 space-y-4 xl:col-start-2 xl:row-start-1 xl:sticky ${full ? "xl:top-0" : "xl:top-24"}`} aria-label="Collegamento e stato personale">
+        <LiveRoomPanel m={m} boardMember={boardMember} />
+        <div className={`${personalActions ? "" : "hidden xl:block"} rounded-xl border border-border bg-card p-3 xl:p-4 space-y-3 text-sm`}>
+          <p className="hidden xl:block font-medium">{chair ? "Presiedi questa seduta" : boardMember && m.minute_taker_id === me ? "Sei il verbalizzante" : boardMember ? "Partecipi come consigliere" : "Accesso tecnico in sola lettura"}</p>
+          {mine && active && <p className="hidden xl:block text-muted-foreground">{mine.present ? "La tua presenza è confermata." : mine.attendance_requested_at ? "Identificazione richiesta: attendi la conferma." : "La tua presenza deve ancora essere confermata."}</p>}
+          {mine && boardMember && active && !mine.present && <Button className="w-full whitespace-normal h-auto min-h-10 py-2" variant="outline" disabled={act.isPending || !!mine.attendance_requested_at || !session.data} onClick={() => act.mutate(() => requestAttendance(m.id))}><UserCheck className="h-4 w-4 mr-2 shrink-0" />{mine.attendance_requested_at ? "Identificazione richiesta" : "Richiedi conferma presenza"}</Button>}
+          {!!requests && manager && active && <Button variant="outline" className="w-full" onClick={() => setTab("presenze")}>{requests} presenz{requests === 1 ? "a da verificare" : "e da verificare"}</Button>}
+          {recordingStatus && <Button variant="outline" className="w-full text-destructive" onClick={() => setTab("registrazione")}><span className="mr-2 h-2 w-2 shrink-0 rounded-full bg-current" aria-hidden />{recordingStatus}</Button>}
+          {manager && active && m.started_at && !session.data?.hasOpenBallot && <Button variant="outline" className="hidden xl:flex w-full" onClick={() => setTab("verbale")}>{session.data?.minutesApproved ? "Verbale approvato · consulta" : "Prepara il verbale"}</Button>}
+          {chair && m.started_at && active && <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+            {m.status === "IN_CORSO" && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => { setReason(""); setCommand("suspend"); }}><Pause className="h-4 w-4 mr-2" />Sospendi</Button>}
+            <Button size="sm" variant="outline" disabled={act.isPending || !session.data} onClick={() => { setReason(""); setCommand("close"); }}><Square className="h-4 w-4 mr-2" />Chiudi seduta</Button>
+          </div>}
+        </div>
+      </aside>
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0 xl:col-start-1 xl:row-start-1">
+        <div className="mb-5 overflow-x-auto rounded-lg border border-border bg-muted p-1">
+          <label className="block px-2 pt-1 text-xs text-muted-foreground sm:hidden" htmlFor={`board-view-${m.id}`}>Vista della seduta</label>
+          <select id={`board-view-${m.id}`} value={tab} onChange={(e) => setTab(e.target.value)} className="min-h-11 w-full rounded-md border border-border bg-card px-3 text-sm font-medium sm:hidden">
+            {tabs.map(({value, label}) => <option key={value} value={value}>{label}{value === "presenze" && requests > 0 ? ` (${requests} da verificare)` : ""}{value === "registrazione" && recordingStatus ? ` · ${recordingStatus}` : ""}</option>)}
+          </select>
+          <TabsList aria-label="Lavori della seduta" className="hidden h-auto min-w-full w-max justify-start gap-1 bg-transparent p-0 sm:inline-flex">
+            {tabs.map(({value, label, icon: Icon}) => <TabsTrigger key={value} value={value} className="min-h-11 gap-2 border border-transparent px-3 data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:font-semibold data-[state=active]:text-primary-foreground"><Icon className="h-4 w-4" aria-hidden />{label}{value === "presenze" && requests > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{requests}</span>}{value === "registrazione" && recordingStatus && <span className="h-2 w-2 rounded-full bg-destructive" aria-label={recordingStatus} />}</TabsTrigger>)}
+          </TabsList>
+        </div>
+        {/* Keep editors and recorders mounted so changing views preserves drafts and capture. */}
+        <TabsContent value="presenze" forceMount hidden={tab !== "presenze"} className={panelClass}>
+          <section className="rounded-xl border border-border bg-card p-4 md:p-6 space-y-4" aria-label="Presenze della seduta">
+            <div><h3 className="font-headline text-2xl">Presenze</h3><p className="mt-1 text-sm text-muted-foreground">{manager ? "Verifica l’identità e conferma chi partecipa. Il collegamento audio/video è distinto dalla presenza ufficiale." : "Le presenze sono confermate da chi presiede o dal verbalizzante."}</p></div>
+            <ul className="divide-y divide-border">
+              {m.board_meeting_participants.map((p) => <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
+                <div className="min-w-0 space-y-1 break-words"><strong className="text-sm">{p.display_name}</strong><p className="text-xs text-muted-foreground">{p.kind === "guest" ? "Invitato · senza voto" : p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(" · ")}</p><p className="text-sm">{p.present ? `Presente · ${p.attendance_mode === "remoto" ? "da remoto" : "in presenza"}` : "Presenza non confermata"}</p><p className="text-xs text-muted-foreground">{p.last_seen_at && clock - new Date(p.last_seen_at).getTime() < 60000 ? "Collegamento recente" : "Collegamento non rilevato"}{p.attendance_requested_at && !p.present ? " · Identificazione richiesta" : ""}</p></div>
+                {manager && active && <Button size="sm" variant={p.present ? "outline" : "default"} disabled={act.isPending || !session.data} onClick={() => { setSelected(p); setVerified(false); setNote(""); setMode(p.attendance_mode ?? (m.mode === "remoto" ? "remoto" : "presenza")); }}>{p.present ? "Registra uscita" : "Verifica presenza"}</Button>}
+              </li>)}
+            </ul>
+            {!m.board_meeting_participants.length && <p className="text-sm text-muted-foreground">Nessun partecipante disponibile.</p>}
+          </section>
+          {active && session.data?.chairUserId === null && session.data.openBallotId && (president || manager) && <div className="rounded-xl border border-destructive p-4 space-y-2">
+            <p className="text-sm">La presidenza non è più valida. Annulla la votazione aperta prima di registrare una nuova presidenza.</p>
+            <Input aria-label="Motivo annullamento per presidenza decaduta" value={reason} maxLength={1000} onChange={(e) => setReason(e.target.value)} />
+            <Button size="sm" disabled={act.isPending || !reason.trim()} onClick={() => act.mutate(() => cancelBallot(session.data.openBallotId!, reason))}>Annulla voto senza presidenza valida</Button>
+          </div>}
+          {active && boardMember && (president || mine?.board_roles.includes("vice_president") || m.minute_taker_id === me) && <details className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <summary className="cursor-pointer text-sm font-medium">Presidenza e sostituzioni</summary>
+            <p className="text-sm text-muted-foreground">Registra prima l'assenza di chi è impedito. Il Vicepresidente deve attivare la sostituzione. In assenza di entrambi, il verbalizzante registra con quorum il riferimento alla designazione del Consiglio.</p>
+            <label className="block text-sm">Componente che presiede<select aria-label="Componente che presiede" className="w-full border border-border bg-background p-2" value={chairTarget} onChange={(e) => setChairTarget(e.target.value)}>
+              <option value="">Seleziona</option>{m.board_meeting_participants.filter((p) => p.kind === "member" && p.present && p.identified_at).map((p) => <option key={p.id} value={p.user_id ?? ""}>{p.display_name} · {p.board_roles.map((r) => BOARD_ROLE_LABEL[r] ?? r).join(", ")}</option>)}
+            </select></label>
+            <Input aria-label="Causale della presidenza" placeholder="Causale dell'attivazione o sostituzione" value={chairReason} maxLength={1000} onChange={(e) => setChairReason(e.target.value)} />
+            <Input aria-label="Designazione del Consiglio" placeholder="Riferimento alla designazione del Consiglio (se diverso dal Vicepresidente)" value={designation} maxLength={1000} onChange={(e) => setDesignation(e.target.value)} />
+            <Button size="sm" disabled={act.isPending || !chairTarget || !chairReason.trim() || session.data?.hasOpenBallot} onClick={() => act.mutate(async () => { await assignChair(m.id, chairTarget, chairReason, designation); setChairReason(""); setDesignation(""); })}>Registra presidenza</Button>
+          </details>}
+        </TabsContent>
+        <TabsContent value="ordine" forceMount hidden={tab !== "ordine"} className={panelClass}>
+          <section className="rounded-xl border border-border bg-card p-4 md:p-6 space-y-4" aria-label="Ordine del giorno">
+            <div><h3 className="font-headline text-2xl">Ordine del giorno</h3><p className="mt-1 text-sm text-muted-foreground">{chair && m.status === "IN_CORSO" ? "Apri il punto da discutere. In Delibere puoi preparare il testo e metterlo ai voti." : "Segui il punto in discussione e consulta le proposte."}</p></div>
+            {m.board_agenda_items.map((a) => <article key={a.id} className={`rounded-lg border p-4 space-y-3 break-words ${m.active_agenda_id === a.id ? "border-primary bg-primary/5" : "border-border"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-1 text-xs font-medium text-muted-foreground">{a.discussion_status === "current" ? "In discussione" : a.discussion_status === "discussed" ? "Trattato" : "Da trattare"}</p><h4 className="text-lg font-semibold">{a.position}. {a.title}</h4></div>{chair && m.status === "IN_CORSO" && m.active_agenda_id !== a.id && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => selectAgenda(m.id, a.id))}>Apri punto</Button>}</div>
+              {(a.description || a.proposal) && <details open={m.active_agenda_id === a.id}><summary className="cursor-pointer text-sm text-muted-foreground">Documenti e proposta del punto</summary><div className="mt-3 space-y-3">{a.description && <p className="whitespace-pre-wrap text-sm">{a.description}</p>}{a.proposal && <p className="whitespace-pre-wrap text-sm"><strong>Proposta: </strong>{a.proposal}</p>}</div></details>}
+              {m.active_agenda_id === a.id && <Button size="sm" variant="outline" onClick={() => setTab("delibere")}>Vai alle delibere</Button>}
+            </article>)}
+            {!m.board_agenda_items.length && <p className="text-sm text-muted-foreground">Nessun punto all’ordine del giorno.</p>}
+          </section>
+        </TabsContent>
+        <TabsContent value="delibere" forceMount hidden={tab !== "delibere"} className={panelClass}>
+          <DeliberationsPanel m={m} me={me} president={chair} boardMember={boardMember} manager={manager} active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
+        </TabsContent>
+        <TabsContent value="verbale" forceMount hidden={tab !== "verbale"} className={panelClass}>
+          {m.started_at ? <><MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} /><details open={!!session.data?.openBallotMinutesId} className="rounded-xl border border-border bg-card p-4"><summary className="cursor-pointer text-sm font-medium">Rettifiche di sedute precedenti</summary><div className="mt-4"><CorrectionsPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} /></div></details></> : <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">Il verbale sarà disponibile dopo l’apertura della seduta. Prima conferma le presenze.</p>}
+        </TabsContent>
+        <TabsContent value="registrazione" forceMount hidden={tab !== "registrazione"} className={panelClass}>
+          <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} onRecordingChange={setRecordingStatus} />
+        </TabsContent>
+        {m.ended_at && <TabsContent value="fascicolo" forceMount hidden={tab !== "fascicolo"} className={panelClass}><DossierPanel m={m} manager={chair || boardMember && m.minute_taker_id === me} /></TabsContent>}
+      </Tabs>
+    </div>
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
