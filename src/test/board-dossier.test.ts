@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 import JSZip from "jszip";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildDossierZip, sha256, verifyDossierZip } from "../../setup/functions/board-dossier/zip";
+import { buildDossierZip, dossierAssets, sha256, verifyDossierZip } from "../../setup/functions/board-dossier/zip";
 import { archiveDossier, createDossier } from "../../setup/functions/board-dossier/archive";
 
 const MEETING = "00000000-0000-4000-8000-000000000001";
@@ -33,6 +33,23 @@ describe("Fascicolo ZIP", () => {
     expect(JSON.parse(await zip.file("06_Registro.json")!.async("string"))).toHaveLength(1250);
     expect(await zip.file("05_Votazioni.json")!.async("string")).toContain("Anna Bianchi");
     expect(Object.keys(zip.files).some((name) => /audio|trascrizion|\.\.\//.test(name))).toBe(false);
+  });
+  it("includes actual current and historical attachments and separate signed corrections",async()=>{
+    const data=JSON.parse(snapshot),id="00000000-0000-4000-8000-000000000010",correction="00000000-0000-4000-8000-000000000011",path=`${MEETING}/allegato-${id}.txt`,correctionPath=`${MEETING}/verbale_firmato-${correction}.pdf`;
+    const file=new TextEncoder().encode("Documento allegato alla versione votata");
+    data.minutes.status="BOZZA";
+    data.ballots[0].documents=[{id,name:"Allegato storico",storage_path:path,sha256:await sha256(file),size_bytes:file.length}];
+    data.corrected_minutes=[{id:correction,origin_minutes_id:DOSSIER,origin_version:2,current_version:1,status:"APPROVATO",signed_path:correctionPath,versions:[{version:1,body:"Atto rettificato in altra seduta"}]}];
+    const full=JSON.stringify(data),assets={[path]:file,[correctionPath]:signed};
+    expect(dossierAssets(full)).toHaveLength(2);
+    await expect(buildDossierZip(full,signed)).rejects.toThrow(/non disponibile/);
+    const bytes=await buildDossierZip(full,signed,assets),zip=await JSZip.loadAsync(bytes);
+    expect(await zip.file(`09_Allegati/${id}.txt`)!.async("string")).toContain("versione votata");
+    expect(await zip.file("03_Verbale.txt")!.async("string")).toContain("RESOCONTO NON APPROVATO");
+    expect(await zip.file(`08_Rettifiche/${correction}.txt`)!.async("string")).toContain(DOSSIER);
+    await verifyDossierZip(bytes,full,await sha256(bytes));
+    await expect(buildDossierZip(full,signed,{...assets,[path]:new Uint8Array([0])})).rejects.toThrow(/non integro/);
+    await expect(buildDossierZip(full,signed,{...assets,[correctionPath]:new Uint8Array([0])})).rejects.toThrow(/PDF/);
   });
   it("rejects a different ZIP hash, snapshot and a changed entry even with a recalculated ZIP hash", async () => {
     const bytes = await buildDossierZip(snapshot, signed);

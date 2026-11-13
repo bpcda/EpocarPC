@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import PageMeta from "@/components/PageMeta";
@@ -69,7 +69,9 @@ export default function Consiglio() {
   const { user, isBoardMember, isBoardPresident, isAdmin, loading } = useAuth();
   const qc = useQueryClient();
   const [wizard, setWizard] = useState<{ open: boolean; m?: Meeting }>({ open: false });
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [searchParams,setSearchParams]=useSearchParams();
+  const sessionId=searchParams.get("seduta");
+  const setSessionId=(id:string|null)=>setSearchParams(current=>{if(id)current.set("seduta",id);else current.delete("seduta");return current;});
   const meetings = useQuery({ queryKey: ["board-meetings"], queryFn: loadMeetings, enabled: !!user && (isBoardMember || isAdmin), refetchInterval: sessionId ? 15000 : false });
 
   if (loading) return <p role="status" className="p-10">Caricamento…</p>;

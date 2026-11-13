@@ -9,7 +9,7 @@ const mock = vi.hoisted(() => ({ rows: {} as Record<string, unknown>, rpc: vi.fn
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   from: (table: string) => {
     const query = {
-      select: () => query, eq: () => query, order: () => query, limit: () => query,
+      select: () => query, eq: () => query, is: () => query, order: () => query, limit: () => query,
       maybeSingle: async () => ({ data: mock.rows[table] ?? null, error: null }),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: mock.rows[table] ?? [], error: null }).then(resolve),
     };

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <title>Collaudo stanza Consiglio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import LiveRoomPanel from "/src/components/board/LiveRoomPanel.tsx";
+      const root = createRoot(document.getElementById("root"));
+      const meeting = {
+        id: "00000000-0000-4000-8000-000000000001",
+        status: "IN_CORSO",
+        ended_at: null,
+      };
+      window.closeTestMeeting = () =>
+        root.render(
+          React.createElement(LiveRoomPanel, {
+            m: { ...meeting, ended_at: new Date().toISOString() },
+            boardMember: true,
+          }),
+        );
+      root.render(
+        React.createElement(LiveRoomPanel, { m: meeting, boardMember: true }),
+      );
+    </script>
+  </body>
+</html>

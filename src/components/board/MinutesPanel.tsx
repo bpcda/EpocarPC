@@ -8,13 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BALLOT_RESULT, ballotSchema, ballotTally, boardClient, cancelBallot, castVote, closeBallot, currentMinutesVersion,
   decideRectification, draftMinutesWithAi, loadMinutes, MINUTES_SOURCE, MINUTES_STATUS, rectifyMinutes,
-  registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Meeting, type Minutes,
+  downloadSignedMinutes, loadCorrections, proposeCorrection, registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Meeting, type Minutes,
 } from "@/lib/board";
 import { minutesDocx, downloadBlob } from "@/lib/board-docx";
 
 function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
   return useQuery({
-    queryKey: ["board-minutes-ballot", meetingId],
+    queryKey: ["board-minutes-ballot", meetingId, minutesId],
     enabled: !!minutesId,
     queryFn: async () => {
       const { data, error } = await boardClient.from("board_ballots")
@@ -26,20 +26,25 @@ function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
   });
 }
 
-export default function MinutesPanel({ m, me, president, manager, boardMember, live, quorumMet, eligible }: {
-  m: Meeting; me: string; president: boolean; manager: boolean; boardMember: boolean; live: boolean; quorumMet: boolean; eligible: boolean;
+export default function MinutesPanel({ m, me, president, manager, boardMember, live, quorumMet, eligible, minutesId }: {
+  m: Meeting; me: string; president: boolean; manager: boolean; boardMember: boolean; live: boolean; quorumMet: boolean; eligible: boolean; minutesId?: string;
 }) {
   const qc = useQueryClient();
-  const minutes = useQuery({ queryKey: ["board-minutes", m.id], queryFn: () => loadMinutes(m.id) });
+  const minutes = useQuery({ queryKey: ["board-minutes", m.id, minutesId ?? "base"], queryFn: () => loadMinutes(m.id, minutesId) });
+  const corrections=useQuery({queryKey:["board-corrections"],queryFn:loadCorrections,enabled:!!m.ended_at});
   const ballot = useMinutesBallot(m.id, minutes.data?.id);
   const [draft, setDraft] = useState<string | null>(null);
   const [rectification, setRectification] = useState("");
   const [cancelReason, setCancelReason] = useState("");
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionBody, setCorrectionBody] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
   const refresh = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["board-minutes", m.id] }),
       qc.invalidateQueries({ queryKey: ["board-minutes-ballot", m.id] }),
       qc.invalidateQueries({ queryKey: ["board-session", m.id] }),
+      qc.invalidateQueries({ queryKey: ["board-corrections"] }),
     ]);
   };
   const act = useMutation({
@@ -52,7 +57,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
   const version = mn ? currentMinutesVersion(mn) : null;
   const unsaved = draft !== null && draft.trim() !== version?.body.trim();
   const openBallot = ballot.data?.status === "aperta" ? ballot.data : null;
-  const editable = manager && mn && ["BOZZA", "IN_REVISIONE"].includes(mn.status);
+  const editable = manager && mn && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && !(m.ended_at && mn.signed_path);
   const myVote = openBallot?.board_votes.find((v) => v.user_id === me);
   const voter = m.board_meeting_participants.find((p) => p.user_id === me);
   const canVote = eligible && boardMember && live && voter?.kind === "member" && voter.can_vote && voter.present && !!voter.identified_at;
@@ -67,7 +72,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
   return (
     <section className="border border-border p-5 bg-card space-y-4" aria-label="Verbale della seduta">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-headline text-2xl tracking-wider">Verbale della seduta</h3>
+        <h3 className="font-headline text-2xl tracking-wider">{minutesId ? "Rettifica di un verbale precedente" : "Verbale della seduta"}</h3>
         {mn && <span className="text-xs uppercase tracking-widest border border-border px-2 py-1">{MINUTES_STATUS[mn.status] ?? mn.status}</span>}
       </header>
 
@@ -77,7 +82,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             onClick={() => act.mutate(() => saveMinutes(m.id, "# Verbale\n\n", "manuale"))}>
             <FileText className="h-4 w-4 mr-2" />Scrivi il verbale manualmente
           </Button>
-          <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id))}>
+          <Button size="sm" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
             <Sparkles className="h-4 w-4 mr-2" />Genera bozza del verbale con IA
           </Button>
         </div>
@@ -91,15 +96,15 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
           </p>
           {editable && !openBallot ? (
             <div className="space-y-2">
-              <Textarea aria-label="Testo del verbale" className="min-h-[320px] font-mono text-sm"
+              <Textarea disabled={act.isPending} aria-label="Testo del verbale" className="min-h-[320px] font-mono text-sm"
                 value={draft ?? version.body} onChange={(e) => setDraft(e.target.value)} />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={act.isPending || draft === null || draft.trim().length < 1}
-                  onClick={() => act.mutate(() => saveMinutes(m.id, (draft ?? "").trim(), "manuale"))}>
+                  onClick={() => act.mutate(() => saveMinutes(m.id, (draft ?? "").trim(), "manuale", minutesId))}>
                   Salva nuova versione
                 </Button>
-                <Button size="sm" variant="outline" disabled={act.isPending}
-                  onClick={() => act.mutate(() => draftMinutesWithAi(m.id))}>
+                <Button size="sm" variant="outline" disabled={act.isPending || unsaved}
+                  onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
                   <Sparkles className="h-4 w-4 mr-2" />Rigenera bozza con IA
                 </Button>
               </div>
@@ -110,7 +115,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             </article>
           )}
 
-          {boardMember && !manager && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && (
+          {boardMember && !manager && !m.ended_at && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && (
             <div className="space-y-2">
               <Textarea aria-label="Proposta di rettifica" placeholder="Proponi una rettifica al verbale (interventi, decisioni riportate…)"
                 value={rectification} maxLength={4000} onChange={(e) => setRectification(e.target.value)} />
@@ -186,14 +191,15 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             </p>
           )}
 
-          {mn.status === "APPROVATO" && (
+          {(mn.status === "APPROVATO" || m.ended_at) && (
             <div className="border border-border p-4 space-y-3 bg-muted/40">
-              <p className="text-sm font-semibold">Verbale approvato: versione definitiva bloccata. Resta la sottoscrizione del Presidente e del verbalizzante.</p>
+              <p className="text-sm font-semibold">{mn.status === "APPROVATO" ? "Verbale approvato: versione definitiva bloccata. Resta la sottoscrizione del Presidente e del verbalizzante." : "Resoconto non approvato: la firma documenta la seduta e non attribuisce approvazione alle proposte."}</p>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline"
-                  onClick={async () => downloadBlob(await minutesDocx(m, version.body, version.version), `Verbale_CD_${mn.number ?? "bozza"}_${m.meeting_year ?? ""}.docx`)}>
+                  onClick={async () => downloadBlob(await minutesDocx(m, version.body, version.version, mn.status === "APPROVATO", mn.origin_minutes_id ? {id:mn.origin_minutes_id,version:mn.origin_version!} : undefined), `${mn.status === "APPROVATO" ? "Verbale" : "Resoconto"}_CD_${mn.number ?? "bozza"}_${m.meeting_year ?? ""}${minutesId ? "_rettifica" : ""}.docx`)}>
                   <Download className="h-4 w-4 mr-2" />Scarica per la firma (Word)
                 </Button>
+                {mn.signed_path&&<Button size="sm" variant="outline" disabled={act.isPending} onClick={()=>act.mutate(async()=>downloadBlob(await downloadSignedMinutes(mn.signed_path!),`Atto_firmato_${mn.id}.${mn.signed_path!.split(".").pop()}`))}>Scarica copia firmata</Button>}
                 {manager && (
                   <label className="inline-flex items-center gap-2 text-sm cursor-pointer border border-border px-3 py-2 hover:bg-muted">
                     <Upload className="h-4 w-4" />{mn.signed_path ? "Sostituisci la versione firmata" : "Carica la versione firmata"}
@@ -210,6 +216,15 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
           )}
         </>
       )}
+      {boardMember && m.ended_at && mn && version && (mn.status === "APPROVATO" || mn.signed_path) && <div className="space-y-2">
+        <Button variant="outline" size="sm" onClick={() => { setCorrectionOpen(!correctionOpen); setCorrectionBody(version.body); }}>Proponi rettifica per una nuova seduta</Button>
+        {correctionOpen && <>
+          <Textarea aria-label="Motivo della rettifica successiva" maxLength={2000} value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)} placeholder="Motivo della rettifica" />
+          <Textarea aria-label="Testo completo rettificato" className="min-h-60" maxLength={60000} value={correctionBody} onChange={(e) => setCorrectionBody(e.target.value)} />
+          <Button disabled={act.isPending || !correctionReason.trim() || !correctionBody.trim()} onClick={() => act.mutate(async () => { await proposeCorrection(mn.id,correctionBody,correctionReason); setCorrectionOpen(false); toast.success("Proposta registrata; sarà trattata in una nuova seduta."); })}>Invia proposta alla prossima seduta</Button>
+        </>}
+      </div>}
+      {mn&&corrections.data?.filter(c=>c.origin_minutes_id===mn.id).map(c=><article className="border-l-2 border-border pl-3 text-sm" key={c.id}><p>Rettifica proposta: {c.reason}</p>{c.document?<p><a className="underline" href={`/consiglio-direttivo?seduta=${encodeURIComponent(c.document.meeting_id)}`}>Seduta n. {c.document.number}/{c.document.board_meetings.meeting_year}</a> · {MINUTES_STATUS[c.document.status]??c.document.status}. {c.document.status==="APPROVATO"?"Rettifica approvata con atto separato.":"L'atto originario resta invariato; la rettifica non risulta approvata."}</p>:<p>{c.status==="respinta"?"Proposta non accolta":"In attesa di una successiva seduta"}</p>}</article>)}
       {mn && !version && <p className="text-sm text-muted-foreground">Il verbale è stato creato ma è ancora vuoto.</p>}
     </section>
   );

@@ -65,13 +65,15 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 /** Official minutes (verbale) for signature: approved text plus subscription spaces. */
-export async function minutesDocx(m: Meeting, body: string, version: number): Promise<Blob> {
+export async function minutesDocx(m: Meeting, body: string, version: number, approved = true, origin?: {id:string;version:number}): Promise<Blob> {
   const num = m.meeting_number ? `${m.meeting_number}/${m.meeting_year}` : "[bozza]";
   const children: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(`EPOCAR — Verbale del Consiglio Direttivo n. ${num}`)] }),
+    new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(`EPOCAR — ${origin ? "Rettifica di un atto precedente" : approved ? "Verbale" : "Resoconto non approvato"} del Consiglio Direttivo n. ${num}`)] }),
     new Paragraph({ spacing: { after: 200 }, children: [new TextRun({
       text: `Riunione del ${romeDate(m.scheduled_at)} · ${MODE_LABEL[m.mode]} · Versione ${version} del documento`, italics: true })] }),
   ];
+  if (origin) children.push(new Paragraph({children:[new TextRun(`Atto originario: ${origin.id}, versione ${origin.version}. La rettifica è un atto distinto della presente seduta; l’originale resta conservato. Stato: ${approved ? "RETTIFICA APPROVATA" : "RETTIFICA NON APPROVATA"}.`)]}));
+  if (!approved) children.push(new Paragraph({ children: [new TextRun("Resoconto sottoscritto della seduta: la firma non costituisce approvazione del verbale né delle proposte. Eventuali deliberazioni già validamente approvate restano documentate nei relativi atti.")] }));
   for (const line of body.split("\n")) {
     const text = line.trimEnd();
     if (!text) { children.push(new Paragraph({})); continue; }

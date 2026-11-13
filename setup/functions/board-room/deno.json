@@ -1,0 +1,1 @@
+{"imports":{"@supabase/supabase-js":"npm:@supabase/supabase-js@2.110.2","@supabase/supabase-js/cors":"npm:@supabase/supabase-js@2.110.2/cors","livekit-server-sdk":"npm:livekit-server-sdk@2.19.3"}}

@@ -113,7 +113,7 @@ export async function loadBoardSession(id: string, userId: string) {
   const [q, e, mn, ballots, chair, eligible] = await Promise.all([
     boardClient.rpc("board_quorum", { _id: id }),
     boardClient.from("board_meeting_events").select("id,action,created_at,detail").eq("meeting_id", id).order("id", { ascending: false }).limit(100),
-    boardClient.from("board_minutes").select("status").eq("meeting_id", id).maybeSingle(),
+    boardClient.from("board_minutes").select("status,origin_minutes_id").eq("meeting_id", id),
     boardClient.from("board_ballots").select("id").eq("meeting_id", id).eq("status", "aperta").limit(1),
     boardClient.rpc("board_chair_user", { _meeting: id }),
     boardClient.rpc("board_voter_eligible", { _meeting: id, _user: userId, _deliberation: null }),
@@ -121,7 +121,8 @@ export async function loadBoardSession(id: string, userId: string) {
   fail(q.error); fail(e.error); fail(mn.error); fail(ballots.error); fail(chair.error); fail(eligible.error);
   return {
     quorum: quorumSchema.parse(q.data), events: z.array(eventSchema).parse(e.data ?? []),
-    minutesApproved: z.object({ status: z.string() }).nullable().parse(mn.data)?.status === "APPROVATO",
+    minutesApproved: z.array(z.object({ status: z.string(), origin_minutes_id: z.string().nullable() })).parse(mn.data ?? []).some((n) => !n.origin_minutes_id && n.status === "APPROVATO")
+      && (mn.data ?? []).every((n) => n.status === "APPROVATO"),
     hasOpenBallot: z.array(z.object({ id: z.string() })).parse(ballots.data ?? []).length > 0,
     openBallotId: z.array(z.object({ id: z.string() })).parse(ballots.data ?? [])[0]?.id ?? null,
     chairUserId: z.string().nullable().parse(chair.data),
@@ -185,6 +186,7 @@ const suggestionSchema = z.object({
 const documentSchema = z.object({
   id: z.string(), name: z.string(), kind: z.string(), status: z.enum(["bozza", "approvato", "respinto"]),
   approved_at: z.string().nullable().optional(),
+  storage_path: z.string().nullable().optional(), sha256: z.string().nullable().optional(), size_bytes: z.number().nullable().optional(), mime_type: z.string().nullable().optional(),
 });
 const voteSchema = z.object({ id: z.string(), user_id: z.string(), participant_id: z.string(), display_name: z.string(), vote: z.enum(["favorevole", "contrario", "astenuto"]), recorded_at: z.string() });
 export const ballotSchema = z.object({
@@ -204,7 +206,7 @@ const deliberationSchema = z.object({
 });
 export type Deliberation = z.infer<typeof deliberationSchema>;
 export type Ballot = z.infer<typeof ballotSchema>;
-export type DeliberationDraft = { agenda_item_id: string; title: string; body: string; documents: { name: string; kind: string }[] };
+export type DeliberationDraft = { agenda_item_id: string; title: string; body: string; documents: { id?: string; name: string; kind: string }[] };
 
 /** Local mirror of the database checks; returns the first problem or null. */
 export function deliberationProblem(d: DeliberationDraft): string | null {
@@ -302,15 +304,16 @@ const rectificationSchema = z.object({
 const minutesSchema = z.object({
   id: z.string(), meeting_id: z.string(), number: z.number().nullable(), status: z.string(),
   current_version: z.number(), signed_path: z.string().nullable(), signed_at: z.string().nullable(),
+  origin_minutes_id: z.string().nullable().optional(), origin_version: z.number().nullable().optional(),
   board_minute_versions: z.array(minutesVersionSchema).default([]),
   board_minute_rectifications: z.array(rectificationSchema).default([]),
 });
 export type Minutes = z.infer<typeof minutesSchema>;
 
-export async function loadMinutes(meetingId: string): Promise<Minutes | null> {
-  const { data, error } = await boardClient.from("board_minutes")
-    .select("*, board_minute_versions(*), board_minute_rectifications(*)")
-    .eq("meeting_id", meetingId).maybeSingle();
+export async function loadMinutes(meetingId: string, documentId?: string): Promise<Minutes | null> {
+  let query = boardClient.from("board_minutes").select("*, board_minute_versions(*), board_minute_rectifications(*)").eq("meeting_id", meetingId);
+  query = documentId ? query.eq("id", documentId) : query.is("origin_minutes_id", null);
+  const { data, error } = await query.maybeSingle();
   fail(error);
   if (!data) return null;
   const mn = minutesSchema.parse(data);
@@ -319,9 +322,37 @@ export async function loadMinutes(meetingId: string): Promise<Minutes | null> {
 export const currentMinutesVersion = (mn: Minutes) =>
   mn.board_minute_versions.find((v) => v.version === mn.current_version) ?? null;
 
-export async function saveMinutes(meetingId: string, body: string, source: "ia" | "manuale" | "rettifica") {
-  const { error } = await boardClient.rpc("board_minutes_save", { _meeting: meetingId, _body: body, _source: source });
+export async function saveMinutes(meetingId: string, body: string, source: "ia" | "manuale" | "rettifica", documentId?: string) {
+  const { error } = documentId
+    ? await boardClient.rpc("board_minutes_save_document", { _minutes: documentId, _body: body, _source: source })
+    : await boardClient.rpc("board_minutes_save", { _meeting: meetingId, _body: body, _source: source });
   fail(error);
+}
+
+const correctionSchema = z.object({
+  id: z.string(), origin_minutes_id: z.string(), origin_version: z.number(), reason: z.string(), body: z.string(),
+  status: z.enum(["proposta", "accolta", "respinta"]), document_id: z.string().nullable(), created_at: z.string(),
+  document: z.object({id:z.string(),status:z.string(),number:z.number().nullable(),meeting_id:z.string(),board_meetings:z.object({meeting_year:z.number().nullable()})}).nullable().optional(),
+  origin: z.object({ number: z.number().nullable(), meeting_id: z.string(), board_meetings: z.object({ meeting_year: z.number().nullable() }) }),
+});
+export async function loadCorrections() {
+  const { data, error } = await boardClient.from("board_minutes_corrections")
+    .select("*,origin:board_minutes!board_minutes_corrections_origin_minutes_id_fkey(number,meeting_id,board_meetings(meeting_year)),document:board_minutes!board_minutes_corrections_document_id_fkey(id,status,number,meeting_id,board_meetings(meeting_year))")
+    .order("created_at", { ascending: false });
+  fail(error); return z.array(correctionSchema).parse(data ?? []);
+}
+export async function loadCorrectedMinutes(meetingId: string) {
+  const { data, error } = await boardClient.from("board_minutes").select("id,origin_version,status").eq("meeting_id", meetingId).not("origin_minutes_id", "is", null).order("created_at");
+  fail(error); return z.array(z.object({ id: z.string(), origin_version: z.number(), status: z.string() })).parse(data ?? []);
+}
+export async function proposeCorrection(origin: string, body: string, reason: string) {
+  const { error } = await boardClient.rpc("board_correction_propose", { _origin: origin, _body: body, _reason: reason }); fail(error);
+}
+export async function adoptCorrection(id: string, meetingId: string) {
+  const { error } = await boardClient.rpc("board_correction_adopt", { _correction: id, _meeting: meetingId }); fail(error);
+}
+export async function rejectCorrection(id: string, meetingId: string, reason: string) {
+  const { error } = await boardClient.rpc("board_correction_reject", { _correction: id, _meeting: meetingId, _reason: reason }); fail(error);
 }
 export async function rectifyMinutes(minutesId: string, body: string) {
   const { error } = await boardClient.rpc("board_minutes_rectify", { _minutes: minutesId, _body: body }); fail(error);
@@ -333,12 +364,20 @@ export async function submitMinutesVote(minutesId: string): Promise<string> {
   const { data, error } = await boardClient.rpc("board_minutes_submit_vote", { _minutes: minutesId }); fail(error);
   return data as string;
 }
-export async function draftMinutesWithAi(meetingId: string) {
-  const { data, error } = await boardClient.functions.invoke("board-draft-minutes", { body: { meeting_id: meetingId } });
-  if (error) throw new Error(error.message || "Generazione non riuscita");
-  if (data && data.ok === false) throw new Error(data.message || "Generazione non riuscita");
+export async function draftMinutesWithAi(meetingId: string, minutesId?: string) {
+  const {invokeBoardAi}=await import("./board-audio");
+  await invokeBoardAi("board-draft-minutes", {meeting_id:meetingId,...(minutesId?{minutes_id:minutesId}:{})}, `draft:${minutesId??meetingId}`);
+}
+export async function downloadSignedMinutes(path:string) {
+  const {data,error}=await boardClient.storage.from("board-documents").download(path);fail(error);
+  if(!data||data.size>10*1024*1024)throw new Error("Copia firmata non disponibile");
+  return data;
 }
 export async function registerSignedMinutes(minutesId: string, meetingId: string, file: File) {
+  const extension=file.name.split(".").pop()?.toLowerCase();
+  const header=new Uint8Array(await file.slice(0,8).arrayBuffer());
+  const valid=extension==="pdf"?new TextDecoder().decode(header.slice(0,5))==="%PDF-":extension==="png"?[137,80,78,71,13,10,26,10].every((b,i)=>header[i]===b):["jpg","jpeg"].includes(extension??"")&&header[0]===255&&header[1]===216&&header[2]===255;
+  if(!valid||file.size>10*1024*1024)throw new Error("Usa una copia firmata PDF, JPEG o PNG valida, fino a 10 MB");
   const path = `${meetingId}/verbale_firmato-${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase() || "pdf"}`;
   const { error: upError } = await boardClient.storage.from("board-documents").upload(path, file, { upsert: false });
   fail(upError);

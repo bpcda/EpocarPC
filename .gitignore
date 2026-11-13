@@ -25,3 +25,6 @@ dist-ssr
 
 .env
 .firecrawl/
+
+test-results/
+playwright-report/

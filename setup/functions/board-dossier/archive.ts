@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildDossierZip, MAX_DOSSIER_BYTES, sha256, verifyDossierZip } from "./zip.ts";
+import { buildDossierZip, dossierAssets, MAX_DOSSIER_BYTES, sha256, verifyDossierZip } from "./zip.ts";
 
 function check(error: { message: string } | null) { if (error) throw new Error(error.message); }
 async function download(db: SupabaseClient, path: string, maxBytes = MAX_DOSSIER_BYTES) {
@@ -14,7 +14,14 @@ export async function createDossier(db: SupabaseClient, user: SupabaseClient, me
   const { data: prepared, error } = await user.rpc("board_dossier_prepare", { _meeting: meetingId });
   check(error);
   const signed = await download(db, prepared.signed_path, 10 * 1024 * 1024);
-  const bytes = await buildDossierZip(prepared.snapshot, signed);
+  const assets:Record<string,Uint8Array>={};
+  let total=signed.length+new TextEncoder().encode(prepared.snapshot).length;
+  for(const asset of dossierAssets(prepared.snapshot)) {
+    const file=await download(db,asset.path,10*1024*1024);
+    total+=file.length;if(total>MAX_DOSSIER_BYTES)throw new Error("Dati e allegati del fascicolo oltre 25 MB");
+    assets[asset.path]=file;
+  }
+  const bytes = await buildDossierZip(prepared.snapshot, signed,assets);
   const hash = await sha256(bytes);
   const path = `${meetingId}/fascicolo-${crypto.randomUUID()}.zip`;
   const { error: uploadError } = await db.storage.from("board-documents").upload(path, bytes, { contentType: "application/zip", upsert: false });

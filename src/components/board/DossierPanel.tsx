@@ -29,7 +29,7 @@ export default function DossierPanel({ m, manager }: { m: Meeting; manager: bool
   const d = dossier.data;
   return <section className="border border-border p-5 bg-card space-y-4" aria-label="Fascicolo e archivio">
     <h3 className="font-headline text-2xl tracking-wider">Fascicolo e archivio della seduta</h3>
-    <p className="text-sm">Raccogli convocazione, presenze, verbale firmato, delibere, votazioni e registro delle attività in un unico ZIP. Audio e trascrizioni restano fuori dal fascicolo.</p>
+    <p className="text-sm">Raccogli convocazione, presenze, atti firmati, rettifiche, delibere con allegati, votazioni e registro in un unico ZIP. Il resoconto non approvato rimane indicato come tale. Audio e trascrizioni restano fuori dal fascicolo.</p>
     {dossier.isLoading && <p role="status">Caricamento fascicolo…</p>}
     {dossier.error && <p role="alert" className="text-sm text-destructive">Fascicolo non disponibile. Riprova tra poco.</p>}
     {m.status === "ARCHIVIATO" && <p role="status">Seduta archiviata: atti conservati e bloccati. Audio e trascrizioni temporanee sono stati eliminati.</p>}
@@ -48,7 +48,7 @@ export default function DossierPanel({ m, manager }: { m: Meeting; manager: bool
         {m.status === "ESPORTATO" ? "Riprendi archiviazione" : "Archivia seduta"}
       </Button>}
     </div>
-    {!frozen && <p className="text-xs text-muted-foreground">Servono seduta chiusa, verbale approvato e copia firmata. Prima di archiviare, scarica il fascicolo e controllane il contenuto.</p>}
+    {!frozen && <p className="text-xs text-muted-foreground">Servono seduta chiusa e copie firmate degli atti. La chiusura senza approvazione deve essere motivata e non rende approvato il resoconto. Prima di archiviare, scarica il fascicolo e controllane il contenuto.</p>}
     {d && <p className="text-xs text-muted-foreground break-all">Fascicolo del {new Date(d.created_at).toLocaleString("it-IT", { timeZone: "Europe/Rome" })} · SHA-256: {d.sha256}</p>}
     <Dialog open={confirmOpen} onOpenChange={(open) => { if (!act.isPending) setConfirmOpen(open); }}>
       <DialogContent><DialogHeader><DialogTitle>Archiviare la seduta?</DialogTitle>

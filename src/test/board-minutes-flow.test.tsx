@@ -47,7 +47,7 @@ describe("Minutes approval before closing", () => {
     expect(screen.getByText("Salva il testo prima di sottoporlo al voto.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Salva nuova versione" }));
     await waitFor(() => expect(vote).toBeEnabled());
-    expect(saveMinutes).toHaveBeenCalledWith("meeting", "Testo aggiornato", "manuale");
+    expect(saveMinutes).toHaveBeenCalledWith("meeting", "Testo aggiornato", "manuale", undefined);
     fireEvent.click(vote);
     await waitFor(() => expect(submitMinutesVote).toHaveBeenCalledWith("minutes"));
   });

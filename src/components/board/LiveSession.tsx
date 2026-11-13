@@ -11,6 +11,8 @@ import DeliberationsPanel from "@/components/board/DeliberationsPanel";
 import AudioPanel from "@/components/board/AudioPanel";
 import MinutesPanel from "@/components/board/MinutesPanel";
 import DossierPanel from "@/components/board/DossierPanel";
+import LiveRoomPanel from "@/components/board/LiveRoomPanel";
+import CorrectionsPanel from "@/components/board/CorrectionsPanel";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
@@ -52,27 +54,27 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   const act = useMutation({ mutationFn: (f: () => Promise<void>) => f(), onSuccess: async () => { setSelected(null); setCommand(null); await refresh(); }, onError: (e) => toast.error(e instanceof Error ? e.message : "Operazione non riuscita") });
 
   useEffect(() => {
-    if (!active) return;
+    if (!active && !m.started_at) return;
     let alive = true;
-    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes-ballot", m.id] }); };
+    const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); void qc.invalidateQueries({queryKey:["board-ai-jobs",m.id]}); void qc.invalidateQueries({ queryKey: ["board-minutes", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes-ballot", m.id] }); void qc.invalidateQueries({ queryKey: ["board-corrections"] }); void qc.invalidateQueries({ queryKey: ["board-corrected-minutes", m.id] }); };
     const channel = boardClient.channel(`board-session-${m.id}`);
-    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents", "board_minutes"]) {
+    for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents", "board_minutes", "board_ai_jobs"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `meeting_id=eq.${m.id}` }, refreshData);
     }
-    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents", "board_deliberation_conflicts", "board_minute_versions", "board_minute_rectifications"]) {
+    for (const table of ["board_votes", "board_deliberation_suggestions", "board_deliberation_versions", "board_deliberation_documents", "board_deliberation_conflicts", "board_minute_versions", "board_minute_rectifications", "board_minutes_corrections", "board_correction_events"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshData);
     }
     channel.on("postgres_changes", { event: "*", schema: "public", table: "board_meetings", filter: `id=eq.${m.id}` }, refreshData)
       .subscribe((status) => { if (alive) setConnection(status === "SUBSCRIBED" ? "Aggiornamenti in diretta" : "Diretta non disponibile · aggiornamento periodico"); });
     const heartbeat = async () => {
-      if (!boardMember) return;
+      if (!boardMember || !active) return;
       const { error } = await boardClient.rpc("board_heartbeat", { _id: m.id });
       if (error && alive) setConnection("Collegamento da verificare");
     };
     void heartbeat();
     const timer = setInterval(() => { setClock(Date.now()); void heartbeat(); }, 20000);
     return () => { alive = false; clearInterval(timer); void boardClient.removeChannel(channel); };
-  }, [m.id, active, boardMember, qc]);
+  }, [m.id, m.started_at, active, boardMember, qc]);
 
   const q = session.data?.quorum;
   return <section className={full ? "fixed inset-0 z-40 overflow-auto bg-background p-4 md:p-8 space-y-5" : "space-y-5"} aria-label="Seduta dal vivo">
@@ -130,10 +132,13 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
         {session.data?.events.map((e) => <li key={e.id} className="border-b border-border pb-3 text-sm break-words"><time className="text-xs text-muted-foreground">{romeTime(e.created_at)}</time><p>{eventLabels[e.action] ?? "Aggiornamento della riunione"}{typeof e.detail.name === "string" ? ` · ${e.detail.name}` : ""}</p>{typeof e.detail.note === "string" && <p className="text-muted-foreground">{e.detail.note}</p>}{typeof e.detail.reason === "string" && <p className="text-muted-foreground">{e.detail.reason}</p>}</li>)}
       </ol></aside>
     </div>
+    <LiveRoomPanel m={m} boardMember={boardMember}/>
     <DeliberationsPanel m={m} me={me} president={chair} boardMember={boardMember} manager={manager}
       active={active} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} />
     <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} />
-    {m.started_at && <MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember && !frozen}
+    {m.started_at && <MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember}
+      live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} />}
+    {m.started_at && <CorrectionsPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember}
       live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} />}
     {m.ended_at && <DossierPanel m={m} manager={chair || boardMember && m.minute_taker_id === me} />}
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>

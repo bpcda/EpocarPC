@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <title>Collaudo registrazione Consiglio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+      import AudioPanel from "/src/components/board/AudioPanel.tsx";
+      const id = "00000000-0000-4000-8000-000000000001",
+        me = "00000000-0000-4000-8000-000000000002",
+        participant = "00000000-0000-4000-8000-000000000003";
+      const meeting = {
+        id,
+        status: "IN_CORSO",
+        ended_at: null,
+        board_meeting_participants: [
+          {
+            id: participant,
+            user_id: me,
+            kind: "member",
+            display_name: "Componente",
+            present: true,
+            identified_at: "2026-11-01T17:00:00Z",
+          },
+        ],
+      };
+      createRoot(document.getElementById("root")).render(
+        React.createElement(
+          QueryClientProvider,
+          {
+            client: new QueryClient({
+              defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+              },
+            }),
+          },
+          React.createElement(AudioPanel, {
+            m: meeting,
+            me,
+            president: false,
+            manager: false,
+            active: true,
+            live: true,
+          }),
+        ),
+      );
+    </script>
+  </body>
+</html>

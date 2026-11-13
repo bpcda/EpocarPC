@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "livekit-server-sdk": "2.19.3"
+  },
+  "name": "epocar-board-live",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node supervisor.mjs",
+    "test": "node --test supervisor.test.mjs"
+  }
+}

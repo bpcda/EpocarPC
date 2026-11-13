@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { downloadBoardDocument, uploadBoardDocument } from "@/lib/board-documents";
 import {
   BALLOT_RESULT, DELIBERATION_STATUS, DOCUMENT_KIND, VOTE_LABEL, ballotTally, cancelBallot, castVote,
   closeBallot, currentVersion, decideSuggestion, deliberationProblem, loadDeliberations, openBallotFor,
@@ -51,7 +52,7 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
     const v = d ? currentVersion(d) : null;
     setDraft(d ? {
       agenda_item_id: d.agenda_item_id ?? "", title: v?.title ?? d.title, body: v?.body ?? "",
-      documents: d.board_deliberation_documents.filter((x) => x.status === "bozza").map((x) => ({ name: x.name, kind: x.kind })),
+      documents: d.board_deliberation_documents.map((x) => ({ id: x.id, name: x.name, kind: x.kind })),
     } : emptyDraft());
     setDocName("");
     setEditor({ open: true, id: d?.id ?? null });
@@ -86,7 +87,10 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
           {d.closed_reason && <p className="text-sm">Motivazione: {d.closed_reason}</p>}
           {conflict && <p className="text-sm">Conflitto dichiarato: sei escluso dalla discussione e dal voto su questa delibera.{!conflict.returned_at ? " Uscita temporanea registrata." : " Rientro registrato per gli altri punti."}</p>}
           {d.board_deliberation_documents.length > 0 && <ul className="text-sm space-y-1">
-            {d.board_deliberation_documents.map((x) => <li key={x.id}>· {x.name} <span className="text-xs uppercase tracking-widest text-muted-foreground">({DOCUMENT_KIND[x.kind] ?? x.kind} · {x.status})</span></li>)}
+            {d.board_deliberation_documents.map((x) => <li key={x.id} className="flex flex-wrap items-center gap-2">· {x.name} <span className="text-xs uppercase tracking-widest text-muted-foreground">({DOCUMENT_KIND[x.kind] ?? x.kind} · {x.status})</span>
+              {x.storage_path && x.sha256 && <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => downloadBoardDocument(x.storage_path!, x.sha256!, x.name))}>Scarica allegato</Button>}
+              {editable(d) && !x.storage_path && <label className="cursor-pointer border border-border p-2 text-xs">Carica file (massimo 10 MB)<input aria-label={`Allegato ${x.name}`} type="file" accept=".pdf,.png,.jpg,.jpeg,.txt,.docx,.xlsx" className="sr-only" disabled={act.isPending} onChange={(e) => { const file=e.target.files?.[0]; if(file)act.mutate(() => uploadBoardDocument(x.id,file)); e.target.value=""; }} /></label>}
+            </li>)}
           </ul>}
 
           {ballot && <div className="border border-primary p-3 space-y-3">

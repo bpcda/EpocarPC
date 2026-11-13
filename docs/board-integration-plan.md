@@ -103,6 +103,8 @@ Accettazione: test concorrente voto/chiusura e voto/annullamento; perdita quorum
 
 ### Passo 3 — Integrare le rettifiche in una successiva seduta
 
+Stato: implementato in v23, con nuovi atti collegati, proposte indipendenti dall’archivio e presenze della nuova seduta; verificato su PostgreSQL isolato. Dettagli in [board-completion.md](board-completion.md).
+
 Ambito: versioni e rettifiche del verbale, RPC di approvazione, `MinutesPanel.tsx`, selezione degli atti nella nuova seduta e sottoscrizioni Realtime/query.
 
 - Rendere raggiungibile la proposta di rettifica dopo la chiusura e la sua presa in carico da Presidente/verbalizzante.
@@ -115,6 +117,8 @@ Accettazione: seduta A chiusa e firmata → proposta di rettifica → seduta B c
 
 ### Passo 4 — Consenso e ciclo di vita dell'audio
 
+Stato: implementato in v25 e nel frontend, inclusi recupero locale e attestazione degli ospiti; verificato su PostgreSQL e browser con dispositivi sintetici.
+
 Ambito: `AudioPanel.tsx`, `board-audio.ts`, RPC audio, Storage e funzione `board-transcribe`.
 
 - Arrestare la registrazione quando viene revocato il consenso, termina la partecipazione verificata o la seduta viene sospesa/chiusa; liberare sempre il microfono anche quando l'avvio RPC fallisce.
@@ -125,6 +129,8 @@ Ambito: `AudioPanel.tsx`, `board-audio.ts`, RPC audio, Storage e funzione `board
 Accettazione: avvio senza consenso negato; revoca durante registrazione arresta il microfono; errore RPC non lascia il microfono acceso; audio condiviso senza evidenza dei consensi rifiutato; consigliere/admin non cancellano file altrui; caricamento fallito recuperabile.
 
 ### Passo 5 — Affidabilità della trascrizione e della bozza IA
+
+Stato: implementato in v25 e nelle due Edge Function; durata misurata, budget condiviso e prenotazioni concorrenti verificati, provider simulato nei test. La redazione richiede tariffe stimate configurate dal Presidente.
 
 Ambito: `board-transcribe`, `board-draft-minutes`, impostazioni IA, RPC di stato e prenotazione delle elaborazioni.
 
@@ -137,6 +143,8 @@ Ambito: `board-transcribe`, `board-draft-minutes`, impostazioni IA, RPC di stato
 Accettazione: due tracce entro il limite singolarmente ma oltre il totale bloccano la spesa eccedente; doppia richiesta non duplica l'elaborazione; errore di lettura non genera un verbale con dati vuoti; verbalizzante decaduto rifiutato; IA disattivata lascia utilizzabile il percorso manuale.
 
 ### Passo 6 — Integrare e verificare firma, fascicolo e archivio
+
+Stato: completato con resoconto firmabile non approvato, firme delle rettifiche e file reali delle delibere nello ZIP (v23–v25). Test di integrità e archivio su dati sintetici passati.
 
 Ambito: lavoro in corso v20, `DossierPanel.tsx`, `board-dossier.ts`, Edge Function `board-dossier`, generazione Word/ZIP e guide delle fasi.
 
@@ -162,6 +170,10 @@ Ambito: lockfile, ambiente PostgreSQL isolato, test frontend/SQL/Edge Function, 
 
 Accettazione finale: ciascun passo precedente verificato; installazione riproducibile; flusso completo e percorso di rettifica riusciti; test negativi sui permessi riusciti; nessuna operazione esterna effettuata implicitamente.
 
+## Consegna del 13/11/2026
+
+V23–v26 installate via MCP sul progetto esterno. Edge Function aggiornate: trascrizione v5, redazione v3, fascicolo v2; creata `board-room` v1. Tutte richiedono JWT. Verifiche e limiti descritti nel documento di completamento; nessun test distruttivo con dati reali.
+
 ## Prossimo intervento
 
-Passo 3: rettifiche da approvare in una successiva seduta con presenze proprie, preservando atto e fascicolo originari. SQL e Edge Function dei passi precedenti sono attivi sul progetto esterno; il collaudo autenticato completo resta da eseguire dopo l'aggiornamento del frontend in Coolify.
+Attivazione pubblica della stanza sullo stesso server Coolify, dopo la scelta del dominio e la configurazione DNS/TLS/porte/segreti; collaudo con account e dispositivi reali. Implementazione e limiti sono descritti in [board-completion.md](board-completion.md) e [guida Coolify](../deploy/board-live/README.md).
