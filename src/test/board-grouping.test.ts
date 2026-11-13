@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { groupMeetings, type Meeting } from "@/lib/board";
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 
 const suspended: Meeting = {
   id: "live", meeting_year: 2026, meeting_number: 1, scheduled_at: "2026-10-23T10:00:00Z",

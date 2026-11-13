@@ -4,6 +4,13 @@ import { AGENDA_KINDS, MODE_LABEL, romeDate, romeTime, type Meeting } from "@/li
 
 const border = { style: BorderStyle.SINGLE, size: 1, color: "999999" };
 const borders = { top: border, bottom: border, left: border, right: border };
+export function convocationMessage(m: Meeting): string {
+  return [`Convocazione del Consiglio Direttivo EPOCAR n. ${m.meeting_number ?? "bozza"}/${m.meeting_year ?? ""}`,
+    ...convocationRows(m).map(([k, v]) => `${k}: ${v}`), "Ordine del giorno:",
+    ...m.board_agenda_items.map((a) => `${a.position}. ${a.title}`),
+    `Area riservata: https://epocarpc.com/consiglio-direttivo?seduta=${encodeURIComponent(m.id)}`,
+    "Si chiede conferma di ricezione e partecipazione."].join("\n");
+}
 const cell = (text: string, width: number, head = false) => new TableCell({
   borders, width: { size: width, type: WidthType.DXA }, margins: { top: 80, bottom: 80, left: 120, right: 120 },
   shading: head ? { fill: "EFE7DA", type: ShadingType.CLEAR } : undefined,

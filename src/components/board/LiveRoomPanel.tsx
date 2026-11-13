@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Headphones, Mic, MicOff, Video, VideoOff, LogOut, Volume2 } from "lucide-react";
 import { boardClient, type Meeting } from "@/lib/board";
@@ -7,9 +7,11 @@ import type { Room, RemoteTrack } from "livekit-client";
 export default function LiveRoomPanel({
   m,
   boardMember,
+  onRoomChange,
 }: {
   m: Meeting;
   boardMember: boolean;
+  onRoomChange?: (room: Room | null) => void;
 }) {
   const room = useRef<Room | null>(null),
     container = useRef<HTMLDivElement>(null),
@@ -25,10 +27,11 @@ export default function LiveRoomPanel({
     boardMember &&
     !m.ended_at &&
     ["CONVOCATO", "IN_CORSO", "SOSPESO"].includes(m.status);
-  const leave = () => {
+  const leave = useCallback(() => {
     generation.current++;
     const current = room.current;
     room.current = null;
+    onRoomChange?.(null);
     void current?.disconnect(true);
     container.current?.replaceChildren();
     setConnected(false);
@@ -37,10 +40,10 @@ export default function LiveRoomPanel({
     setCamera(false);
     setNames([]);
     setStatus("Disconnesso");
-  };
+  }, [onRoomChange]);
   useEffect(() => {
     if (!active) leave();
-  }, [active]);
+  }, [active, leave]);
   useEffect(
     () => () => {
       generation.current++;
@@ -130,6 +133,7 @@ export default function LiveRoomPanel({
       r.on(RoomEvent.Disconnected, () => {
         if (room.current === r) {
           room.current = null;
+          onRoomChange?.(null);
           container.current?.replaceChildren();
           setConnected(false);
           setMic(false);
@@ -145,6 +149,7 @@ export default function LiveRoomPanel({
       await r.startAudio();
       refresh();
       setConnected(true);
+      onRoomChange?.(r);
       setStatus("Collegato");
     } catch (e) {
       if (attempt !== generation.current) return;

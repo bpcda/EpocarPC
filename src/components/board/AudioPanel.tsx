@@ -32,6 +32,8 @@ import {
   type LocalRecording,
 } from "@/lib/board-recording";
 import type { Meeting } from "@/lib/board";
+import type { Room } from "livekit-client";
+import { roomRecordingSource } from "@/lib/board-room-recording";
 import {
   ATTRIBUTION_LABEL,
   RECORDING_NOTICE,
@@ -219,6 +221,7 @@ export default function AudioPanel({
   active,
   live,
   onRecordingChange,
+  room,
 }: {
   m: Meeting;
   me: string;
@@ -227,6 +230,7 @@ export default function AudioPanel({
   active: boolean;
   live: boolean;
   onRecordingChange?: (status: string | null) => void;
+  room?: Room | null;
 }) {
   const qc = useQueryClient();
   const data = useQuery({
@@ -254,6 +258,7 @@ export default function AudioPanel({
   });
   const [elapsed, setElapsed] = useState(0);
   const recorder = useRef<BoardRecorder | null>(null);
+  const releaseSource = useRef<(() => void) | null>(null);
   const disposed = useRef(false);
   const refresh = useCallback(
     () => qc.invalidateQueries({ queryKey: ["board-audio", m.id] }),
@@ -288,6 +293,8 @@ export default function AudioPanel({
     const rec = recorder.current;
     if (!rec) return;
     recorder.current = null;
+    releaseSource.current?.();
+    releaseSource.current = null;
     setRecording(null);
     try {
       const r = await rec.stop();
@@ -309,6 +316,8 @@ export default function AudioPanel({
       disposed.current = true;
       const rec = recorder.current;
       recorder.current = null;
+      releaseSource.current?.();
+      releaseSource.current = null;
       if (rec) void rec.stop().catch(() => {});
     };
   }, []);
@@ -347,8 +356,8 @@ export default function AudioPanel({
   const myConsent = mine
     ? currentConsent(data.data?.consents ?? [], mine.id)
     : null;
-  const consented = myConsent?.consented ?? false;
   const settings = data.data?.settings ?? null;
+  const consented = !!myConsent?.consented && myConsent.notice_version === settings?.notice_version;
   const participantName = (t: AudioTrack) =>
     t.kind === "shared"
       ? "Traccia condivisa"
@@ -356,9 +365,9 @@ export default function AudioPanel({
           ?.display_name ?? "Componente");
 
   useEffect(() => {
-    if (recordingId && (!live || !mine?.present || !consented))
+    if (recordingId && (!live || !mine?.present || !manager))
       void stopRecording();
-  }, [recordingId, live, mine?.present, consented, stopRecording]);
+  }, [recordingId, live, mine?.present, manager, stopRecording]);
   const startRecording = async () => {
     if (
       !navigator.mediaDevices?.getUserMedia ||
@@ -369,7 +378,19 @@ export default function AudioPanel({
     }
     let stream: MediaStream | undefined, trackId: string | undefined;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      const present = m.board_meeting_participants.filter((p) => p.present && p.identified_at);
+      const allowed = present.filter((p) => { const c = currentConsent(data.data?.consents ?? [], p.id); return c?.consented && c.notice_version === settings?.notice_version; });
+      if (!allowed.length) throw new Error("Serve il consenso di almeno un partecipante identificato");
+      if (present.some((p) => p.attendance_mode === "presenza" && !allowed.includes(p))) throw new Error("Per registrare l'audio della sala serve il consenso di tutte le persone presenti in sala");
+      if (m.mode !== "presenza") {
+        if (!room) throw new Error("Entra nella stanza audio/video prima di registrare");
+        const source = await roomRecordingSource(room, allowed.flatMap((p) => p.user_id ? [p.user_id] : []), () => {
+          toast.error("Collegamento interrotto: registrazione fermata. Avvia una nuova traccia dopo il rientro.");
+          void stopRecording();
+        });
+        stream = source.stream;
+        releaseSource.current = source.close;
+      } else stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           echoCancellation: true,
@@ -377,7 +398,7 @@ export default function AudioPanel({
         },
       });
       if (disposed.current) throw new Error("Registrazione annullata");
-      trackId = await startAudioTrack(m.id, "individual");
+      trackId = await startAudioTrack(m.id, "shared", allowed.map((p) => p.id), m.mode === "presenza" ? "Registrazione in sala: consensi correnti verificati prima dell'avvio" : "Audio dei microfoni pubblicati nella stanza, limitato ai partecipanti identificati con consenso corrente");
       if (disposed.current) throw new Error("Registrazione annullata");
       const rec = new BoardRecorder(
         stream,
@@ -406,6 +427,7 @@ export default function AudioPanel({
       void refresh();
     } catch (e) {
       stream?.getTracks().forEach((t) => t.stop());
+      releaseSource.current?.(); releaseSource.current = null;
       recorder.current = null;
       if (trackId) {
         await abortAudioTrack(trackId).catch(() => {});
@@ -492,12 +514,13 @@ export default function AudioPanel({
         </div>
       )}
 
-      {live && mine?.present && consented && !recording && (
-        <Button size="sm" onClick={startRecording} disabled={act.isPending}>
+      {live && manager && mine?.present && !recording && (
+        <Button size="sm" onClick={startRecording} disabled={act.isPending || m.mode !== "presenza" && !room}>
           <Mic className="h-4 w-4 mr-2" />
-          Avvia la mia registrazione
+          {m.mode === "presenza" ? "Avvia registrazione in sala" : "Avvia registrazione della stanza"}
         </Button>
       )}
+      {live && manager && !recording && <p className="text-sm text-muted-foreground">{m.mode === "presenza" ? "Registra il microfono di questo dispositivo: serve il consenso di tutte le persone udibili." : "Registra soltanto i microfoni condivisi dai partecipanti con consenso. Un microfono spento nella chiamata non viene registrato. Per includere nuovi partecipanti o nuovi consensi, termina la traccia e avviane una nuova."}</p>}
       {recording && (
         <div className="flex flex-wrap gap-2">
           <Button

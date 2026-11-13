@@ -5,7 +5,7 @@
 2. Distribuire il sito aggiornato. Non rieseguire v15 dopo v16: ripristinerebbe i vecchi percorsi.
 3. Aprire Area Consiglio Direttivo → Entra nella seduta.
 4. Il consigliere richiede identificazione; Presidente o verbalizzante verificano identità e partecipazione (da remoto anche comunicazione reciproca/accesso ai documenti) e registrano metodo e conferma. La richiesta e la connessione non assegnano presenza.
-5. Il Presidente apre, seleziona i punti, sospende con motivazione, riprende e chiude con conferma. Con l'integrazione `setup/board-v21.sql` (dopo v20), la chiusura è bloccata se c'è una votazione aperta. Se il verbale è approvato, la seduta chiusa conserva lo stato «Approvato»; altrimenti basta indicare il motivo della chiusura, anche senza quorum. Le presenze vengono bloccate; la chiusura non genera né approva il verbale.
+5. Il Presidente apre, seleziona i punti, sospende con motivazione, riprende e chiude con conferma. Con l'integrazione `setup/board-v21.sql` (dopo v20), la chiusura è bloccata se c'è una votazione aperta. Se il verbale è approvato, la seduta chiusa conserva lo stato «Approvato»; con v27 la redazione/revisione può proseguire dopo la chiusura e la nota è facoltativa, anche senza quorum. Le presenze vengono bloccate; la chiusura non genera né approva il verbale.
 
 ## Regole
 - Quorum: maggioranza dei componenti **attualmente in carica** (5 → 3, 7 → 4); ospiti esclusi. Ruoli multipli non duplicano una persona.

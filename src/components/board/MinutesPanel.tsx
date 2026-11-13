@@ -11,6 +11,7 @@ import {
   downloadSignedMinutes, loadCorrections, proposeCorrection, registerSignedMinutes, saveMinutes, submitMinutesVote, VOTE_LABEL, type Meeting, type Minutes,
 } from "@/lib/board";
 import { minutesDocx, downloadBlob } from "@/lib/board-docx";
+import DocumentWorkflow from "./DocumentWorkflow";
 
 function useMinutesBallot(meetingId: string, minutesId: string | undefined) {
   return useQuery({
@@ -75,16 +76,15 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
         <h3 className="font-headline text-2xl tracking-wider">{minutesId ? "Rettifica di un verbale precedente" : "Verbale della seduta"}</h3>
         {mn && <span className="text-xs uppercase tracking-widest border border-border px-2 py-1">{MINUTES_STATUS[mn.status] ?? mn.status}</span>}
       </header>
+      {!minutesId && <DocumentWorkflow m={m} manager={manager} minutes={mn} unsaved={unsaved} />}
 
       {!mn && manager && (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={act.isPending}
+          <Button size="sm" variant="outline" disabled={act.isPending}
             onClick={() => act.mutate(() => saveMinutes(m.id, "# Verbale\n\n", "manuale"))}>
             <FileText className="h-4 w-4 mr-2" />Scrivi il verbale manualmente
           </Button>
-          <Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
-            <Sparkles className="h-4 w-4 mr-2" />Genera bozza del verbale con IA
-          </Button>
+          <details><summary className="cursor-pointer text-sm text-muted-foreground">Alternativa: API a pagamento</summary><Button size="sm" variant="outline" disabled={act.isPending} onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}><Sparkles className="h-4 w-4 mr-2" />Genera bozza tramite API configurata</Button><p className="text-xs text-muted-foreground">Richiede tariffe e budget configurati; non usa la quota Codex.</p></details>
         </div>
       )}
 
@@ -100,10 +100,10 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
                   onClick={() => act.mutate(() => saveMinutes(m.id, (draft ?? "").trim(), "manuale", minutesId))}>
                   Salva nuova versione
                 </Button>
-                <Button size="sm" variant="outline" disabled={act.isPending || unsaved}
+                <details><summary className="cursor-pointer text-sm text-muted-foreground">Alternativa: API a pagamento</summary><Button size="sm" variant="outline" disabled={act.isPending || unsaved}
                   onClick={() => act.mutate(() => draftMinutesWithAi(m.id, minutesId))}>
-                  <Sparkles className="h-4 w-4 mr-2" />Rigenera bozza con IA
-                </Button>
+                  <Sparkles className="h-4 w-4 mr-2" />Rigenera tramite API configurata
+                </Button></details>
               </div>
             </div>
           ) : (
@@ -112,7 +112,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
             </article>
           )}
 
-          {boardMember && !manager && !m.ended_at && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && (
+          {boardMember && !manager && !mn.signed_path && ["BOZZA", "IN_REVISIONE"].includes(mn.status) && (
             <div className="space-y-2">
               <Textarea aria-label="Proposta di rettifica" placeholder="Proponi una rettifica al verbale (interventi, decisioni riportate…)"
                 value={rectification} maxLength={4000} onChange={(e) => setRectification(e.target.value)} />
@@ -189,7 +189,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
 
           {(mn.status === "APPROVATO" || m.ended_at) && (
             <div className="border border-border p-4 space-y-3 bg-muted/40">
-              <p className="text-sm font-semibold">{mn.status === "APPROVATO" ? "Verbale approvato: versione definitiva bloccata. Resta la sottoscrizione del Presidente e del verbalizzante." : "Resoconto non approvato: la firma documenta la seduta e non attribuisce approvazione alle proposte."}</p>
+              <p className="text-sm font-semibold">{mn.status === "APPROVATO" ? "Verbale approvato: versione definitiva bloccata. Resta la sottoscrizione del Presidente e del verbalizzante." : mn.signed_path ? "Verbale sottoscritto: la versione firmata è bloccata. Nessuna approvazione per voto è attribuita automaticamente." : "Revisione dopo la chiusura: completa il verbale, valuta le osservazioni e scarica la versione corrente per le firme."}</p>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline"
                   onClick={async () => downloadBlob(await minutesDocx(m, version.body, version.version, mn.status === "APPROVATO", mn.origin_minutes_id ? {id:mn.origin_minutes_id,version:mn.origin_version!} : undefined), `${mn.status === "APPROVATO" ? "Verbale" : "Resoconto"}_CD_${mn.number ?? "bozza"}_${m.meeting_year ?? ""}${minutesId ? "_rettifica" : ""}.docx`)}>
@@ -206,7 +206,7 @@ export default function MinutesPanel({ m, me, president, manager, boardMember, l
               </div>
               {mn.signed_at && <p className="text-sm">Versione firmata registrata il {new Date(mn.signed_at).toLocaleDateString("it-IT")}.</p>}
               {manager && (
-                <p className="text-xs text-muted-foreground">Le rettifiche dopo la chiusura si trattano in una nuova seduta, conservando il verbale originario.</p>
+                <p className="text-xs text-muted-foreground">Le bozze restano revisionabili dopo la chiusura. Le rettifiche di un verbale già approvato o firmato si trattano in una nuova seduta, conservando il verbale originario.</p>
               )}
             </div>
           )}

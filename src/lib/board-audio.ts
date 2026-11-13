@@ -144,7 +144,7 @@ export const formatDuration = (seconds: number | null) => {
 /** Informativa mostrata prima del consenso (versione in board_ai_settings.notice_version). */
 export const RECORDING_NOTICE = [
   "La seduta può essere registrata esclusivamente per la redazione del verbale della riunione.",
-  "Le registrazioni sono conservate in un'area riservata ai componenti del Consiglio Direttivo e possono essere trattate da un servizio di trascrizione automatica configurato dall'associazione.",
-  "Le registrazioni e le trascrizioni sono eliminate dopo l'approvazione del verbale e l'esportazione del fascicolo della seduta.",
+  "Le registrazioni sono conservate in un'area riservata al Consiglio. La routine personale può trascriverle sul PC autorizzato e inviare i testi necessari a Codex/OpenAI per preparare una bozza; l'eventuale servizio API alternativo resta distinto.",
+  "La bozza può essere revisionata dopo la chiusura. Registrazioni e trascrizioni temporanee vengono eliminate con conferma dopo la sottoscrizione e la verifica del fascicolo.",
   "Il mancato consenso alla registrazione non comporta l'esclusione dalla riunione: il verbalizzante prenderà appunti manualmente.",
 ].join(" ");

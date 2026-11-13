@@ -17,6 +17,7 @@
       const meeting = {
         id,
         status: "IN_CORSO",
+        mode: "presenza",
         ended_at: null,
         board_meeting_participants: [
           {
@@ -25,6 +26,7 @@
             kind: "member",
             display_name: "Componente",
             present: true,
+            attendance_mode: "presenza",
             identified_at: "2026-11-01T17:00:00Z",
           },
         ],
@@ -44,7 +46,7 @@
             m: meeting,
             me,
             president: false,
-            manager: false,
+            manager: true,
             active: true,
             live: true,
           }),

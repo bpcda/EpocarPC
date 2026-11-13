@@ -5,7 +5,7 @@ test("desktop workspace preserves the call, unsaved minutes and recording across
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ["microphone", "camera"] });
   const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
   const stamp = "2026-11-13T17:00:00Z";
-  const token = new AccessToken("devkey", "secret", { identity: "workspace-secretary", name: "Luca Bianchi", ttl: 120 });
+  const token = new AccessToken("devkey", "secret", { identity: uuid(4), name: "Luca Bianchi", ttl: 120 });
   token.addGrant({ roomJoin: true, room: "board-workspace-test" });
   const jwt = await token.toJwt();
   try {
@@ -35,6 +35,7 @@ test("desktop workspace preserves the call, unsaved minutes and recording across
       else if (name === "board_recording_consents") body = [{ id: 1, participant_id: uuid(7), user_id: uuid(4), consented: true, notice_version: "v1", created_at: stamp }];
       else if (name === "board_ai_settings") body = { enabled: false, provider: "test", api_base: "https://provider.invalid", transcription_model: "test", drafting_model: "test", cost_per_min_eur: "0.01", max_cost_eur: "5", notice_version: "v1", draft_max_tokens: 4000 };
       else if (name === "board_ai_usage") body = { reserved: "0", limit: "5" };
+      else if (name === "board_document_worker_status") body = { paired: false, online: false };
       else if (name === "board_audio_track_start_with_participants") body = uuid(30);
       else if (url.pathname.includes("/storage/")) body = { Key: "stored" };
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
@@ -49,7 +50,7 @@ test("desktop workspace preserves the call, unsaved minutes and recording across
     const draft = page.getByRole("textbox", { name: "Testo del verbale" });
     await draft.fill("Bozza non ancora salvata, da conservare durante la seduta.");
     await page.getByRole("tab", { name: "Registrazione", exact: true }).click();
-    await page.getByRole("button", { name: "Avvia la mia registrazione" }).click();
+    await page.getByRole("button", { name: "Avvia registrazione della stanza" }).click();
     await expect(page.getByRole("button", { name: "Termina e carica" })).toBeVisible();
     await page.getByRole("tab", { name: "Ordine del giorno" }).click();
     await expect(page.getByRole("button", { name: "Registrazione in corso", exact: true })).toBeVisible();
@@ -249,7 +250,7 @@ test("consent revocation stops recording and a failed upload survives reload and
     });
     await page.goto("http://127.0.0.1:5175/tests/fixtures/board-audio.html");
     await page
-      .getByRole("button", { name: "Avvia la mia registrazione" })
+      .getByRole("button", { name: "Avvia registrazione in sala" })
       .click();
     await expect(
       page.getByRole("button", { name: "Termina e carica" }),

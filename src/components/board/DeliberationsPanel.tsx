@@ -50,10 +50,11 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
   const editable = (d: Deliberation) => manager && active && !temporarilyAway && !conflicted(d) && !["APPROVATA", "RITIRATA", "IN_VOTAZIONE"].includes(d.status) && !openBallotOf(d);
   const openEditor = (d?: Deliberation) => {
     const v = d ? currentVersion(d) : null;
+    const agenda = m.board_agenda_items.find((a) => a.id === m.active_agenda_id);
     setDraft(d ? {
       agenda_item_id: d.agenda_item_id ?? "", title: v?.title ?? d.title, body: v?.body ?? "",
       documents: d.board_deliberation_documents.map((x) => ({ id: x.id, name: x.name, kind: x.kind })),
-    } : emptyDraft());
+    } : { ...emptyDraft(), agenda_item_id: agenda?.id ?? "", title: agenda?.title ?? "", body: agenda?.proposal ?? "" });
     setDocName("");
     setEditor({ open: true, id: d?.id ?? null });
   };
@@ -150,7 +151,7 @@ export default function DeliberationsPanel({ m, me, president, boardMember, mana
         <label className="space-y-2 text-sm">Titolo<Input value={draft.title} maxLength={300} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
         <label className="space-y-2 text-sm">Punto all'ordine del giorno
           <select className="w-full border border-border bg-background px-3 py-2 text-sm" value={draft.agenda_item_id}
-            onChange={(e) => setDraft({ ...draft, agenda_item_id: e.target.value })}>
+            onChange={(e) => { const a = m.board_agenda_items.find((a) => a.id === e.target.value); const previous = m.board_agenda_items.find((a) => a.id === draft.agenda_item_id); setDraft({ ...draft, agenda_item_id: e.target.value, title: !draft.title || draft.title === previous?.title ? a?.title ?? "" : draft.title, body: !draft.body || draft.body === previous?.proposal ? a?.proposal ?? "" : draft.body }); }}>
             <option value="">Nessun punto collegato</option>
             {m.board_agenda_items.map((a) => <option key={a.id} value={a.id}>{a.position}. {a.title}</option>)}
           </select></label>

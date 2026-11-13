@@ -88,13 +88,14 @@ describe("Closing a Board meeting", () => {
     await screen.findByText("Quorum raggiunto");
     expect(screen.queryByRole("button", { name: "Chiudi seduta" })).not.toBeInTheDocument();
   });
-  it("requires only a reason to close without approved minutes, including without quorum", async () => {
+  it("allows closure before later review, including without quorum", async () => {
     vi.mocked(loadBoardSession).mockResolvedValue({ ...session, quorum: { total: 5, present: 1, required: 3, met: false } });
     show();
     await screen.findByText("Quorum non raggiunto · non è possibile deliberare");
     fireEvent.click(screen.getByRole("button", { name: "Chiudi seduta" }));
     const confirm = screen.getByRole("button", { name: "Conferma chiusura" });
-    expect(confirm).toBeDisabled();
+    expect(confirm).toBeEnabled();
+    expect(screen.getByText(/Puoi completare e revisionare il verbale dopo la chiusura/)).toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Motivazione della seduta" }), { target: { value: "Quorum non raggiunto" } });
     expect(confirm).toBeEnabled();
     fireEvent.click(confirm);

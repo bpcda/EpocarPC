@@ -1,0 +1,11 @@
+{
+  "name": "epocar_documenti_consiglio_pronti",
+  "language": "it",
+  "category": "UTILITY",
+  "components": [
+    { "type": "BODY", "text": "EPOCAR: i documenti del Consiglio Direttivo richiesti sono pronti per la revisione nell’area riservata. Accedi al sito per consultarli e completare il verbale." },
+    { "type": "BUTTONS", "buttons": [
+      { "type": "URL", "text": "Rivedi i documenti", "url": "https://epocarpc.com/consiglio-direttivo?seduta={{1}}", "example": ["https://epocarpc.com/consiglio-direttivo?seduta=00000000-0000-4000-8000-000000000001"] }
+    ] }
+  ]
+}

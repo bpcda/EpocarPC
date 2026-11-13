@@ -4,11 +4,11 @@ Data: 12 novembre 2026. Baseline esaminata: `afd7898396e7eb024ba00ff98b07c204558
 
 ## Obiettivo e regole concordate
 
-Completare un percorso verificabile: convocazione → identificazione e presenze → seduta e delibere → redazione e approvazione del verbale → chiusura → firma → fascicolo → archivio.
+Percorso aggiornato il 13/11/2026: convocazione → identificazione e presenze → seduta e delibere → chiusura → redazione e revisione anche a posteriori → firma → fascicolo → archivio. Il voto sul verbale resta disponibile durante una seduta valida, senza attribuirlo automaticamente dopo la chiusura.
 
-- Il verbale si approva prima di chiudere la stessa seduta: scelta confermata dall'utente il 12 novembre 2026.
-- Una rettifica dopo la chiusura si tratta in una successiva seduta, con presenze e quorum propri. Non si riapre silenziosamente la seduta originaria e non se ne riutilizzano le presenze.
-- Semplificazione richiesta dall'utente: la seduta resta chiudibile senza approvazione del verbale indicando il motivo nel dialogo esistente, anche se manca il quorum. Nessun modulo o ulteriore approvazione per questa eccezione; non si attribuisce al verbale un'approvazione inesistente.
+- Il 13 novembre 2026 l'utente ha autorizzato la revisione a posteriori: supera la precedente scelta di completare il verbale nella stessa seduta. La chiusura non richiede più una motivazione libera per rimandare la redazione; viene registrata una causale predefinita.
+- Una rettifica di un atto già approvato o firmato si tratta in una successiva seduta, con presenze e quorum propri; una bozza non firmata resta revisionabile dopo la chiusura. Non si riapre silenziosamente la seduta originaria e non se ne riutilizzano le presenze.
+- La seduta resta chiudibile prima della revisione del verbale, anche se manca il quorum; la nota di chiusura è facoltativa. Nessun modulo o ulteriore approvazione per questa eccezione; non si attribuisce al verbale un'approvazione inesistente.
 - Queste due scelte definiscono il percorso richiesto dall'utente: non sono presentate come obblighi espressamente stabiliti dallo statuto. L'art. 17.11 richiede redazione e sottoscrizione del verbale, senza prescrivere un voto di approvazione prima della chiusura.
 - Testo, versione, votazione, firma e fascicolo devono riferirsi allo stesso atto identificabile.
 - Le decisioni e i vincoli si applicano sul server; l'interfaccia presenta gli stessi vincoli.
@@ -38,7 +38,7 @@ Fonte primaria: `Statuto Epocar.pdf`, 24 pagine, fornito dall'utente il 12 novem
 
 - Il testo non dettaglia computo delle astensioni, mancata espressione del voto e applicazione della parità in questi casi. L'utente ha dichiarato che non esiste un regolamento interno e ha confermato il criterio applicativo sopra: con cinque presenti, 2 sì/1 no/2 astenuti è respinta; 2 sì/2 no/1 astenuto segue il voto sì/no di chi presiede; nessun voto espresso non approva la proposta. Non presentare questi dettagli come citazione testuale dello statuto.
 - L'utente ha indicato sette componenti del CD: il quorum è quattro se tutti e sette sono in carica. Il numero resta derivato dalle persone con cariche attuali. Verifica dello statuto ripetuta dopo la precisazione dell'utente: l'urgenza dell'art. 17.3 non cambia quorum o maggioranza del CD. Le regole di prima/seconda convocazione e i voti validamente espressi degli artt. 12.5–12.7 riguardano l'Assemblea ordinaria e non sono trasferite al Consiglio. Fonte estratta: `.firecrawl/statuto-epocar.md`, artt. 12 e 17.
-- Per la chiusura senza quorum o con verbale non approvato si usa la soluzione minima richiesta: motivo obbligatorio nel dialogo esistente ed evento di chiusura registrato; nessuna approvazione fittizia. Il resoconto non approvato resta redigibile.
+- Per la chiusura senza quorum o con verbale non approvato si usa la soluzione minima richiesta: nota facoltativa nel dialogo esistente, causale predefinita per la revisione successiva ed evento di chiusura registrato; nessuna approvazione fittizia. Il resoconto non approvato resta redigibile.
 - La consultazione urgente scritta e i limiti economici richiedono percorsi dedicati: restano fuori dal rilascio iniziale, da dichiarare nella documentazione.
 
 ## Stato iniziale
@@ -63,6 +63,8 @@ Stato: completato come pianificazione; nessuna implementazione funzionale in que
 - Statuto caricato letto nei passaggi pertinenti e regole mappate agli articoli; individuate le differenze su conteggio dei voti, sostituzione del Presidente e conflitti di interesse.
 
 ### Passo 1 — Rendere coerenti approvazione e chiusura
+
+Nota storica: la revisione a posteriori autorizzata il 13/11/2026 e implementata in v27 supera il requisito seguente della motivazione obbligatoria. Restano validi il blocco durante un voto aperto e l’assenza di approvazioni fittizie.
 
 Stato: implementato e verificato con test frontend e SQL su PostgreSQL nativo isolato. Migrazione `setup/board-v21.sql` applicata via MCP al progetto esterno `cgbaunizlqqhctiiogok` il 12/11/2026, dopo il prerequisito v20. Verificati presenza delle funzioni, RLS e privilegi; nessun test di scrittura con dati reali. Applicata anche la correzione `setup/board-v20-permissions.sql` per rimuovere privilegi predefiniti di TRUNCATE e invocazione dei trigger interni.
 
@@ -175,6 +177,10 @@ Accettazione finale: ciascun passo precedente verificato; installazione riproduc
 V23–v26 installate via MCP sul progetto esterno. Edge Function aggiornate: trascrizione v5, redazione v3, fascicolo v2; creata `board-room` v1. Tutte richiedono JWT. Verifiche e limiti descritti nel documento di completamento; nessun test distruttivo con dati reali.
 
 ## Prossimo intervento
+
+Aggiornamento del 13/11/2026: implementati v27–v28 e il percorso «Prepara documenti». Il sito accoda una fotografia revisionata della seduta; il worker locale trascrive l'audio e usa Codex con ChatGPT, restituendo una bozza privata e note da verificare. La revisione può avvenire dopo la chiusura; presenze e votazioni restano chiuse. Il pacchetto Word/ZIP per revisione precede firme e fascicolo definitivo. Gli avvisi WhatsApp usano il solo progetto Kapso EpocarPC, con destinatario esplicito e template approvato.
+
+Guida operativa e recupero: [routine Codex](board-codex-routine.md). Analisi iniziale: [audit](board-process-audit.md). Avvio del PC subordinato al collegamento una tantum da presidente/verbalizzante; nessuna chiave amministrativa è fornita al worker. Stato del template e collaudo WhatsApp: [Kapso](../deploy/kapso/README.md).
 
 Valutazione del nuovo layout durante una seduta reale. Audio e video sono stati confermati funzionanti dall'utente con due persone; la successiva revisione UI/UX è implementata e verificata con dati sintetici su desktop e mobile. Implementazione e limiti sono descritti in [board-completion.md](board-completion.md) e [guida Coolify](../deploy/board-live/README.md).
 

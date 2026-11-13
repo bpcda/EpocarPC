@@ -15,6 +15,7 @@ import MinutesPanel from "@/components/board/MinutesPanel";
 import DossierPanel from "@/components/board/DossierPanel";
 import LiveRoomPanel from "@/components/board/LiveRoomPanel";
 import CorrectionsPanel from "@/components/board/CorrectionsPanel";
+import type { Room } from "livekit-client";
 
 const eventLabels: Record<string, string> = {
   created: "Riunione creata", updated: "Convocazione modificata", status: "Stato aggiornato", response: "Risposta alla convocazione",
@@ -38,6 +39,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   const [mode, setMode] = useState(m.mode === "remoto" ? "remoto" : "presenza");
   const [verified, setVerified] = useState(false);
   const [note, setNote] = useState("");
+  const [identification, setIdentification] = useState("Conoscenza personale e comunicazione diretta");
   const [command, setCommand] = useState<"suspend" | "close" | null>(null);
   const [reason, setReason] = useState("");
   const [full, setFull] = useState(false);
@@ -48,6 +50,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   const [designation, setDesignation] = useState("");
   const [tab, setTab] = useState(m.ended_at ? "verbale" : m.started_at ? "ordine" : "presenze");
   const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
+  const [room, setRoom] = useState<Room | null>(null);
   const active = !m.ended_at && ["CONVOCATO", "IN_CORSO", "SOSPESO"].includes(m.status);
   const frozen = ["ESPORTATO", "ARCHIVIATO"].includes(m.status);
   const mine = m.board_meeting_participants.find((p) => p.user_id === me);
@@ -60,6 +63,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
   useEffect(() => {
     if (!active && !m.started_at) return;
     let alive = true;
+    let realtime = false;
     const refreshData = () => { void qc.invalidateQueries({ queryKey: ["board-meetings"] }); void qc.invalidateQueries({ queryKey: ["board-session", m.id] }); void qc.invalidateQueries({ queryKey: ["board-deliberations", m.id] }); void qc.invalidateQueries({ queryKey: ["board-audio", m.id] }); void qc.invalidateQueries({queryKey:["board-ai-jobs",m.id]}); void qc.invalidateQueries({ queryKey: ["board-minutes", m.id] }); void qc.invalidateQueries({ queryKey: ["board-minutes-ballot", m.id] }); void qc.invalidateQueries({ queryKey: ["board-corrections"] }); void qc.invalidateQueries({ queryKey: ["board-corrected-minutes", m.id] }); };
     const channel = boardClient.channel(`board-session-${m.id}`);
     for (const table of ["board_meeting_participants", "board_agenda_items", "board_meeting_events", "board_deliberations", "board_ballots", "board_audio_tracks", "board_recording_consents", "board_minutes", "board_ai_jobs"]) {
@@ -69,11 +73,14 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
       channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshData);
     }
     channel.on("postgres_changes", { event: "*", schema: "public", table: "board_meetings", filter: `id=eq.${m.id}` }, refreshData)
-      .subscribe((status) => { if (alive) setConnection(status === "SUBSCRIBED" ? "Aggiornamenti in diretta" : "Diretta non disponibile · aggiornamento periodico"); });
+      .subscribe((status) => { realtime = status === "SUBSCRIBED"; if (alive) setConnection(realtime ? "Aggiornamenti in diretta" : "Diretta non disponibile · aggiornamento periodico"); });
     const heartbeat = async () => {
       if (!boardMember || !active) return;
-      const { error } = await boardClient.rpc("board_heartbeat", { _id: m.id });
-      if (error && alive) setConnection("Collegamento da verificare");
+      try {
+        const { error } = await boardClient.rpc("board_heartbeat", { _id: m.id }).abortSignal(AbortSignal.timeout(5000));
+        if (error && alive) setConnection("Collegamento da verificare");
+        else if (alive) setConnection(realtime ? "Aggiornamenti in diretta" : "Aggiornamento periodico");
+      } catch { if (alive) setConnection("Collegamento da verificare"); }
     };
     void heartbeat();
     const timer = setInterval(() => { setClock(Date.now()); void heartbeat(); }, 20000);
@@ -133,7 +140,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     {active && session.data?.chairUserId === null && session.data.openBallotId && (president || manager) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive p-4" role="alert"><p className="text-sm">La presidenza va aggiornata. Prima annulla la votazione aperta, conservando i voti registrati.</p><Button variant="outline" onClick={() => setTab("presenze")}>Verifica presidenza</Button></div>}
     <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <aside className={`min-w-0 space-y-4 xl:col-start-2 xl:row-start-1 xl:sticky ${full ? "xl:top-0" : "xl:top-24"}`} aria-label="Collegamento e stato personale">
-        <LiveRoomPanel m={m} boardMember={boardMember} />
+        <LiveRoomPanel m={m} boardMember={boardMember} onRoomChange={setRoom} />
         <div className={`${personalActions ? "" : "hidden xl:block"} rounded-xl border border-border bg-card p-3 xl:p-4 space-y-3 text-sm`}>
           <p className="hidden xl:block font-medium">{chair ? "Presiedi questa seduta" : boardMember && m.minute_taker_id === me ? "Sei il verbalizzante" : boardMember ? "Partecipi come consigliere" : "Accesso tecnico in sola lettura"}</p>
           {mine && active && <p className="hidden xl:block text-muted-foreground">{mine.present ? "La tua presenza è confermata." : mine.attendance_requested_at ? "Identificazione richiesta: attendi la conferma." : "La tua presenza deve ancora essere confermata."}</p>}
@@ -203,7 +210,7 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
           {m.started_at ? <><MinutesPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} /><details open={!!session.data?.openBallotMinutesId} className="rounded-xl border border-border bg-card p-4"><summary className="cursor-pointer text-sm font-medium">Rettifiche di sedute precedenti</summary><div className="mt-4"><CorrectionsPanel m={m} me={me} president={chair && !frozen} manager={manager} boardMember={boardMember} live={m.status === "IN_CORSO"} quorumMet={q?.met ?? false} eligible={session.data?.voterEligible ?? false} /></div></details></> : <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">Il verbale sarà disponibile dopo l’apertura della seduta. Prima conferma le presenze.</p>}
         </TabsContent>
         <TabsContent value="registrazione" forceMount hidden={tab !== "registrazione"} className={panelClass}>
-          <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} onRecordingChange={setRecordingStatus} />
+          <AudioPanel m={m} me={me} president={president} manager={manager} active={active} live={m.status === "IN_CORSO"} onRecordingChange={setRecordingStatus} room={room} />
         </TabsContent>
         {m.ended_at && <TabsContent value="fascicolo" forceMount hidden={tab !== "fascicolo"} className={panelClass}><DossierPanel m={m} manager={chair || boardMember && m.minute_taker_id === me} /></TabsContent>}
       </Tabs>
@@ -211,21 +218,22 @@ export default function LiveSession({ m, me, president, boardMember }: { m: Meet
     <Dialog open={!!selected} onOpenChange={(v) => { if (!v) setSelected(null); }}><DialogContent className="max-h-[90vh] overflow-auto"><DialogHeader><DialogTitle>{selected?.present ? "Conferma uscita" : "Identificazione e presenza"}</DialogTitle><DialogDescription>{selected?.display_name}</DialogDescription></DialogHeader>
       {!selected?.present && <><fieldset className="flex gap-2"><legend className="text-sm mb-2">Modalità effettiva</legend>{["presenza", "remoto"].map((v) => <Button key={v} variant={mode === v ? "default" : "outline"} disabled={m.mode !== "ibrido" && m.mode !== v} onClick={() => setMode(v)}>{v === "presenza" ? "In presenza" : "Da remoto"}</Button>)}</fieldset>
         <label className="flex items-start gap-3 text-sm"><Checkbox checked={verified} onCheckedChange={(v) => setVerified(v === true)} /><span>Identità verificata e partecipazione effettiva confermata; da remoto, comunicazione reciproca e accesso ai documenti verificati.</span></label></>}
-      <label className="space-y-2 text-sm">{selected?.present ? "Motivo o verifica dell'uscita" : "Metodo di identificazione e verifica"}<Input value={note} maxLength={1000} onChange={(e) => setNote(e.target.value)} /></label>
-      <Button disabled={act.isPending || !note.trim() || !selected?.present && !verified} onClick={() => { if (selected) act.mutate(() => recordAttendance(m.id, selected.id, !selected.present, mode, verified, note)); }}><Check className="h-4 w-4 mr-2" />Conferma</Button>
+      {!selected?.present && <label className="space-y-2 text-sm">Metodo di identificazione<select aria-label="Metodo di identificazione" className="w-full border border-input bg-background p-2" value={identification} onChange={(e) => setIdentification(e.target.value)}><option>Conoscenza personale e comunicazione diretta</option><option>Verifica del documento di identità</option><option>Riconoscimento audio/video</option></select></label>}
+      <label className="space-y-2 text-sm">Nota aggiuntiva (facoltativa)<Input value={note} maxLength={800} onChange={(e) => setNote(e.target.value)} /></label>
+      <Button disabled={act.isPending || !selected?.present && !verified} onClick={() => { if (selected) act.mutate(() => recordAttendance(m.id, selected.id, !selected.present, mode, verified, selected.present ? note.trim() || "Uscita confermata" : [identification, note.trim()].filter(Boolean).join(" · "))); }}><Check className="h-4 w-4 mr-2" />Conferma</Button>
     </DialogContent></Dialog>
     <Dialog open={!!command} onOpenChange={(v) => { if (!v) setCommand(null); }}><DialogContent><DialogHeader>
       <DialogTitle>{command === "close" ? "Chiudere la seduta?" : "Sospendere la seduta?"}</DialogTitle>
       <DialogDescription>{command === "close"
         ? session.data?.minutesApproved
           ? "Il verbale è approvato. Dopo la chiusura restano la firma e il fascicolo; le rettifiche si trattano in una nuova seduta."
-          : "Il verbale non è approvato. Puoi approvarlo prima di chiudere oppure indicare il motivo della chiusura senza approvazione. La chiusura blocca presenze e votazioni."
+          : "Puoi completare e revisionare il verbale dopo la chiusura. Presenze e votazioni saranno bloccate; nessuna approvazione viene attribuita automaticamente."
         : "Indica la motivazione della sospensione."}</DialogDescription>
     </DialogHeader>
       {command === "close" && session.data?.hasOpenBallot && <p role="alert" className="text-destructive">Concludi o annulla la votazione aperta prima di chiudere la seduta.</p>}
-      <Input aria-label="Motivazione della seduta" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <Input aria-label="Motivazione della seduta" placeholder={command === "close" ? "Nota di chiusura (facoltativa)" : "Motivazione"} value={reason} onChange={(e) => setReason(e.target.value)} />
       <Button disabled={act.isPending || !session.data || !!session.error || command === "close" && session.data.hasOpenBallot
-        || (command === "suspend" || !session.data.minutesApproved) && !reason.trim()}
+        || command === "suspend" && !reason.trim()}
         onClick={() => { if (command) act.mutate(() => sessionAction(m.id, command, reason)); }}>
         Conferma {command === "close" ? "chiusura" : "sospensione"}
       </Button>

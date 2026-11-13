@@ -5,6 +5,7 @@ import MinutesPanel from "@/components/board/MinutesPanel";
 import { loadMinutes, saveMinutes, submitMinutesVote, type Meeting, type Minutes } from "@/lib/board";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
+vi.mock("@/components/board/DocumentWorkflow", () => ({ default: () => <p>Routine documenti</p> }));
 
 vi.mock("@/lib/board", async (original) => ({
   ...await original<typeof import("@/lib/board")>(),
@@ -57,6 +58,12 @@ describe("Minutes approval before closing", () => {
     await screen.findByText(/Verbale approvato: versione definitiva bloccata/);
     expect(screen.queryByRole("textbox", { name: "Testo del verbale" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Sottoponi il verbale/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Le rettifiche dopo la chiusura si trattano in una nuova seduta/)).toBeInTheDocument();
+    expect(screen.getByText(/Le rettifiche di un verbale già approvato o firmato/)).toBeInTheDocument();
+  });
+  it("allows editing an unsigned draft after closure without inventing a late vote", async () => {
+    show(false);
+    expect(await screen.findByRole("textbox", { name: "Testo del verbale" })).toBeEnabled();
+    expect(screen.getByText(/Revisione dopo la chiusura/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Sottoponi il verbale/ })).not.toBeInTheDocument();
   });
 });

@@ -77,7 +77,7 @@ export function memberName(m: { first_name: string | null; last_name: string | n
 export function draftProblem(d: MeetingDraft): string | null {
   if (!d.scheduled_at) return "Indica data e ora della riunione.";
   if (d.mode !== "remoto" && !d.location.trim()) return "Indica il luogo della riunione.";
-  if (d.mode !== "presenza" && !/^https:\/\//.test(d.video_link.trim())) return "Inserisci il link della videoconferenza (https://…).";
+  if (d.video_link.trim() && !/^https:\/\//.test(d.video_link.trim())) return "Inserisci un link valido (https://…).";
   if (!d.agenda.length) return "Aggiungi almeno un punto all'ordine del giorno.";
   if (d.agenda.some((a) => !a.title.trim())) return "Ogni punto dell'ordine del giorno deve avere un titolo.";
   if (d.guests.some((g) => !g.name.trim())) return "Ogni invitato deve avere un nome.";

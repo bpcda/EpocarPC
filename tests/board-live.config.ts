@@ -1,4 +1,6 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+const cwd = fileURLToPath(new URL("../", import.meta.url));
 export default defineConfig({
   testDir: ".",
   testMatch: "board-live.spec.ts",
@@ -16,7 +18,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npm run dev -- --host 127.0.0.1 --port 5175",
+      command: "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5175",
+      cwd,
       url: "http://127.0.0.1:5175",
       reuseExistingServer: !process.env.CI,
       env: {
@@ -25,7 +28,8 @@ export default defineConfig({
       },
     },
     {
-      command: "livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1",
+      command: "livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --config tests/fixtures/livekit.yaml",
+      cwd,
       url: "http://127.0.0.1:7880",
       reuseExistingServer: !process.env.CI,
     },

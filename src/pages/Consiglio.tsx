@@ -10,7 +10,7 @@ import ConvocationWizard from "@/components/board/ConvocationWizard";
 import LiveSession from "@/components/board/LiveSession";
 import { useAuth } from "@/hooks/use-auth";
 import { groupMeetings, loadMeetings, meetingLabel, MEETING_STATUS, MODE_LABEL, respondToMeeting, romeDate, romeTime, saveMeeting, setMeetingStatus, type Meeting, type MeetingDraft } from "@/lib/board";
-import { convocationDocx, downloadBlob } from "@/lib/board-docx";
+import { convocationDocx, downloadBlob, convocationMessage } from "@/lib/board-docx";
 
 function MeetingCard({ m, me, president, onEdit, onEnter }: { m: Meeting; me: string; president: boolean; onEdit: (m: Meeting) => void; onEnter: (m: Meeting) => void }) {
   const qc = useQueryClient();
@@ -45,6 +45,7 @@ function MeetingCard({ m, me, president, onEdit, onEnter }: { m: Meeting; me: st
           <Button size="sm" variant={mine.response === "declined" ? "default" : "outline"} onClick={() => act.mutate(() => respondToMeeting(m.id, "declined"))}>Non posso partecipare</Button>
         </>}
         <Button size="sm" variant="outline" onClick={async () => downloadBlob(await convocationDocx(m), `Convocazione_CD_${m.meeting_number ?? "bozza"}_${m.meeting_year ?? ""}.docx`)}>Scarica convocazione (Word)</Button>
+        {president && m.status === "CONVOCATO" && !m.started_at && <Button size="sm" variant="outline" onClick={() => act.mutate(async () => { await navigator.clipboard.writeText(convocationMessage(m)); toast.success("Comunicazione copiata: inoltrala ai componenti con il canale associativo."); })}>Copia comunicazione da inviare</Button>}
         {president && !m.started_at && ["DRAFT", "CONVOCATO", "SOSPESO"].includes(m.status) && <Button size="sm" variant="outline" onClick={() => onEdit(m)}>Modifica</Button>}
         {president && m.status === "DRAFT" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Convoca</Button>}
         {president && !m.started_at && m.status === "SOSPESO" && <Button size="sm" onClick={() => act.mutate(() => setMeetingStatus(m.id, "CONVOCATO"))}>Riprendi convocazione</Button>}
@@ -86,7 +87,7 @@ export default function Consiglio() {
   const submit = async (d: MeetingDraft, convene: boolean) => {
     const id = await saveMeeting(wizard.m?.id ?? null, d);
     if (convene) await setMeetingStatus(id, "CONVOCATO");
-    toast.success(convene ? "Consiglio convocato" : "Salvato");
+    toast.success(convene ? "Convocazione salvata: inoltra la comunicazione ai componenti." : "Salvato");
     await qc.invalidateQueries({ queryKey: ["board-meetings"] });
   };
   const toAnswer = (meetings.data ?? []).filter((m) => m.status === "CONVOCATO" && m.board_meeting_participants.some((p) => p.user_id === user.id && p.response === "pending"));
