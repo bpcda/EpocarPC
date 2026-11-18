@@ -3,8 +3,7 @@ import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface GalleryImage {
@@ -250,14 +249,8 @@ export default function Gallery() {
       </main>
 
       <Dialog open={!!lightbox} onOpenChange={(open) => !open && setLightbox(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-0 bg-background border-0 rounded-none">
-          <button
-            onClick={() => setLightbox(null)}
-            className="absolute top-2 right-2 z-50 bg-background/80 text-foreground p-2 hover:bg-background"
-            aria-label="Chiudi"
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <DialogContent aria-describedby={undefined} className="max-w-[95vw] max-h-[95vh] w-auto p-0 bg-background border-0 rounded-none [&>button]:top-2 [&>button]:right-2 [&>button]:bg-background [&>button]:p-3 [&>button]:opacity-100">
+          <DialogTitle className="sr-only">{lightbox?.alt_text || "Foto della gallery Epocar"}</DialogTitle>
           {lightbox && (
             <img
               src={lightbox.image_url}

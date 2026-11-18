@@ -1,6 +1,6 @@
 import { Helmet } from "react-helmet-async";
 
-const SITE_URL = "https://epocar-drive-passion.lovable.app";
+const SITE_URL = "https://epocarpc.com";
 
 interface PageMetaProps {
   title: string;

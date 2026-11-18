@@ -1,10 +1,8 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import HomepageCountdownSection from "@/components/HomepageCountdownSection";
 import ProssimoEventoSection from "@/components/ProssimoEventoSection";
 import CommunityNumbersSection from "@/components/CommunityNumbersSection";
 import MissionSection from "@/components/MissionSection";
-import EventiSection from "@/components/EventiSection";
 import CommunitySection from "@/components/CommunitySection";
 import InstagramSection from "@/components/InstagramSection";
 import MembershipCtaSection from "@/components/MembershipCtaSection";
@@ -25,12 +23,10 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
-        <MembershipCtaSection />
-        <HomepageCountdownSection />
         <ProssimoEventoSection />
+        <MembershipCtaSection />
         <CommunityNumbersSection />
         <MissionSection />
-        <EventiSection />
         <FeaturedNewsSection />
         <CommunitySection />
         <InstagramSection />

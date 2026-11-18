@@ -50,8 +50,9 @@ const App = () => (
           <Route path="/eventi/:id/iscrizione" element={<EventoIscrizione />} />
           <Route path="/community" element={<Community />} />
           <Route path="/contatti" element={<Contatti />} />
-          <Route path="/articoli" element={<Articoli />} />
+          <Route path="/articoli" element={<Navigate to="/news" replace />} />
           <Route path="/articoli/quando-auto-diventa-epoca" element={<QuandoAutoEpoca />} />
+          <Route path="/articoli/:id" element={<Articoli />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/pagine/:slug" element={<CmsPage />} />

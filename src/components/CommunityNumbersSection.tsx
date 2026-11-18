@@ -11,7 +11,7 @@ export default function CommunityNumbersSection() {
   const ref = useScrollReveal();
 
   return (
-    <section className="py-24 lg:py-32 bg-foreground" ref={ref}>
+    <section className="py-12 lg:py-16 bg-foreground" ref={ref}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 section-reveal">
           {stats.map((stat, i) => (
@@ -19,7 +19,7 @@ export default function CommunityNumbersSection() {
               <p className="font-headline text-4xl md:text-5xl lg:text-6xl text-primary-foreground mb-2 tracking-wider">
                 {stat.value}
               </p>
-              <p className="text-sm md:text-base text-primary-foreground/60 font-body">
+              <p className="text-sm md:text-base text-primary-foreground/85 font-body">
                 {stat.label}
               </p>
             </div>

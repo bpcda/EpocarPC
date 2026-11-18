@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logoEpocar from "@/assets/logo-epocar.png";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,7 +8,7 @@ const navLinks = [
   { label: "Chi Siamo", href: "/chi-siamo" },
    { label: "Associazione", href: "/associazione" },
   { label: "Eventi", href: "/eventi" },
-  { label: "News", href: "/articoli" },
+  { label: "News", href: "/news" },
   { label: "Gallery", href: "/gallery" },
   { label: "Contatti", href: "/contatti" },
 ];
@@ -16,6 +16,7 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const location = useLocation();
   const { user, canAccessDashboard } = useAuth();
   const isHome = location.pathname === "/";
@@ -30,6 +31,18 @@ export default function Navbar() {
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
 
   return (
     <nav
@@ -75,9 +88,13 @@ export default function Navbar() {
 
         {/* Mobile hamburger */}
         <button
+          ref={menuButton}
+          type="button"
           className="xl:hidden flex flex-col gap-1.5 p-2"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
         >
           <span className={`block w-6 h-0.5 bg-primary-foreground transition-transform duration-200 ${mobileOpen ? "rotate-45 translate-y-2" : ""}`} />
           <span className={`block w-6 h-0.5 bg-primary-foreground transition-opacity duration-200 ${mobileOpen ? "opacity-0" : ""}`} />
@@ -87,7 +104,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="xl:hidden bg-foreground border-b border-primary-foreground/10 max-h-[calc(100dvh-80px)] overflow-y-auto">
+        <div id="mobile-navigation" className="xl:hidden bg-foreground border-b border-primary-foreground/10 max-h-[calc(100dvh-80px)] overflow-y-auto">
           <div className="px-6 py-4 flex flex-col gap-3">
             {navLinks.map((link) => (
               <Link
