@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       currentUserId.current = nextId;
+      setLoading(!!sessionUser);
       setUser(sessionUser);
     };
 
@@ -81,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsTreasurer(false);
       setIsBoardMember(false);
       setIsBoardPresident(false);
-      setLoading(false);
       return;
     }
 

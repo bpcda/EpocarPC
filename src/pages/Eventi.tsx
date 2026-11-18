@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { eventPhase, formatEventDate, splitEvents } from "@/lib/event-time";
 import type { Tables } from "@/integrations/supabase/types";
 import { safeHref } from "@/lib/cms";
+import RichText from "@/components/RichText";
+import { richTextToPlainText } from "@/lib/rich-text";
 
 type EventData = Pick<Tables<"events">, "id" | "title" | "description" | "date" | "end_date" | "location" | "image_url" | "registration_link" | "registration_enabled">;
 
@@ -33,7 +35,7 @@ export default function EventiPage() {
         "@context": "https://schema.org",
         "@graph": events.filter(e => e.date).map(e => ({
           "@type": "Event", name: e.title, startDate: e.date, endDate: e.end_date ?? undefined,
-          description: e.description ?? undefined, image: e.image_url ?? undefined,
+          description: e.description ? richTextToPlainText(e.description) : undefined, image: e.image_url ?? undefined,
           eventStatus: "https://schema.org/EventScheduled",
           location: e.location ? { "@type": "Place", name: e.location, address: e.location } : undefined,
           organizer: { "@type": "Organization", name: "Epocar" },
@@ -81,8 +83,8 @@ function EventRow({ event, past = false }: { event: EventData; past?: boolean })
         {event.location && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`} target="_blank" rel="noopener noreferrer" className="block text-sm underline underline-offset-4 leading-relaxed">
           <span className="line-clamp-2">{event.location}</span><span className="inline-block mt-1">Apri la mappa ↗</span>
         </a>}
-        {event.description && (past ? <details className="text-sm"><summary className="cursor-pointer py-3 underline underline-offset-4">Leggi il racconto</summary><p className="leading-relaxed whitespace-pre-line mt-2">{event.description}</p></details>
-          : <p className="text-sm leading-relaxed whitespace-pre-line text-primary-foreground/85">{event.description}</p>)}
+        {event.description && (past ? <details className="text-sm"><summary className="cursor-pointer py-3 underline underline-offset-4">Leggi il racconto</summary><RichText content={event.description} className="mt-2" /></details>
+          : <RichText content={event.description} className="prose-invert text-primary-foreground/85" />)}
         {!past && (event.registration_enabled ? <Button variant="hero-primary" asChild><Link to={`/eventi/${event.id}/iscrizione`}>Iscriviti all’evento</Link></Button>
           : registrationLink ? <Button variant="hero-primary" asChild><a href={registrationLink} target="_blank" rel="noopener noreferrer">Prenota ↗</a></Button> : null)}
       </div>

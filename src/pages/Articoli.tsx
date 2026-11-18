@@ -5,6 +5,8 @@ import PageMeta from "@/components/PageMeta";
 import { Button } from "@/components/ui/button";
 import { useArticles } from "@/hooks/use-articles";
 import NotFound from "./NotFound";
+import RichText from "@/components/RichText";
+import { articleDate } from "@/lib/article-publication";
 
 export default function Articoli() {
   const { id } = useParams();
@@ -22,13 +24,13 @@ export default function Articoli() {
           {isLoading ? <p role="status">Caricamento…</p>
             : isError ? <div role="alert"><p className="mb-4">Non riusciamo a caricare la notizia. Riprova tra poco.</p><Button onClick={() => refetch()}>Riprova</Button></div>
             : article && <>
-              <time dateTime={article.created_at} className="block text-sm text-muted-foreground mb-4">
-                {new Date(article.created_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" })}
+              <time dateTime={articleDate(article)} className="block text-sm text-muted-foreground mb-4">
+                {new Date(articleDate(article)).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" })}
               </time>
               <h1 className="font-headline text-4xl sm:text-5xl lg:text-6xl tracking-wide leading-tight break-words mb-6">{article.title}</h1>
               {article.summary && <p className="text-lg leading-relaxed text-foreground/80 mb-8">{article.summary}</p>}
               {article.image_url && <img src={article.image_url} alt={article.title} className="w-full max-h-[65vh] object-contain mb-10" />}
-              {article.content && <div className="prose prose-lg max-w-none prose-headings:font-body prose-headings:font-medium prose-headings:leading-snug prose-h2:text-2xl prose-h3:text-xl prose-p:leading-relaxed prose-p:my-5 prose-a:text-foreground" dangerouslySetInnerHTML={{ __html: article.content }} />}
+              {article.content && <RichText content={article.content} className="prose-lg prose-h2:text-2xl prose-h3:text-xl prose-p:leading-relaxed prose-p:my-5 prose-a:text-foreground" />}
               <Link to="/news" className="inline-flex items-center min-h-11 text-sm underline underline-offset-4 mt-10">← Tutte le news</Link>
             </>}
         </article>

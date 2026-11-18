@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/RichTextEditor";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { isoToRomeInput, romeInputToISO } from "@/lib/event-time";
@@ -12,7 +14,7 @@ import FormBuilder from "@/components/admin/FormBuilder";
 import EventBookingSettings from "@/components/admin/EventBookingSettings";
 import { defaultBookingSettings, settingsFrom, bookingSettingsSchema } from "@/lib/event-booking-schema";
 import type { FormField } from "@/lib/form-fields";
-import { ArrowLeft, Upload, X, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Upload, X, Image as ImageIcon, Save } from "lucide-react";
 
 const emptyForm = {
   title: "",
@@ -38,6 +40,7 @@ export default function AdminEventEditor() {
   const isNew = !id || id === "nuovo";
   const draftKey = `epocar:draft:event:${isNew ? "new" : id}`;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const [form, setForm] = useState<EventForm>(emptyForm);
@@ -48,15 +51,20 @@ export default function AdminEventEditor() {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const skipNextSave = useRef(false);
 
   // Load: DB (if editing) then overlay draft
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      try {
       let base: EventForm = emptyForm;
       let preview: string | null = null;
       if (!isNew && id) {
-        const { data } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+        const { data, error: readError } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+        if (readError || !data) throw new Error("Evento non disponibile");
         if (data) {
           base = {
             title: data.title || "",
@@ -74,7 +82,7 @@ export default function AdminEventEditor() {
             form_fields: ((data as unknown as { form_fields?: FormField[] }).form_fields as FormField[]) || [],
             booking_settings: settingsFrom((data as unknown as { booking_settings?: unknown }).booking_settings),
           };
-          setBookingInstalled("booking_settings" in data);
+          if (!cancelled) setBookingInstalled("booking_settings" in data);
           preview = data.image_url || null;
         }
       }
@@ -82,27 +90,41 @@ export default function AdminEventEditor() {
         const raw = localStorage.getItem(draftKey);
         if (raw) base = { ...base, ...JSON.parse(raw) };
       } catch { /* ignore */ }
+      if (cancelled) return;
       skipNextSave.current = true;
       setForm(base);
-      setImagePreview(preview);
+      setImagePreview(base.image_url || preview);
+      } catch {
+        if (cancelled) return;
+        setLoadFailed(true);
+        setError("Non riusciamo a caricare l’evento. Riapri la pagina prima di modificarlo.");
+      }
       setInitialized(true);
     })();
+    return () => { cancelled = true; };
   }, [id, isNew, draftKey]);
 
   // Auto-save draft to localStorage
   useEffect(() => {
-    if (!initialized) return;
+    if (!initialized || loadFailed || loading) return;
     if (skipNextSave.current) { skipNextSave.current = false; return; }
     try {
       localStorage.setItem(draftKey, JSON.stringify(form));
       setSavedAt(new Date());
     } catch { /* ignore */ }
-  }, [form, initialized, draftKey]);
+  }, [form, initialized, loadFailed, loading, draftKey]);
+
+  useEffect(() => {
+    if (!imageFile) return;
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
 
   const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+    if (!file.type.startsWith("image/")) { setError("Scegli un file immagine."); return; }
+    setError("");
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
   };
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation(); setDragging(false);
@@ -122,47 +144,56 @@ export default function AdminEventEditor() {
     const { error } = await supabase.storage
       .from("event-images")
       .upload(fileName, file, { contentType: file.type });
-    if (error) { console.error("Upload error:", error); return null; }
+    if (error) return null;
     const { data } = supabase.storage.from("event-images").getPublicUrl(fileName);
     return data.publicUrl;
   };
 
   const handleSave = async () => {
-    if (!form.title || (!isNew && !id)) return;
+    if (!form.title.trim() || loading || !initialized || loadFailed || (!isNew && !id)) return;
+    setError("");
     const settings = bookingSettingsSchema.safeParse(form.booking_settings);
-    if (!settings.success) { alert("Controlla impostazioni e limiti delle prenotazioni."); return; }
-    if (settings.data.enabled && (!settings.data.privacy_text || !settings.data.privacy_version)) { alert("Inserisci informativa privacy e versione."); return; }
+    if (!settings.success) { setError("Controlla impostazioni e limiti delle prenotazioni."); return; }
+    if (settings.data.enabled && (!settings.data.privacy_text || !settings.data.privacy_version)) { setError("Inserisci informativa privacy e versione."); return; }
+    const date = form.date ? romeInputToISO(form.date) : null;
+    const end_date = form.end_date ? romeInputToISO(form.end_date) : null;
+    if (end_date && date && end_date < date) { setError("La fine deve essere successiva all’inizio."); return; }
     setLoading(true);
+    try {
     let imageUrl = form.image_url || null;
     if (imageFile) {
       const uploaded = await uploadImage(imageFile);
-      if (uploaded) imageUrl = uploaded;
+      if (!uploaded) throw new Error("upload");
+      imageUrl = uploaded;
+      setForm(previous => ({ ...previous, image_url: uploaded }));
+      setImageFile(null); setImagePreview(uploaded);
     }
     const payload = {
-      title: form.title,
+      title: form.title.trim(),
       description: form.description || null,
-      date: form.date ? romeInputToISO(form.date) : null,
-      end_date: form.end_date ? romeInputToISO(form.end_date) : null,
+      date,
+      end_date,
       show_homepage_countdown: form.show_homepage_countdown,
       location: form.location || null,
       image_url: imageUrl,
       category: form.category || "event",
       published: form.published,
-      uploaded_by: user?.id || null,
+      ...(isNew ? { uploaded_by: user?.id || null } : {}),
       registration_link: form.registration_link || null,
       registration_enabled: form.registration_enabled,
       allow_guests: form.allow_guests,
       form_fields: form.form_fields as never,
       ...(settings.data.enabled || bookingInstalled ? { booking_settings: settings.data } : {}),
     };
-    if (payload.end_date && payload.date && payload.end_date < payload.date) { setLoading(false); alert("La fine deve essere successiva all'inizio."); return; }
     // The external schema is installed independently; preserve the runtime extension without changing generated types.
     const typedPayload = payload as Omit<typeof payload, "booking_settings">;
-    const { error } = isNew ? await supabase.from("events").insert(typedPayload) : await supabase.from("events").update(typedPayload).eq("id", id ?? "");
-    if (error) { setLoading(false); alert(`Salvataggio non riuscito: ${error.message}`); return; }
+    const result = isNew ? await supabase.from("events").insert(typedPayload).select("id").single() : await supabase.from("events").update(typedPayload).eq("id", id ?? "").select("id").single();
+    if (result.error || !result.data) throw new Error("save");
     localStorage.removeItem(draftKey);
-    setLoading(false);
-    navigate("/admin");
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ["events"] }), queryClient.invalidateQueries({ queryKey: ["admin", "events"] })]);
+    navigate("/admin?tab=events");
+    } catch { setError("Non possiamo confermare il salvataggio. Le modifiche restano qui: controlla l’elenco prima di riprovare."); }
+    finally { setLoading(false); }
   };
 
   const handleDiscardDraft = () => {
@@ -173,35 +204,35 @@ export default function AdminEventEditor() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <button
-            onClick={() => navigate("/admin")}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </button>
-          <h1 className="text-lg font-headline text-foreground truncate">
+      <header className="border-b border-border bg-card">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+          <Link to="/admin?tab=events" className="inline-flex items-center gap-2 min-h-11 text-sm text-muted-foreground"><ArrowLeft className="h-4 w-4" /> Tutti gli eventi</Link>
+          <h1 className="text-3xl sm:text-4xl font-headline text-foreground mt-2">
             {isNew ? "Nuovo evento" : "Modifica evento"}
           </h1>
-          <div className="text-xs text-muted-foreground min-w-[110px] text-right">
-            {savedAt ? `Bozza salvata ${savedAt.toLocaleTimeString("it-IT")}` : ""}
+          <div role="status" className="text-xs text-muted-foreground mt-3">
+            {savedAt ? `Copia locale · ${savedAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}` : "Prepara il racconto e i dettagli dell’incontro."}
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-8 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {error && <p role="alert" className="border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>}
+        {!initialized && <p role="status">Caricamento evento…</p>}
+        <fieldset disabled={!initialized || loading || loadFailed} className="min-w-0 space-y-6">
+        <section className="border border-border bg-card p-4 sm:p-6 space-y-5" aria-labelledby="event-content-title">
+        <div><h2 id="event-content-title" className="font-headline text-2xl">Racconta l’evento</h2><p className="text-sm text-muted-foreground mt-1">Presentazione e programma, con titoli, elenchi e link.</p></div>
+        <Label htmlFor="event-title" className="block">Titolo *</Label>
         <Input
+          id="event-title"
           placeholder="Titolo *"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
         />
-        <Textarea
-          placeholder="Descrizione"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          rows={4}
-        />
+        <div className="space-y-2"><p className="text-sm font-medium">Descrizione</p><RichTextEditor disabled={loading || !initialized || loadFailed} label="Descrizione evento" content={form.description} onChange={description => setForm(previous => ({ ...previous, description }))} /></div>
+        </section>
+        <section className="border border-border bg-card p-4 sm:p-6 space-y-5" aria-labelledby="event-date-title">
+        <h2 id="event-date-title" className="font-headline text-2xl">Quando e dove</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="text-xs text-muted-foreground space-y-1">
             <span>Inizio (ora italiana)</span>
@@ -211,22 +242,24 @@ export default function AdminEventEditor() {
             <span>Fine (facoltativa, per eventi di più ore o giorni)</span>
             <Input type="datetime-local" value={form.end_date} min={form.date || undefined} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
           </label>
-          <AddressAutocomplete
+          <div className="md:col-span-2 space-y-2"><p className="text-sm font-medium">Luogo</p><AddressAutocomplete
             value={form.location}
             onChange={(val) => setForm({ ...form, location: val })}
             placeholder="Luogo"
-          />
+          /></div>
         </div>
+        </section>
 
-        <div>
+        <section className="border border-border bg-card p-4 sm:p-6">
           <label className="text-sm text-muted-foreground mb-2 block">Immagine</label>
           {imagePreview ? (
             <div className="relative rounded-md overflow-hidden border border-border">
               <img src={imagePreview} alt="Anteprima" className="w-full h-56 object-cover" />
               <button
                 type="button"
+                aria-label="Rimuovi immagine evento"
                 onClick={() => { setImageFile(null); setImagePreview(null); setForm({ ...form, image_url: "" }); }}
-                className="absolute top-2 right-2 bg-foreground/70 text-background rounded-full p-1 hover:bg-foreground transition-colors"
+                className="absolute top-2 right-2 bg-foreground/70 text-background rounded-full p-3 hover:bg-foreground transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -236,15 +269,6 @@ export default function AdminEventEditor() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "file"; input.accept = "image/*";
-                input.onchange = (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (file) handleFileSelect(file);
-                };
-                input.click();
-              }}
               className={`border-2 border-dashed rounded-md p-8 text-center cursor-pointer transition-colors ${
                 dragging ? "border-accent bg-accent/5" : "border-border hover:border-muted-foreground"
               }`}
@@ -252,19 +276,26 @@ export default function AdminEventEditor() {
               <div className="flex flex-col items-center gap-2">
                 {dragging ? <Upload className="h-8 w-8 text-accent" /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
                 <p className="text-sm text-muted-foreground">
-                  {dragging ? "Rilascia qui" : "Trascina un'immagine o clicca per selezionare"}
+                  {dragging ? "Rilascia qui" : "Trascina un’immagine o scegli un file"}
                 </p>
+                <Input aria-label="Scegli immagine evento" type="file" accept="image/*" className="max-w-full min-h-11" onChange={e => { const file = e.target.files?.[0]; if (file) handleFileSelect(file); }} />
               </div>
             </div>
           )}
-        </div>
+        </section>
 
+        <section className="border border-border bg-card p-4 sm:p-6 space-y-5" aria-labelledby="event-registration-title">
+        <h2 id="event-registration-title" className="font-headline text-2xl">Partecipazione</h2>
+        <Label htmlFor="event-category" className="block">Categoria</Label>
         <Input
+          id="event-category"
           placeholder="Categoria"
           value={form.category}
           onChange={(e) => setForm({ ...form, category: e.target.value })}
         />
+        <Label htmlFor="event-registration-link" className="block">Link di iscrizione esterno (facoltativo)</Label>
         <Input
+          id="event-registration-link"
           placeholder="Link Registrazione esterno (opzionale)"
           value={form.registration_link}
           onChange={(e) => setForm({ ...form, registration_link: e.target.value })}
@@ -274,6 +305,7 @@ export default function AdminEventEditor() {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Form di iscrizione interno</span>
             <Switch
+              aria-label="Form di iscrizione interno"
               checked={form.registration_enabled}
               onCheckedChange={(checked) => setForm({ ...form, registration_enabled: checked })}
             />
@@ -282,6 +314,7 @@ export default function AdminEventEditor() {
             <>
               <div className="flex items-center gap-3">
                 <Switch
+                  aria-label="Consenti iscrizioni da ospiti"
                   checked={form.allow_guests}
                   onCheckedChange={(checked) => setForm({ ...form, allow_guests: checked })}
                 />
@@ -297,17 +330,22 @@ export default function AdminEventEditor() {
             </>
           )}
         </div>
+        </section>
 
+        <section className="border border-border bg-card p-4 sm:p-6 space-y-5" aria-labelledby="event-publish-title">
+        <h2 id="event-publish-title" className="font-headline text-2xl">Visibilità</h2>
         <div className="flex items-center gap-3">
           <Switch
+            aria-label="Pubblica evento"
             checked={form.published}
             onCheckedChange={(checked) => setForm({ ...form, published: checked })}
           />
-          <span className="text-sm text-muted-foreground">Pubblicato</span>
+          <div><span className="text-sm">Pubblica sul sito</span><p className="text-xs text-muted-foreground mt-1">{form.published ? "Visibile ai visitatori dopo il salvataggio." : "Bozza: visibile solo nella dashboard."}</p></div>
         </div>
 
         <div className="flex items-start gap-3">
           <Switch
+            aria-label="Mostra countdown in homepage"
             checked={form.show_homepage_countdown}
             onCheckedChange={(checked) => setForm({ ...form, show_homepage_countdown: checked })}
           />
@@ -316,16 +354,16 @@ export default function AdminEventEditor() {
             <p className="text-xs text-muted-foreground">Se attivo, questo evento verrà mostrato con un conto alla rovescia nella homepage fino all'inizio/conclusione dell'evento. Un solo evento alla volta: attivandolo qui si disattiva su quello scelto in precedenza.</p>
           </div>
         </div>
+        </section>
+        </fieldset>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
-          <Button className="flex-1" onClick={handleSave} disabled={!form.title || loading}>
-            {loading ? "Salvataggio..." : isNew ? "Crea evento" : "Salva modifiche"}
+        <div className="flex justify-end"><Button variant="ghost" className="min-h-11" onClick={handleDiscardDraft} disabled={loading || loadFailed}>Scarta modifiche locali</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 border-t border-border bg-background/95 p-4 sm:px-0 backdrop-blur flex flex-wrap gap-3">
+          <Button className="flex-1 sm:flex-none min-h-11" onClick={handleSave} disabled={!form.title.trim() || loading || !initialized || loadFailed}>
+            <Save className="h-4 w-4 mr-2" />{loading ? "Salvataggio…" : form.published ? "Salva e pubblica" : "Salva bozza"}
           </Button>
-          <Button variant="outline" onClick={handleDiscardDraft} disabled={loading}>
-            Scarta bozza
-          </Button>
-          <Button variant="ghost" onClick={() => navigate("/admin")} disabled={loading}>
-            Annulla
+          <Button variant="outline" className="min-h-11" onClick={() => navigate("/admin?tab=events")} disabled={loading}>
+            Dashboard
           </Button>
         </div>
       </main>

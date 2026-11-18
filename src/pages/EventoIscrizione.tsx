@@ -11,6 +11,7 @@ import { settingsFrom } from "@/lib/event-booking-schema";
 import type { FormField } from "@/lib/form-fields";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import RichText from "@/components/RichText";
 
 interface EventData {
   id: string;
@@ -97,7 +98,7 @@ export default function EventoIscrizione() {
 
               {settingsFrom(event.booking_settings).enabled && <>
                 {event.image_url && <img src={event.image_url} alt={event.title} className="w-full aspect-[16/9] object-cover mb-6" />}
-                {event.description && <p className="whitespace-pre-wrap text-primary-foreground/80 mb-6">{event.description}</p>}
+                {event.description && <RichText content={event.description} className="prose-invert text-primary-foreground/80 mb-6" />}
                 {settingsFrom(event.booking_settings).programme && <p className="whitespace-pre-wrap text-primary-foreground/80 mb-6">{settingsFrom(event.booking_settings).programme}</p>}
               </>}
               <div className="flex flex-wrap gap-8 mb-10">

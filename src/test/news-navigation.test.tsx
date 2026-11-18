@@ -6,9 +6,11 @@ import { NewsList } from "@/pages/News";
 import Articoli from "@/pages/Articoli";
 
 const state = vi.hoisted(() => ({
-  rows: [{ id: "11111111-1111-4111-8111-111111111111", title: "Un giro insieme", summary: "Il racconto", content: "<h2>La partenza</h2><p>Una giornata speciale.</p>", image_url: null, created_at: "2026-11-18T09:00:00Z" }],
+  rows: [{ id: "11111111-1111-4111-8111-111111111111", title: "Un giro insieme", summary: "Il racconto", content: "<h2>La partenza</h2><p>Una giornata speciale.</p>", image_url: null, created_at: "2026-11-18T09:00:00Z", published_at: null as string | null }],
   error: null as { message: string } | null,
+  legacy: false,
   eq: vi.fn(),
+  or: vi.fn(),
   from: vi.fn(),
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: state.from } }));
@@ -24,11 +26,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.rows = [{ ...article }];
   state.error = null;
+  state.legacy = false;
   state.from.mockImplementation(() => {
+    let withPublication = false;
     const query = {
-      select: () => query,
+      select: (columns: string) => { withPublication = columns.includes("published_at"); return query; },
       eq: (column: string, value: unknown) => { state.eq(column, value); return query; },
-      order: async () => ({ data: state.rows, error: state.error }),
+      or: (filter: string) => { state.or(filter); return query; },
+      order: async () => ({ data: state.rows, error: state.legacy && withPublication ? { code: "42703", message: "column not installed" } : state.error }),
     };
     return query;
   });
@@ -50,6 +55,7 @@ describe("public news navigation", () => {
     const links = screen.getAllByRole("link");
     expect(links.map(link => link.getAttribute("href"))).toEqual([`/articoli/${article.id}`, "/news/dal-cms"]);
     expect(state.eq).toHaveBeenCalledWith("published", true);
+    expect(state.or).toHaveBeenCalledWith(expect.stringMatching(/^published_at.is.null,published_at.lte./));
   });
 
   it("opens an article directly and after a fresh page load", async () => {
@@ -62,6 +68,16 @@ describe("public news navigation", () => {
     show(`/articoli/${article.id}`);
     expect(await screen.findByRole("heading", { level: 1, name: article.title })).toBeInTheDocument();
   });
+  it("sorts and displays a backdated publication by its selected date rather than draft creation", async () => {
+    state.rows = [{ ...article, published_at: "2026-11-10T23:00:00Z" }];
+    const list = show("/news");
+    await screen.findByRole("heading", { name: article.title });
+    expect(screen.getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/news/dal-cms", `/articoli/${article.id}`]);
+    list.unmount();
+    show(`/articoli/${article.id}`);
+    await screen.findByRole("heading", { name: article.title });
+    expect(screen.getByText("11 novembre 2026").tagName).toBe("TIME");
+  });
 
   it("keeps CMS news visible when the archive is unavailable, without showing an empty-state claim", async () => {
     state.error = { message: "private backend detail" };
@@ -70,6 +86,13 @@ describe("public news navigation", () => {
     expect(screen.getByRole("heading", { name: "Notizia dal CMS" })).toBeInTheDocument();
     expect(screen.queryByText(/Nessuna notizia pubblicata/)).not.toBeInTheDocument();
     expect(screen.queryByText("private backend detail")).not.toBeInTheDocument();
+  });
+  it("preserves the existing published archive before the scheduling SQL is installed", async () => {
+    state.legacy = true;
+    show("/news");
+    expect(await screen.findByRole("heading", { name: article.title })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(state.from).toHaveBeenCalledTimes(2);
   });
 
   it("shows not found for missing or invalid IDs without querying an invalid UUID", async () => {
