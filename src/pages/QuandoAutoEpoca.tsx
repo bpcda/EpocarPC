@@ -43,7 +43,7 @@ export default function QuandoAutoEpoca() {
               to="/articoli"
               className="font-headline text-sm tracking-widest text-primary-foreground/50 hover:text-primary-foreground mb-8 inline-block transition-colors"
             >
-              ← TORNA AGLI ARTICOLI
+              ← TORNA ALLE NEWS
             </Link>
 
             <p className="text-primary-foreground/50 text-sm tracking-widest uppercase mb-4">

@@ -86,7 +86,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteArticle = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo articolo?")) return;
+    if (!confirm("Sei sicuro di voler eliminare questa notizia?")) return;
     await supabase.from("articles").delete().eq("id", id);
     fetchArticles();
   };
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
           <TabsList className="mb-6 h-auto flex flex-wrap justify-start gap-1">
             {!onlyTreasury && <>
             <TabsTrigger value="events">Eventi</TabsTrigger>
-            <TabsTrigger value="articles">Articoli</TabsTrigger>
+            <TabsTrigger value="articles">News</TabsTrigger>
             <TabsTrigger value="gallery">Gallery</TabsTrigger>
             <TabsTrigger value="registrations">Iscrizioni</TabsTrigger>
             <TabsTrigger value="association">Associazione</TabsTrigger>
@@ -211,18 +211,18 @@ export default function AdminDashboard() {
           {/* ════════ ARTICLES TAB ════════ */}
           <TabsContent value="articles">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-headline font-medium text-foreground">Articoli</h2>
+              <h2 className="text-lg font-headline font-medium text-foreground">News</h2>
               {isAdmin && (
                 <Button size="sm" onClick={() => navigate("/admin/articoli/nuovo")}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Nuovo articolo
+                  Nuova notizia
                 </Button>
               )}
             </div>
 
             {articles.length === 0 ? (
               <p className="text-muted-foreground text-sm py-12 text-center">
-                Nessun articolo ancora. Clicca "Nuovo articolo" per iniziare.
+                Nessuna notizia ancora. Clicca "Nuova notizia" per iniziare.
               </p>
             ) : (
               <div className="border border-border bg-card">

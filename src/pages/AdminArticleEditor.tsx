@@ -140,7 +140,7 @@ export default function AdminArticleEditor() {
             <ArrowLeft className="h-4 w-4" /> Dashboard
           </button>
           <h1 className="text-lg font-headline text-foreground truncate">
-            {isNew ? "Nuovo articolo" : "Modifica articolo"}
+            {isNew ? "Nuova notizia" : "Modifica notizia"}
           </h1>
           <div className="text-xs text-muted-foreground min-w-[110px] text-right">
             {savedAt ? `Bozza salvata ${savedAt.toLocaleTimeString("it-IT")}` : ""}
@@ -219,7 +219,7 @@ export default function AdminArticleEditor() {
 
         <div className="flex flex-col sm:flex-row gap-3 pt-4">
           <Button className="flex-1" onClick={handleSave} disabled={!form.title || loading}>
-            {loading ? "Salvataggio..." : isNew ? "Crea articolo" : "Salva modifiche"}
+            {loading ? "Salvataggio..." : isNew ? "Crea notizia" : "Salva modifiche"}
           </Button>
           <Button variant="outline" onClick={handleDiscardDraft} disabled={loading}>
             Scarta bozza

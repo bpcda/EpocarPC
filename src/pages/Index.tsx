@@ -19,7 +19,7 @@ const Index = () => {
     <>
       <PageMeta
         title="Epocar — Community motori d'epoca a Piacenza"
-        description="Epocar è la nuova generazione di appassionati di auto, moto e Vespa d'epoca a Piacenza. Scopri raduni, articoli e la nostra community."
+        description="Epocar è la nuova generazione di appassionati di auto, moto e Vespa d'epoca a Piacenza. Scopri raduni, news e la nostra community."
         path="/"
       />
       <Navbar />

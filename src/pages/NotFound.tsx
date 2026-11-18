@@ -13,7 +13,7 @@ const NotFound = () => {
     <div className="flex min-h-screen items-center justify-center bg-muted">
       <PageMeta
         title="Pagina non trovata — Epocar"
-        description="La pagina che stai cercando non esiste o è stata spostata. Torna alla home di Epocar per esplorare eventi, articoli e gallery."
+        description="La pagina che stai cercando non esiste o è stata spostata. Torna alla home di Epocar per esplorare eventi, news e gallery."
         path="/404"
       />
       <div className="text-center">

@@ -47,7 +47,7 @@ export default function Articoli() {
               onClick={() => setSelectedArticle(null)}
               className="font-headline text-sm tracking-widest text-primary-foreground/50 hover:text-primary-foreground mb-8 inline-block transition-colors"
             >
-              ← TORNA AGLI ARTICOLI
+              ← TORNA ALLE NEWS
             </button>
             {selectedArticle.image_url && (
               <div className="relative w-full max-h-[70vh] overflow-hidden mb-8 bg-primary-foreground/5">
@@ -90,8 +90,8 @@ export default function Articoli() {
   return (
     <div className="min-h-screen bg-foreground">
       <PageMeta
-        title="Rubricar — Articoli e storie di motori d'epoca | Epocar"
-        description="Rubricar è la rivista di Epocar: articoli, storie e approfondimenti su auto, moto e Vespa d'epoca dalla community di Piacenza."
+        title="News — Notizie e storie di motori d'epoca | Epocar"
+        description="Notizie, storie e approfondimenti su auto, moto e Vespa d'epoca dalla community Epocar di Piacenza."
         path="/articoli"
       />
       <Helmet>
@@ -114,7 +114,7 @@ export default function Articoli() {
         <section className="pt-32 pb-24 lg:pt-40 lg:pb-32">
           <div className="max-w-7xl mx-auto px-6">
             <h1 className="font-headline text-6xl md:text-8xl lg:text-9xl text-primary-foreground leading-none tracking-wider mb-4">
-              ARTICOLI
+              NEWS
             </h1>
             <div className="w-24 h-0.5 bg-primary-foreground/30 mb-4" />
             <p className="text-primary-foreground/60 text-base mb-12 max-w-2xl">
@@ -125,7 +125,7 @@ export default function Articoli() {
               <p className="text-primary-foreground/50 text-center py-12">Caricamento...</p>
             ) : articles.length === 0 ? (
               <p className="text-primary-foreground/50 text-center py-12">
-                Nessun articolo pubblicato al momento.
+                Nessuna notizia pubblicata al momento.
               </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

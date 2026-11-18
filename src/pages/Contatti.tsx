@@ -1,10 +1,29 @@
+import { useState } from "react";
+import { ArrowUpRight, Check } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
-import { useScrollReveal } from "@/hooks/use-scroll-reveal";
+import { Button } from "@/components/ui/button";
+import { SmartLink } from "@/components/cms/CmsContent";
+import { useSiteSettings } from "@/hooks/use-cms";
+
+const TOPICS = [
+  { title: "Eventi e raduni", description: "Informazioni sui prossimi appuntamenti.", subject: "Informazioni eventi" },
+  { title: "Entrare in Epocar", description: "Domande sull’associazione e sull’adesione.", subject: "Informazioni adesione" },
+  { title: "Collaborazioni", description: "Progetti, partnership e idee da condividere.", subject: "Proposta di collaborazione" },
+];
+
+const FALLBACK_SOCIAL = [
+  { label: "Instagram", url: "https://instagram.com/epocar.official" },
+  { label: "TikTok", url: "https://tiktok.com/@epocar" },
+];
 
 export default function ContattiPage() {
-  const ref = useScrollReveal();
+  const [selectedTopic, setSelectedTopic] = useState(0);
+  const { data: settings } = useSiteSettings();
+  const email = settings?.email ?? "epocarpc@gmail.com";
+  const social = settings?.social.length ? settings.social : FALLBACK_SOCIAL;
+  const subject = TOPICS[selectedTopic].subject;
 
   return (
     <>
@@ -14,78 +33,57 @@ export default function ContattiPage() {
         path="/contatti"
       />
       <Navbar />
-      <main>
-        {/* Full burgundy hero */}
-        <section className="bg-foreground min-h-screen flex items-center" ref={ref}>
-          <div className="max-w-7xl mx-auto px-6 lg:px-8 py-32 lg:py-40 w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              <div className="section-reveal">
-                <h1 className="font-headline text-6xl md:text-8xl lg:text-9xl text-primary-foreground leading-none tracking-wider mb-4">
-                  CONTATTI
-                </h1>
-                <div className="w-full max-w-md h-0.5 bg-primary-foreground/30 mb-12" />
+      <main className="bg-background text-foreground pt-32 pb-16 lg:pt-40 lg:pb-24">
+        <section className="max-w-7xl mx-auto px-6 lg:px-8" aria-labelledby="contact-title">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] mb-8">Contatti · Piacenza</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+            <div>
+              <h1 id="contact-title" className="font-headline text-6xl sm:text-8xl lg:text-9xl leading-none tracking-wide">
+                PARLIAMO<br />DI MOTORI.<br />E DI IDEE.
+              </h1>
+              <p className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-md mt-6 mb-8">
+                Un raduno, una collaborazione o una curiosità su Epocar. Il primo passo è scriverci.
+              </p>
+              <Button size="lg" asChild>
+                <a href={`mailto:${email}?subject=${encodeURIComponent(subject)}`}>
+                  Scrivici un’email <ArrowUpRight aria-hidden="true" />
+                </a>
+              </Button>
+              <a href={`mailto:${email}`} className="block w-fit max-w-full break-words text-sm underline underline-offset-4 mt-5 hover:opacity-75">
+                {email}
+              </a>
+            </div>
 
-                <div className="space-y-8">
-                  <div>
-                    <h3 className="font-headline text-2xl md:text-3xl text-primary-foreground tracking-wider">
-                      EMAIL:
-                    </h3>
-                    <a href="mailto:epocarpc@gmail.com" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-base">
-                      epocarpc@gmail.com
-                    </a>
-                  </div>
-                  <div>
-                    <h3 className="font-headline text-2xl md:text-3xl text-primary-foreground tracking-wider">
-                      INSTAGRAM
-                    </h3>
-                    <a
-                      href="https://instagram.com/epocar.official"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-base"
-                    >
-                      @epocar.official
-                    </a>
-                  </div>
-                  <div>
-                    <h3 className="font-headline text-2xl md:text-3xl text-primary-foreground tracking-wider">
-                      TIKTOK
-                    </h3>
-                    <a
-                      href="https://tiktok.com/@epocar"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-base"
-                    >
-                      @epocar
-                    </a>
-                  </div>
-                </div>
-              </div>
+            <div role="group" aria-labelledby="contact-topics">
+              <h2 id="contact-topics" className="text-xs font-medium uppercase tracking-[0.2em] mb-3">Di cosa vuoi parlare?</h2>
+              {TOPICS.map((topic, index) => (
+                <Button
+                  key={topic.subject}
+                  type="button"
+                  variant="ghost"
+                  aria-pressed={selectedTopic === index}
+                  onClick={() => setSelectedTopic(index)}
+                  className={`w-full h-auto justify-between gap-6 whitespace-normal border-b py-6 px-0 text-left font-body tracking-normal hover:bg-transparent hover:text-foreground ${selectedTopic === index ? "border-foreground" : "border-border"}`}
+                >
+                  <span>
+                    <span className="block text-lg font-medium">{topic.title}</span>
+                    <span className="block text-sm text-muted-foreground font-normal mt-2 leading-relaxed">{topic.description}</span>
+                  </span>
+                  {selectedTopic === index ? <Check aria-hidden="true" /> : <ArrowUpRight aria-hidden="true" />}
+                </Button>
+              ))}
+              <p className="text-sm text-muted-foreground mt-5" aria-live="polite">Oggetto email: {subject}</p>
+            </div>
+          </div>
 
-              {/* Instagram mockup placeholder */}
-              <div className="section-reveal hidden lg:flex justify-center" style={{ transitionDelay: "0.2s" }}>
-                <div className="w-[280px] bg-primary-foreground/5 border border-primary-foreground/10 rounded-[2rem] p-3 shadow-2xl">
-                  <div className="bg-primary-foreground/10 rounded-[1.5rem] p-4 h-[500px] flex flex-col items-center justify-center">
-                    <p className="font-headline text-3xl text-primary-foreground tracking-wider mb-2">EPOCAR</p>
-                    <p className="text-primary-foreground/50 text-sm">@epocar.official</p>
-                    <div className="flex gap-6 mt-4">
-                      <div className="text-center">
-                        <p className="font-headline text-lg text-primary-foreground">110</p>
-                        <p className="text-xs text-primary-foreground/50">post</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="font-headline text-lg text-primary-foreground">2269</p>
-                        <p className="text-xs text-primary-foreground/50">follower</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="font-headline text-lg text-primary-foreground">2887</p>
-                        <p className="text-xs text-primary-foreground/50">seguiti</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className="border-t border-border mt-16 lg:mt-24 pt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">La community continua sui social.</p>
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              {social.map((link) => (
+                <SmartLink key={link.url} href={link.url} className="inline-flex items-center gap-2 min-h-11 text-sm underline underline-offset-4 hover:opacity-75">
+                  {link.label} <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
+                </SmartLink>
+              ))}
             </div>
           </div>
         </section>

@@ -8,7 +8,7 @@ const navLinks = [
   { label: "Chi Siamo", href: "/chi-siamo" },
    { label: "Associazione", href: "/associazione" },
   { label: "Eventi", href: "/eventi" },
-  { label: "Articoli", href: "/articoli" },
+  { label: "News", href: "/articoli" },
   { label: "Gallery", href: "/gallery" },
   { label: "Contatti", href: "/contatti" },
 ];
