@@ -69,19 +69,27 @@ export default function Gallery() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [lightbox, setLightbox] = useState<GalleryImage | null>(null);
   const [needsUserAction, setNeedsUserAction] = useState(false);
+  const [failedPage, setFailedPage] = useState<number | null>(null);
+  const [error, setError] = useState("");
 
   const fetchPage = useCallback(async (pageIndex: number) => {
     // Guard: single inflight + minimum interval between requests
     if (inflightRef.current) return;
+    inflightRef.current = true;
+    setLoading(true);
     const now = Date.now();
     const wait = Math.max(0, MIN_FETCH_INTERVAL_MS - (now - lastFetchAtRef.current));
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    inflightRef.current = true;
     lastFetchAtRef.current = Date.now();
-    setLoading(true);
     const from = pageIndex * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const cached = pageCacheRef.current[pageIndex];
+    const showPage = (list: GalleryImage[], more: boolean) => {
+      // Revalidating a cached page must update its images without adding duplicates.
+      setImages(previous => pageIndex === 0 ? list : Array.from(new Map([...previous, ...list].map(img => [img.id, img])).values()));
+      setHasMore(more);
+      setPage(pageIndex);
+    };
 
     try {
       const res = await fetch(`${GALLERY_FN_URL}?from=${from}&to=${to}`, {
@@ -95,18 +103,17 @@ export default function Gallery() {
 
       // 304 → reuse cached page, no body transfer
       if (res.status === 304 && cached) {
-        setImages((prev) => (pageIndex === 0 ? cached.images : [...prev, ...cached.images]));
-        setHasMore(cached.hasMore);
+        showPage(cached.images, cached.hasMore);
         pageCacheRef.current[pageIndex] = { ...cached, ts: Date.now() };
         writePageCache(pageCacheRef.current);
       } else if (res.ok) {
         const body = (await res.json()) as { images: GalleryImage[] };
-        const list = body.images ?? [];
+        if (!Array.isArray(body.images)) throw new Error("Invalid gallery response");
+        const list = body.images;
         const etag = res.headers.get("etag") || "";
         const hasMoreLocal = list.length === PAGE_SIZE;
 
-        setImages((prev) => (pageIndex === 0 ? list : [...prev, ...list]));
-        setHasMore(hasMoreLocal);
+        showPage(list, hasMoreLocal);
 
         if (etag) {
           pageCacheRef.current[pageIndex] = {
@@ -118,21 +125,22 @@ export default function Gallery() {
           writePageCache(pageCacheRef.current);
         }
       } else {
-        setHasMore(false);
+        throw new Error("Gallery unavailable");
       }
+      setFailedPage(null);
+      setError("");
     } catch {
       // Network offline → fall back to any cached copy we already have
       if (cached) {
-        setImages((prev) => (pageIndex === 0 ? cached.images : [...prev, ...cached.images]));
-        setHasMore(cached.hasMore);
-      } else {
-        setHasMore(false);
+        showPage(cached.images, cached.hasMore);
       }
+      setFailedPage(pageIndex);
+      setError(cached ? "Non riusciamo ad aggiornare le foto. Stai vedendo una copia salvata." : "Non riusciamo a caricare le foto. Controlla la connessione e riprova.");
+    } finally {
+      setLoading(false);
+      setInitialLoad(false);
+      inflightRef.current = false;
     }
-
-    setLoading(false);
-    setInitialLoad(false);
-    inflightRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -152,7 +160,7 @@ export default function Gallery() {
   // Infinite scroll verticale (window)
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || loading || needsUserAction) return;
+    if (!sentinel || !hasMore || loading || needsUserAction || failedPage !== null) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -163,7 +171,6 @@ export default function Gallery() {
             setNeedsUserAction(true);
             return;
           }
-          setPage(next);
           fetchPage(next);
         }
       },
@@ -171,12 +178,11 @@ export default function Gallery() {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [page, hasMore, loading, fetchPage, images.length, needsUserAction]);
+  }, [page, hasMore, loading, fetchPage, images.length, needsUserAction, failedPage]);
 
   const loadMoreManual = () => {
     const next = page + 1;
     setNeedsUserAction(false);
-    setPage(next);
     fetchPage(next);
   };
 
@@ -195,14 +201,19 @@ export default function Gallery() {
           </h1>
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
+          {failedPage !== null && <div role="alert" className="border border-primary-foreground/30 p-5 mb-8 text-primary-foreground">
+            <p className="text-sm leading-relaxed mb-4">{error}</p>
+            <Button variant="hero-secondary" className="min-h-11" disabled={loading} onClick={() => fetchPage(failedPage)}>{loading ? "Caricamento…" : "Riprova"}</Button>
+          </div>}
+
           {initialLoad ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+            <div role="status" aria-label="Caricamento immagini" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="w-full aspect-square rounded-none" />
               ))}
             </div>
-          ) : images.length === 0 ? (
-            <p className="text-primary-foreground/60 text-center py-24">Nessuna immagine disponibile.</p>
+          ) : images.length === 0 ? (failedPage === null &&
+            <p className="text-primary-foreground/85 text-center py-24">Non ci sono ancora foto nella gallery. Torna a trovarci dopo il prossimo incontro.</p>
           ) : (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -211,12 +222,12 @@ export default function Gallery() {
                     key={img.id}
                     type="button"
                     onClick={() => setLightbox(img)}
-                    className="group relative overflow-hidden bg-muted/30 p-0 border-0 aspect-square w-full"
+                    className="group relative overflow-hidden bg-muted/30 p-0 border-0 aspect-square w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground"
                   >
                     <img
                       src={getThumbUrl(img.image_url)}
-                      alt={img.alt_text || "Gallery"}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 select-none"
+                      alt={img.alt_text || `Foto Epocar ${idx + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 motion-reduce:transition-none motion-reduce:transform-none group-hover:scale-105 select-none"
                       loading={idx < 4 ? "eager" : "lazy"}
                       decoding="async"
                       draggable={false}
@@ -229,16 +240,16 @@ export default function Gallery() {
                   </button>
                 ))}
 
-                {hasMore &&
+                {hasMore && failedPage === null &&
                   Array.from({ length: 4 }).map((_, i) => (
                     <Skeleton key={`s-${i}`} className="w-full aspect-square rounded-none" />
                   ))}
               </div>
 
-              {hasMore && !needsUserAction && <div ref={sentinelRef} className="h-10 w-full" />}
-              {hasMore && needsUserAction && (
+              {hasMore && !needsUserAction && failedPage === null && <div ref={sentinelRef} className="h-10 w-full" />}
+              {hasMore && needsUserAction && failedPage === null && (
                 <div className="flex justify-center mt-8">
-                  <Button variant="outline" onClick={loadMoreManual} disabled={loading}>
+                  <Button variant="hero-secondary" className="min-h-11" onClick={loadMoreManual} disabled={loading}>
                     {loading ? "Caricamento…" : "Carica altre immagini"}
                   </Button>
                 </div>

@@ -8,14 +8,16 @@ interface PageMetaProps {
   description: string;
   path: string;
   image?: string;
+  noIndex?: boolean;
 }
 
-export default function PageMeta({ title, description, path, image }: PageMetaProps) {
+export default function PageMeta({ title, description, path, image, noIndex = false }: PageMetaProps) {
   const url = `${SITE_URL}${path}`;
   return (
     <Helmet>
       <title>{title}</title>
       <meta name="description" content={description} />
+      {noIndex && <meta name="robots" content="noindex, follow" />}
       <link rel="canonical" href={url} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />

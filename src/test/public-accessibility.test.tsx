@@ -12,6 +12,16 @@ vi.stubGlobal("IntersectionObserver", class { observe() {} disconnect() {} });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); sessionStorage.clear(); });
 
 describe("public accessibility", () => {
+  it("marks the current section, including old News links, and updates it after navigation", () => {
+    render(<MemoryRouter initialEntries={["/articoli/una-notizia"]}><Navbar /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "News" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const events = screen.getAllByRole("link", { name: "Eventi" });
+    fireEvent.click(events[events.length - 1]);
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "Eventi" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "News" })).not.toHaveAttribute("aria-current");
+  });
   it("exposes the menu state and closes it with Escape, returning focus to the toggle", () => {
     render(<MemoryRouter><Navbar /></MemoryRouter>);
     const menu = screen.getByRole("button", { name: "Menu" });

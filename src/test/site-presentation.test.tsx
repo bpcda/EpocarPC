@@ -36,5 +36,12 @@ describe("public presentation", () => {
     render(<MemoryRouter><Footer /></MemoryRouter>);
     expect(screen.getByRole("link", { name: "info@example.invalid" })).toHaveAttribute("href", "mailto:info@example.invalid");
     expect(screen.getByRole("link", { name: "+39 333 1234567" })).toHaveAttribute("href", "tel:+39 333 1234567");
+    expect(screen.getByRole("link", { name: "Gallery" })).toHaveAttribute("href", "/gallery");
+  });
+  it("removes the noindex directive after leaving an unavailable page", async () => {
+    const view = render(<HelmetProvider><PageMeta title="Pagina non trovata" description="Non disponibile" path="/mancante" noIndex /></HelmetProvider>);
+    await waitFor(() => expect(document.querySelector("meta[name='robots']")).toHaveAttribute("content", "noindex, follow"));
+    view.rerender(<HelmetProvider><PageMeta title="Eventi" description="I prossimi incontri" path="/eventi" /></HelmetProvider>);
+    await waitFor(() => expect(document.querySelector("meta[name='robots']")).not.toBeInTheDocument());
   });
 });

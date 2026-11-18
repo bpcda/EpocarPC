@@ -21,9 +21,12 @@ export default function Navbar() {
   const { user, canAccessDashboard } = useAuth();
   const isHome = location.pathname === "/";
   const solid = !isHome || scrolled;
+  const activePath = location.pathname.startsWith("/articoli/") ? "/news" : location.pathname;
+  const currentSection = navLinks.find(link => activePath === link.href || activePath.startsWith(`${link.href}/`))?.href;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -46,6 +49,7 @@ export default function Navbar() {
 
   return (
     <nav
+      aria-label="Navigazione principale"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         solid
           ? "bg-foreground/95 backdrop-blur-sm border-b border-primary-foreground/10"
@@ -63,7 +67,8 @@ export default function Navbar() {
             <Link
               key={link.href}
               to={link.href}
-              className="font-headline text-sm tracking-[0.15em] text-primary-foreground border border-primary-foreground/40 px-5 py-2 hover:bg-primary-foreground/10 transition-colors duration-200"
+              aria-current={currentSection === link.href ? "page" : undefined}
+              className={`inline-flex items-center min-h-11 font-headline text-sm tracking-[0.15em] text-primary-foreground border border-primary-foreground/40 px-5 py-2 hover:bg-primary-foreground/10 transition-colors duration-200 motion-reduce:transition-none ${currentSection === link.href ? "bg-primary-foreground/15 border-primary-foreground" : ""}`}
             >
               {link.label}
             </Link>
@@ -71,7 +76,7 @@ export default function Navbar() {
           {user && canAccessDashboard && (
             <Link
               to="/admin"
-              className="font-headline text-sm tracking-[0.15em] text-primary-foreground border border-primary-foreground/40 px-5 py-2 hover:bg-primary-foreground/10 transition-colors duration-200 flex items-center gap-2"
+              className="min-h-11 font-headline text-sm tracking-[0.15em] text-primary-foreground border border-primary-foreground/40 px-5 py-2 hover:bg-primary-foreground/10 transition-colors duration-200 flex items-center gap-2"
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -79,7 +84,7 @@ export default function Navbar() {
           )}
           <Link
             to={user ? "/account" : "/auth"}
-            className="font-headline text-sm tracking-[0.15em] text-foreground bg-primary-foreground border border-primary-foreground px-5 py-2 hover:bg-primary-foreground/90 transition-colors duration-200 flex items-center gap-2"
+            className="min-h-11 font-headline text-sm tracking-[0.15em] text-foreground bg-primary-foreground border border-primary-foreground px-5 py-2 hover:bg-primary-foreground/90 transition-colors duration-200 flex items-center gap-2"
           >
             <UserIcon className="w-4 h-4" />
             {user ? "Account" : "Accedi"}
@@ -90,7 +95,7 @@ export default function Navbar() {
         <button
           ref={menuButton}
           type="button"
-          className="xl:hidden flex flex-col gap-1.5 p-2"
+          className="xl:hidden flex flex-col items-center justify-center min-h-11 min-w-11 gap-1.5 p-2"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Menu"
           aria-expanded={mobileOpen}
@@ -110,7 +115,8 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 to={link.href}
-                className="font-headline text-base tracking-[0.15em] text-primary-foreground border border-primary-foreground/30 px-5 py-3 text-center hover:bg-primary-foreground/10 transition-colors"
+                aria-current={currentSection === link.href ? "page" : undefined}
+                className={`font-headline text-base tracking-[0.15em] text-primary-foreground border border-primary-foreground/30 px-5 py-3 text-center hover:bg-primary-foreground/10 transition-colors motion-reduce:transition-none ${currentSection === link.href ? "bg-primary-foreground/15 border-primary-foreground" : ""}`}
               >
                 {link.label}
               </Link>
