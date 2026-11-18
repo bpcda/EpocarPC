@@ -13,7 +13,7 @@ const FALLBACK = {
   ],
 };
 
-const linkCls = "text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors";
+const linkCls = "text-sm text-primary-foreground/85 hover:text-primary-foreground transition-colors";
 
 export default function Footer() {
   const { data: s } = useSiteSettings();
@@ -26,8 +26,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="md:col-span-2">
             <img src={s?.logo?.url ?? logoEpocar} alt={s?.siteName ?? "Epocar"} className="h-12 w-auto brightness-0 invert mb-4" />
-            <p className="text-sm text-primary-foreground/60 max-w-sm leading-relaxed">{s?.footerText ?? FALLBACK.text}</p>
-            <p className="text-sm text-primary-foreground/40 mt-3">📍 {address}</p>
+            <p className="text-sm text-primary-foreground/85 max-w-sm leading-relaxed">{s?.footerText ?? FALLBACK.text}</p>
+            <p className="text-sm text-primary-foreground/80 mt-3">📍 {address}</p>
           </div>
           <div>
             <h4 className="font-headline text-xl tracking-wider mb-4">NAVIGAZIONE</h4>
@@ -44,17 +44,17 @@ export default function Footer() {
           </div>
           <div>
             <h4 className="font-headline text-xl tracking-wider mb-4">CONTATTI</h4>
-            <p className="text-sm text-primary-foreground/60">{address}</p>
-            <p className="text-sm text-primary-foreground/60 mt-1">{email}</p>
-            {s?.phone && <p className="text-sm text-primary-foreground/60 mt-1">{s.phone}</p>}
+            <p className="text-sm text-primary-foreground/85">{address}</p>
+            <a href={`mailto:${email}`} className={`${linkCls} block w-fit max-w-full break-words underline underline-offset-4 mt-2`}>{email}</a>
+            {s?.phone && <a href={`tel:${s.phone}`} className={`${linkCls} block w-fit underline underline-offset-4 mt-2`}>{s.phone}</a>}
             <div className="flex gap-4 mt-6 flex-wrap">
               {social.map((l) => <SmartLink key={l.url} href={l.url} className={linkCls}>{l.label}</SmartLink>)}
             </div>
           </div>
         </div>
         <div className="border-t border-primary-foreground/20 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-primary-foreground/40">© {new Date().getFullYear()} Epocar. Tutti i diritti riservati.</p>
-          <p className="text-xs text-primary-foreground/40">Piacenza, Italia — La community dei motori storici</p>
+          <p className="text-xs text-primary-foreground/80">© {new Date().getFullYear()} Epocar. Tutti i diritti riservati.</p>
+          <p className="text-xs text-primary-foreground/80">Piacenza, Italia — La community dei motori storici</p>
         </div>
       </div>
     </footer>

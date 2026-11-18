@@ -26,24 +26,25 @@ export default function InstagramSection() {
           </h2>
           <div className="w-24 h-0.5 bg-foreground/30 mx-auto mt-2" />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 section-reveal" style={{ transitionDelay: "0.2s" }}>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 section-reveal" style={{ transitionDelay: "0.2s" }}>
           {feed.map((img, i) => (
             <a
               key={i}
               href="https://instagram.com/epocar.official"
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative aspect-square overflow-hidden"
+              aria-label="Apri il profilo Instagram @epocar.official"
+              className="group relative aspect-square overflow-hidden last:col-span-2 last:aspect-[2/1] md:last:col-span-1 md:last:aspect-square"
             >
               <img
                 src={img.src}
                 alt={img.alt}
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 motion-reduce:transition-none group-hover:scale-110"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors duration-300 flex items-center justify-center">
                 <span className="text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 font-headline text-lg tracking-wider">
-                  @epocar
+                  @epocar.official
                 </span>
               </div>
             </a>

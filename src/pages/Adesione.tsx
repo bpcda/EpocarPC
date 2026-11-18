@@ -95,14 +95,23 @@ export default function Adesione() {
   }
 
   const schemas = [personalStep, associativeStep, declarationsStep];
+  function showErrors(e: Record<string, string>, targetStep: number) {
+    setErrors(e); setStep(targetStep);
+    window.requestAnimationFrame(() => {
+      const field = document.getElementById(`f-${Object.keys(e)[0]}`);
+      field?.focus();
+      field?.scrollIntoView({ block: "center" });
+    });
+  }
   function next() {
-    const e = stepErrors(schemas[step], form); setErrors(e);
-    if (Object.keys(e).length) { toast.error("Controlla i campi evidenziati"); return; }
+    const e = stepErrors(schemas[step], form);
+    if (Object.keys(e).length) { showErrors(e, step); toast.error("Controlla i campi evidenziati"); return; }
+    setErrors({});
     setStep(s => s + 1); window.scrollTo({ top: 0 });
   }
   async function saveDraft() { if (await persist("draft")) toast.success("Bozza salvata: potrai riprenderla quando vuoi"); }
   async function submit() {
-    for (let i = 0; i < schemas.length; i++) { const e = stepErrors(schemas[i], form); if (Object.keys(e).length) { setErrors(e); setStep(i); toast.error("Completa i campi obbligatori"); return; } }
+    for (let i = 0; i < schemas.length; i++) { const e = stepErrors(schemas[i], form); if (Object.keys(e).length) { showErrors(e, i); toast.error("Completa i campi obbligatori"); return; } }
     if (await persist("submitted")) toast.success("Domanda ricevuta");
   }
 
@@ -142,22 +151,22 @@ export default function Adesione() {
         ) : <>
           {unavailable && <div role="alert" className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Impossibile caricare la domanda</h2><p className="text-primary-foreground/70 mb-4">Non siamo riusciti a leggere lo stato della tua domanda. Riprova tra poco; se il problema continua, contattaci.</p><Button variant="hero-secondary" onClick={() => setReload(n => n + 1)}>Riprova</Button></div>}
           {ready && !user && <div className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Accedi per presentare la domanda</h2><p className="text-primary-foreground/70 mb-5">Serve un account del sito per compilare la domanda online e salvarla come bozza.</p><Button variant="hero-primary" asChild><Link to="/auth?next=/associazione/iscrizione">Accedi o registrati</Link></Button></div>}
-          {ready && user && !submission && !started && <div className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Diventa socio</h2><p className="text-primary-foreground/70 mb-5">Compila la domanda online in 4 passaggi. Puoi salvarla come bozza e riprenderla quando vuoi.</p><Button variant="hero-primary" onClick={() => setStarted(true)}>Presenta domanda di ammissione <ArrowRight /></Button></div>}
+          {ready && user && !submission && !started && <div className="border-y border-primary-foreground/25 py-8 mb-10"><h2 className="text-3xl mb-3">Diventa socio</h2><p className="text-primary-foreground/70 mb-5">Compila la domanda online in 4 passaggi. Puoi salvarla come bozza e riprenderla quando vuoi.</p><Button variant="hero-primary" className="max-w-full h-auto min-h-11 whitespace-normal text-left" onClick={() => setStarted(true)}>Presenta domanda di ammissione <ArrowRight /></Button></div>}
           {ready && user && (isDraft || started) && <section className="border-t border-primary-foreground/25 pt-8" aria-label="Modulo di domanda">
             <ol className="grid grid-cols-4 gap-1 mb-8" aria-label="Avanzamento">{STEPS.map((s, i) => <li key={s} aria-current={i === step ? "step" : undefined} className={`border-t-4 pt-2 text-xs sm:text-sm uppercase tracking-widest ${i <= step ? "border-primary-foreground" : "border-primary-foreground/20 text-primary-foreground/50"}`}><span className="hidden sm:inline">{i + 1}. {s}</span><span className="sm:hidden">{i + 1}</span></li>)}</ol>
             {isDraft && step === 0 && <p className="font-headline tracking-widest text-sm mb-2">Continua la domanda</p>}<h2 className="text-3xl mb-2">{STEPS[step]}</h2>
             <p className="text-sm text-primary-foreground/60 mb-6">{isDraft ? "Stato: Bozza · " : ""}I campi con * sono obbligatori.</p>
 
-            {step === 0 && <div className="grid sm:grid-cols-2 gap-5">{PERSONAL.map(([k, label, type, ac]) => <div key={k}><Label htmlFor={`f-${k}`}>{label} *</Label><Input id={`f-${k}`} type={type} autoComplete={ac} value={form[k] as string} aria-invalid={!!errors[k]} aria-describedby={errors[k] ? `${k}-err` : undefined} onChange={e => set(k, e.target.value)} className={inputCls} maxLength={k === "tax_code" ? 16 : k === "province" ? 2 : 120} />{err(k)}</div>)}</div>}
+            {step === 0 && <div className="grid sm:grid-cols-2 gap-5">{PERSONAL.map(([k, label, type, ac]) => <div key={k}><Label htmlFor={`f-${k}`}>{label} *</Label><Input id={`f-${k}`} type={type} autoComplete={ac} required value={form[k] as string} aria-invalid={!!errors[k]} aria-describedby={errors[k] ? `${k}-err` : undefined} onChange={e => set(k, e.target.value)} className={inputCls} maxLength={k === "tax_code" ? 16 : k === "province" ? 2 : 120} />{err(k)}</div>)}</div>}
 
             {step === 1 && <div className="space-y-6">
-              <fieldset><legend className="mb-3">Categoria di socio richiesta *</legend><div className="flex flex-wrap gap-3">{REQUESTED_CATEGORIES.map(c => <label key={c} className={`border px-5 py-3 cursor-pointer ${form.requested_category === c ? "bg-primary-foreground text-foreground" : "border-primary-foreground/40"}`}><input type="radio" name="category" value={c} checked={form.requested_category === c} onChange={() => set("requested_category", c)} className="sr-only" />{c}</label>)}</div>
+              <fieldset><legend className="mb-3">Categoria di socio richiesta *</legend><div className="flex flex-wrap gap-3">{REQUESTED_CATEGORIES.map((c, i) => <label key={c} className={`border px-5 py-3 cursor-pointer focus-within:ring-2 focus-within:ring-primary-foreground focus-within:ring-offset-2 focus-within:ring-offset-foreground ${form.requested_category === c ? "bg-primary-foreground text-foreground" : "border-primary-foreground/40"}`}><input id={i === 0 ? "f-requested_category" : undefined} type="radio" name="category" value={c} checked={form.requested_category === c} aria-invalid={!!errors.requested_category} aria-describedby={errors.requested_category ? "requested_category-err" : undefined} onChange={() => set("requested_category", c)} className="sr-only" />{c}</label>)}</div>
                 <p className="text-sm text-primary-foreground/60 mt-2">La categoria definitiva è deliberata dall’Associazione in sede di ammissione.</p>{err("requested_category")}</fieldset>
               <div><Label htmlFor="f-motivation">Perché vuoi entrare in EPOCAR? (facoltativo)</Label><Textarea id="f-motivation" maxLength={1000} value={form.motivation} onChange={e => set("motivation", e.target.value)} className={inputCls} placeholder="Interessi, veicoli d’epoca posseduti o seguiti…" />{err("motivation")}</div>
               <div><Label htmlFor="f-notes">Note (facoltativo)</Label><Textarea id="f-notes" maxLength={1000} value={form.applicant_notes} onChange={e => set("applicant_notes", e.target.value)} className={inputCls} />{err("applicant_notes")}</div>
             </div>}
 
-            {step === 2 && <div className="space-y-5">{DECLARATIONS.map(d => <div key={d.key}><div className="flex items-start gap-3"><Checkbox id={`f-${d.key}`} checked={form[d.key]} onCheckedChange={c => set(d.key, c === true)} aria-invalid={!!errors[d.key]} className="mt-0.5 border-primary-foreground data-[state=checked]:bg-primary-foreground data-[state=checked]:text-foreground" /><Label htmlFor={`f-${d.key}`} className="leading-relaxed">{d.label}{d.required ? " *" : ""}</Label></div>{err(d.key)}</div>)}</div>}
+            {step === 2 && <div className="space-y-5">{DECLARATIONS.map(d => <div key={d.key}><div className="flex items-start gap-3"><Checkbox id={`f-${d.key}`} checked={form[d.key]} onCheckedChange={c => set(d.key, c === true)} aria-invalid={!!errors[d.key]} aria-describedby={errors[d.key] ? `${d.key}-err` : undefined} required={d.required} className="mt-0.5 border-primary-foreground data-[state=checked]:bg-primary-foreground data-[state=checked]:text-foreground" /><Label htmlFor={`f-${d.key}`} className="leading-relaxed">{d.label}{d.required ? " *" : ""}</Label></div>{err(d.key)}</div>)}</div>}
 
             {step === 3 && <div className="space-y-4">
               <dl className="grid sm:grid-cols-2 gap-x-6 text-sm">{PERSONAL.map(([k, label]) => <div key={k} className="border-b border-primary-foreground/15 py-2"><dt className="text-primary-foreground/60">{label}</dt><dd>{k === "birth_date" && form.birth_date ? new Date(form.birth_date).toLocaleDateString("it-IT") : (form[k] as string)}</dd></div>)}
@@ -169,7 +178,7 @@ export default function Adesione() {
               <p className="text-xs text-primary-foreground/50">Dichiarazioni versione {DECLARATIONS_VERSION}. Dopo l’invio i dati non saranno più modificabili dal sito.</p>
             </div>}
 
-            <div className="flex flex-wrap gap-3 mt-8 sticky bottom-0 bg-foreground py-4 border-t border-primary-foreground/15">
+            <div className="flex flex-wrap gap-3 mt-8 sticky bottom-0 bg-foreground py-4 border-t border-primary-foreground/15 [&>button]:max-w-full [&>button]:h-auto [&>button]:min-h-11 [&>button]:whitespace-normal">
               {step > 0 && <Button type="button" variant="hero-secondary" disabled={sending} onClick={() => setStep(s => s - 1)}><ArrowLeft /> Indietro</Button>}
               {step < 3 ? <Button type="button" variant="hero-primary" disabled={sending} onClick={next}>Avanti <ArrowRight /></Button>
                 : <Button type="button" variant="hero-primary" disabled={sending} onClick={submit}><Send /> {sending ? "Invio in corso…" : "Invia domanda di ammissione"}</Button>}

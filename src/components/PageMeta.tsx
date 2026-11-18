@@ -1,6 +1,7 @@
 import { Helmet } from "react-helmet-async";
 
 const SITE_URL = "https://epocarpc.com";
+const DEFAULT_IMAGE = `${SITE_URL}/epocar-social.jpg`;
 
 interface PageMetaProps {
   title: string;
@@ -19,9 +20,10 @@ export default function PageMeta({ title, description, path, image }: PageMetaPr
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
-      {image && <meta property="og:image" content={image} />}
+      <meta property="og:image" content={image ?? DEFAULT_IMAGE} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image ?? DEFAULT_IMAGE} />
     </Helmet>
   );
 }

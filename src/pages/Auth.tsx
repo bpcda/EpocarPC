@@ -10,14 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/auth-error";
+import { authReturnPath } from "@/lib/auth-navigation";
 
 export default function Auth() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const nextPath = params.get("next") || "/account";
+  const nextPath = authReturnPath(params.get("next"));
   const { user } = useAuth();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(() => params.get("mode") === "signup" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -92,7 +93,7 @@ export default function Auth() {
       <Navbar />
       <main className="min-h-screen bg-foreground pt-32 pb-24">
         <div className="max-w-md mx-auto px-6">
-          <h1 className="font-headline text-5xl md:text-6xl text-primary-foreground tracking-wider mb-2">
+          <h1 className="font-headline text-5xl md:text-6xl text-primary-foreground tracking-wider break-words mb-2">
             {mode === "signin" ? "ACCEDI" : "REGISTRATI"}
           </h1>
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
@@ -113,29 +114,29 @@ export default function Auth() {
             <div className="flex-1 h-px bg-primary-foreground/20" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" aria-busy={busy}>
             {mode === "signup" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="fn" className="text-primary-foreground/70">Nome</Label>
-                  <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
+                  <Input id="fn" name="firstName" autoComplete="given-name" disabled={busy} value={firstName} onChange={(e) => setFirstName(e.target.value)} required
                     className="bg-transparent border-primary-foreground/30 text-primary-foreground" />
                 </div>
                 <div>
                   <Label htmlFor="ln" className="text-primary-foreground/70">Cognome</Label>
-                  <Input id="ln" value={lastName} onChange={(e) => setLastName(e.target.value)} required
+                  <Input id="ln" name="lastName" autoComplete="family-name" disabled={busy} value={lastName} onChange={(e) => setLastName(e.target.value)} required
                     className="bg-transparent border-primary-foreground/30 text-primary-foreground" />
                 </div>
               </div>
             )}
             <div>
               <Label htmlFor="email" className="text-primary-foreground/70">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+              <Input id="email" name="email" type="email" autoComplete="email" disabled={busy} value={email} onChange={(e) => setEmail(e.target.value)} required
                 className="bg-transparent border-primary-foreground/30 text-primary-foreground" />
             </div>
             <div>
               <Label htmlFor="pw" className="text-primary-foreground/70">Password</Label>
-              <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+              <Input id="pw" name="password" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} disabled={busy} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
                 className="bg-transparent border-primary-foreground/30 text-primary-foreground" />
             </div>
             <Button type="submit" disabled={busy} className="w-full bg-primary-foreground text-foreground hover:bg-primary-foreground/90 font-headline tracking-widest">
@@ -148,6 +149,7 @@ export default function Auth() {
             <button
               type="button"
               className="text-primary-foreground underline"
+              disabled={busy}
               onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             >
               {mode === "signin" ? "Registrati" : "Accedi"}

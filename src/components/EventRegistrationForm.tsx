@@ -29,6 +29,7 @@ interface Vehicle {
 
 export default function EventRegistrationForm({ eventId, allowGuests, fields }: Props) {
   const auth = useAuth();
+  const loginPath = `/auth?next=${encodeURIComponent(`/eventi/${eventId}/iscrizione`)}`;
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -154,11 +155,11 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
         <p className="text-primary-foreground/80 text-sm">
           Per iscriverti a questo evento devi avere un account.
         </p>
-        <Link to="/auth">
-          <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest">
+        <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 font-headline tracking-widest" asChild>
+          <Link to={loginPath}>
             ACCEDI / REGISTRATI
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -174,6 +175,9 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
           <Input
             className={inputClass}
             placeholder="Nome e cognome *"
+            aria-label="Nome e cognome"
+            autoComplete="name"
+            required
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
           />
@@ -181,6 +185,9 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
             className={inputClass}
             type="email"
             placeholder="Email *"
+            aria-label="Email"
+            autoComplete="email"
+            required
             value={guestEmail}
             onChange={(e) => setGuestEmail(e.target.value)}
           />
@@ -201,6 +208,7 @@ export default function EventRegistrationForm({ eventId, allowGuests, fields }: 
             uploadingFieldId === f.id,
             (file) => uploadUserFile(f, file),
             !!auth.user,
+            loginPath,
           )}
         </div>
       ))}
@@ -226,6 +234,7 @@ function renderField(
   uploading: boolean,
   onUpload: (file: File) => void,
   isAuthenticated: boolean,
+  loginPath: string,
 ) {
   switch (f.type) {
     case "textarea":
@@ -356,7 +365,7 @@ function renderField(
       if (!isAuthenticated) {
         return (
           <p className="text-xs text-primary-foreground/60">
-            Per caricare un file <Link to="/auth" className="underline">accedi al tuo account</Link>.
+            Per caricare un file <Link to={loginPath} className="underline">accedi al tuo account</Link>.
           </p>
         );
       }

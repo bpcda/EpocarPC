@@ -12,7 +12,7 @@ export default function MembershipCtaSection() {
   const { user } = useAuth();
   if (home && !home.membershipOpen) return null;
 
-  const href = user ? APPLY : `/auth?next=${encodeURIComponent(APPLY)}`;
+  const href = user ? APPLY : `/auth?mode=signup&next=${encodeURIComponent(APPLY)}`;
   const hasCmsText = !!home?.membershipText?.length;
 
   return (
@@ -35,8 +35,8 @@ export default function MembershipCtaSection() {
             )}
           </div>
         </div>
-        <Button variant="hero-secondary" asChild>
-          <Link to={href}>{home?.membershipButtonLabel ?? (user ? "Compila la domanda" : "Registrati e diventa socio")}</Link>
+        <Button variant="hero-secondary" className="h-auto min-h-11 max-w-full whitespace-normal" asChild>
+          <Link to={href}>{home?.membershipButtonLabel ?? (user ? "Compila la domanda" : "Registrati e presenta la domanda")}</Link>
         </Button>
       </div>
     </section>

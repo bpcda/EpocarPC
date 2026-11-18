@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 export default function QuandoAutoEpoca() {
   const publishedISO = "2026-07-10";
-  const url = "https://epocar-drive-passion.lovable.app/articoli/quando-auto-diventa-epoca";
+  const url = "https://epocarpc.com/articoli/quando-auto-diventa-epoca";
 
   return (
     <div className="min-h-screen bg-foreground">
