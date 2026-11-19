@@ -40,6 +40,7 @@ export default function Footer() {
               <Link to="/news" className={linkCls}>News</Link>
               <Link to="/gallery" className={linkCls}>Gallery</Link>
               <Link to="/community" className={linkCls}>Community</Link>
+              <Link to="/novita" className={linkCls}>Le prossime novità</Link>
               <Link to="/contatti" className={linkCls}>Contatti</Link>
             </div>
           </div>

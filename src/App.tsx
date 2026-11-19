@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound.tsx";
 import CmsPage from "./pages/CmsPage.tsx";
 import { NewsList, NewsDetail } from "./pages/News.tsx";
 import Faq from "./pages/Faq.tsx";
+import Novita, { futureFeatures, InCostruzione } from "./pages/Novita.tsx";
 import Consiglio from "./pages/Consiglio.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
@@ -56,6 +57,8 @@ const App = () => (
           <Route path="/eventi" element={<Eventi />} />
           <Route path="/eventi/:id/iscrizione" element={<EventoIscrizione />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/novita" element={<Novita />} />
+          {futureFeatures.map(feature => <Route key={feature.path} path={feature.path} element={<InCostruzione feature={feature} />} />)}
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/articoli" element={<Navigate to="/news" replace />} />
           <Route path="/articoli/quando-auto-diventa-epoca" element={<QuandoAutoEpoca />} />
