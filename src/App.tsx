@@ -29,6 +29,8 @@ import Consiglio from "./pages/Consiglio.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/use-auth.ts";
+import { Analytics } from "@vercel/analytics/react";
+import { publicAnalyticsEvent } from "./lib/analytics";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <ScrollToTop />
+          {import.meta.env.PROD && <Analytics beforeSend={publicAnalyticsEvent} />}
           <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/chi-siamo" element={<ChiSiamo />} />
