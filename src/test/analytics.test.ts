@@ -13,4 +13,11 @@ describe("Vercel public page analytics", () => {
     expect(publicAnalyticsEvent({ type: "pageview", url: "not a URL" })).toBeNull();
     expect(publicAnalyticsEvent({ type: "pageview", url: "https://epocarpc.com/news/%FF" })).toBeNull();
   });
+  it("preserves Speed Insights vital metadata while removing URL parameters", () => {
+    const vital = { type: "vital" as const, url: "https://epocarpc.com/news/un-raduno?token=secret#private", route: "/news/[slug]" };
+    expect(publicAnalyticsEvent(vital)).toEqual({ ...vital, url: "https://epocarpc.com/news/un-raduno" });
+  });
+  it("also excludes private pages from Speed Insights", () => {
+    expect(publicAnalyticsEvent({ type: "vital", url: "https://epocarpc.com/account?token=secret", route: "/account" })).toBeNull();
+  });
 });

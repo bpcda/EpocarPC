@@ -1,6 +1,4 @@
-import type { BeforeSendEvent } from "@vercel/analytics";
-
-export function publicAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent | null {
+export function publicAnalyticsEvent<T extends { url: string }>(event: T): T | null {
   try {
     const url = new URL(event.url);
     const path = decodeURIComponent(url.pathname);
