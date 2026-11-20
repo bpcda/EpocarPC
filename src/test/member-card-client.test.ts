@@ -27,4 +27,10 @@ describe("member card client boundary", () => {
     invoke.mockResolvedValueOnce({ data: { status: "maybe" }, error: null });
     expect(await verifyMemberCard(token)).toEqual({ status: "unavailable" });
   });
+  it("accepts automatic QR credentials without changing the verification flow", async () => {
+    invoke.mockResolvedValueOnce({ data: { status: "invalid" }, error: null });
+    const automatic = "v2." + "b".repeat(64);
+    expect(await verifyMemberCard(automatic)).toEqual({ status: "invalid" });
+    expect(invoke).toHaveBeenCalledWith("member-card", { body: { token: automatic } });
+  });
 });

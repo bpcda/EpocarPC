@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Export private QR sheets for Pass2U. Requires qrcode[pil]==8.2 and cryptography; never publish the bundle."""
+"""Download already-issued QR cards as private Pass2U sheets. Requires qrcode[pil]==8.2."""
 import argparse
 import base64
 import html
 import json
 import os
 from pathlib import Path
-import secrets
+import re
 import textwrap
 import uuid
 from urllib.parse import urlencode
@@ -18,6 +18,7 @@ API = "https://cgbaunizlqqhctiiogok.supabase.co/rest/v1/"
 
 
 def token_for(member_id, key):
+    """Legacy v1 compatibility vector; current exports always reuse database credentials."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
     member_id = str(uuid.UUID(member_id))
@@ -53,54 +54,28 @@ def export(args):
     output.mkdir(parents=True, exist_ok=True, mode=0o700)
     output.chmod(0o700)
     service_key = args.service_key_file.expanduser().read_text().strip()
-    members = read_all("member_public_status", {
-        "select": "treasury_member_id,user_id,card_number,category,admission_status,admission_source,membership_status",
-        "order": "card_number.asc", "admission_status": "eq.confirmed", "membership_status": "eq.active",
+    members = read_all("member_card_credentials", {
+        "select": "treasury_member_id,qr_token,full_name,card_number,category",
+        "order": "card_number.asc",
     }, service_key)
     if not members:
-        raise ValueError("Nessun socio ammesso e attivo disponibile: nessun QR emesso")
+        raise ValueError("Nessuna tessera emessa disponibile")
     member_ids, card_numbers = set(), set()
     for member in members:
         member_id = str(uuid.UUID(member["treasury_member_id"]))
         card = member["card_number"]
         if member_id in member_ids or type(card) is not int or card <= 0 or card in card_numbers:
             raise ValueError("Identificativo o numero tessera mancante o duplicato")
-        if member["admission_source"] not in {"board_resolution", "historical_register"}:
-            raise ValueError("Prova di ammissione non verificabile")
+        if not re.fullmatch(r"v2\.[0-9a-f]{64}|v1\." + re.escape(member_id) + r"\.[A-Za-z0-9_-]{86}", member["qr_token"]):
+            raise ValueError("Codice tessera non valido")
         member_ids.add(member_id)
         card_numbers.add(card)
-    user_ids = ",".join(str(uuid.UUID(m["user_id"])) for m in members)
-    profiles = read_all("profiles", {"select": "user_id,first_name,last_name", "user_id": f"in.({user_ids})", "order": "user_id.asc"}, service_key)
-    names = {p["user_id"]: " ".join(filter(None, [p["first_name"], p["last_name"]])) for p in profiles}
-    applications = read_all("membership_applications", {"select": "user_id,full_name", "user_id": f"in.({user_ids})", "order": "user_id.asc"}, service_key)
-    names.update({a["user_id"]: a["full_name"] for a in applications if a["full_name"]})
-
-    key_file = args.key_file.expanduser()
-    key_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    public_file = key_file.with_name("member-card-public-key")
-    if not key_file.exists():
-        if public_file.exists():
-            raise ValueError("Chiave privata mancante: recuperala dal backup, non rigenerare i codici")
-        # Keep this file: replacing the signing key invalidates every previously issued QR.
-        with os.fdopen(os.open(key_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w") as stream:
-            stream.write(secrets.token_hex(32))
-    key = key_file.read_text().strip()
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    public_key = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(key)).public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-    encoded_public = base64.urlsafe_b64encode(public_key).decode().rstrip("=")
-    if public_file.exists() and public_file.read_text().strip() != encoded_public:
-        raise ValueError("La chiave pubblica non corrisponde: non sostituire le tessere già emesse")
-    verifier = repo / "setup/functions/member-card/public-key.ts"
-    if verifier.exists() and encoded_public not in verifier.read_text():
-        raise ValueError("La chiave non corrisponde al verificatore del sito")
-    public_file.write_text(encoded_public)
     cards, articles, pages = [], [], []
     font = ImageFont.truetype("DejaVuSans.ttf", 32)
     for member in members:
         card = member["card_number"]
-        name = names.get(member["user_id"]) or f"Tessera n. {card}"
-        url = SITE + "/verifica-tessera#" + token_for(member["treasury_member_id"], key)
+        name = member["full_name"]
+        url = SITE + "/verifica-tessera#" + member["qr_token"]
         stem = f"tessera-{card:04d}"
         qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=12, border=4)
         qr.add_data(url)
@@ -123,7 +98,7 @@ def export(args):
     (output / "indice.html").write_text(document)
     (output / "elenco.json").write_text(json.dumps(cards, ensure_ascii=False, indent=2))
     pages[0].save(output / "codici-pass2u.pdf", save_all=True, append_images=pages[1:], resolution=150)
-    (output / "LEGGIMI.txt").write_text("Apri indice.html oppure codici-pass2u.pdf sul PC. In Pass2U acquisisci il QR e conserva il contenuto esatto, compresa la parte dopo #. Personalizza la tessera e pubblica soltanto il file/link individuale generato da Pass2U. Non pubblicare questo pacchetto con i QR di tutti i soci.\n\nIl QR apre una verifica online: i dati di validità non sono incorporati nel codice e non cambiano automaticamente il testo o il colore della tessera creata manualmente in Pass2U. La verifica non registra tappe. Un QR statico può essere copiato: confronta sempre il numero sul risultato con la tessera del titolare.\n\nLa verifica usa le ultime informazioni ricevute dalla Tesoreria e mostra la data di aggiornamento. Dal 1 marzo un rinnovo non pagato non è valido; gli esenti devono risultare esplicitamente tali. La pagina non modifica lo stato ufficiale nel registro, non cancella soci e non decide riammissioni. I soci senza dati sincronizzati non possono essere verificati.\n\nConserva e proteggi anche il file " + str(key_file) + ": è la chiave privata per emettere altri QR compatibili e non è inclusa nel pacchetto. I rinnovi non richiedono di cambiare i codici.\n")
+    (output / "LEGGIMI.txt").write_text("Apri indice.html oppure codici-pass2u.pdf sul PC. In Pass2U acquisisci il QR e conserva il contenuto esatto, compresa la parte dopo #. Personalizza la tessera e pubblica soltanto il file/link individuale generato da Pass2U. Non pubblicare questo pacchetto con i QR di tutti i soci.\n\nLe nuove tessere vengono emesse automaticamente dopo la conferma di ammissione e quota dalla Tesoreria. Le ritrovi in https://epocarpc.com/gestione-tessere accedendo esclusivamente con il tuo account. Questa esportazione riutilizza quei codici senza generarne altri, anche dopo un rinnovo.\n\nIl QR apre una verifica online: non cambia automaticamente testo o colore della tessera Pass2U e non registra tappe. Un QR statico può essere copiato: confronta il numero sul risultato con la tessera del titolare. La verifica usa gli ultimi dati ricevuti dalla Tesoreria e ne mostra la data. Il registro associativo resta gestito dalla Tesoreria.\n")
     with zipfile.ZipFile(output / "tessere-pass2u.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         for path in [output / "indice.html", output / "elenco.json", output / "codici-pass2u.pdf", output / "LEGGIMI.txt"] + [output / card[k] for card in cards for k in ["png", "svg"]]:
             archive.write(path, path.name)
@@ -134,7 +109,6 @@ if __name__ == "__main__":
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path.home() / ".local/share/epocar/tessere-pass2u")
-    parser.add_argument("--key-file", type=Path, default=Path.home() / ".config/epocar/member-card-signing-key")
     parser.add_argument("--service-key-file", type=Path, default=Path.home() / ".config/epocar/supabase-service-role")
     args = parser.parse_args()
     try:

@@ -33,18 +33,29 @@ export async function memberCard(req: Request, db: SupabaseClient, publicKey: st
     token = input.token;
   } catch { return reply(400, { status: "invalid" }); }
   const match = tokenPattern.exec(token);
-  if (!match) return reply(400, { status: "invalid" });
-  const key = await crypto.subtle.importKey("raw", decode(publicKey), "Ed25519", false, ["verify"]);
-  const valid = await crypto.subtle.verify("Ed25519", key, decode(match[2]), new TextEncoder().encode(`epocar-card-v1:${match[1]}`));
-  if (!valid) return reply(200, { status: "invalid", checked_at: now.toISOString() });
+  const automatic = /^v2\.[0-9a-f]{64}$/.test(token);
+  if (!match && !automatic) return reply(400, { status: "invalid" });
+  let memberId = match?.[1];
   try {
+    if (match) {
+      const key = await crypto.subtle.importKey("raw", decode(publicKey), "Ed25519", false, ["verify"]);
+      const valid = await crypto.subtle.verify("Ed25519", key, decode(match[2]), new TextEncoder().encode(`epocar-card-v1:${match[1]}`));
+      if (!valid) return reply(200, { status: "invalid", checked_at: now.toISOString() });
+    } else {
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      const hash = Array.from(digest, byte => byte.toString(16).padStart(2, "0")).join("");
+      const credential = await db.from("member_card_credentials").select("treasury_member_id").eq("token_hash", hash).maybeSingle();
+      if (credential.error) return reply(503, { status: "unavailable" });
+      if (!credential.data) return reply(200, { status: "invalid", checked_at: now.toISOString() });
+      memberId = credential.data.treasury_member_id;
+    }
     const member = await db.from("member_public_status")
       .select("admission_status,admission_source,admission_date,admission_decision_date,membership_status,card_number,treasury_updated_at,last_revision")
-      .eq("treasury_member_id", match[1]).maybeSingle();
+      .eq("treasury_member_id", memberId).maybeSingle();
     const parsed = cardMemberSchema.safeParse(member.data);
     if (member.error || !parsed.success) return reply(503, { status: "unavailable" });
     const fees = await db.from("member_annual_fees").select("membership_year,fee_status,last_payment_date")
-      .eq("treasury_member_id", match[1]).order("membership_year", { ascending: false });
+      .eq("treasury_member_id", memberId).order("membership_year", { ascending: false });
     const annual = cardFeeSchema.array().safeParse(fees.data);
     if (fees.error || !annual.success) return reply(503, { status: "unavailable" });
     const result = cardStatus(parsed.data, annual.data, now);

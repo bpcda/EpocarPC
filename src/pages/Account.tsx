@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import MemberArea from "@/components/MemberArea";
+import { MEMBER_CARDS_OWNER_ID } from "../../setup/functions/member-card-management/owner";
 import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
 import DeleteAccountDialog, { PRIVACY_NOTE } from "@/components/DeleteAccountDialog";
 import { DELETE_PHRASE, deleteMyAccount } from "@/lib/account-deletion";
@@ -217,6 +218,7 @@ export default function Account() {
             </Button>
           </div>
           <p className="text-primary-foreground/60 text-sm mb-8">{user?.email}</p>
+          {user?.id === MEMBER_CARDS_OWNER_ID && <Button variant="hero-secondary" className="mb-8 mr-4" asChild><Link to="/gestione-tessere">Tessere socio</Link></Button>}
           {isBoardMember && (
             <Link to="/consiglio-direttivo" className="inline-block mb-8 border border-primary-foreground/40 px-4 py-2 text-primary-foreground uppercase tracking-widest text-sm hover:bg-primary-foreground/10">
               Area Consiglio Direttivo →

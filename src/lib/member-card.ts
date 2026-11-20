@@ -12,7 +12,7 @@ const resultSchema = z.object({
 export type CardVerification = z.infer<typeof resultSchema>;
 
 export async function verifyMemberCard(token: string): Promise<CardVerification> {
-  if (!/^v1\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9_-]{86}$/.test(token)) return { status: "invalid" };
+  if (!/^(?:v1\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9_-]{86}|v2\.[0-9a-f]{64})$/.test(token)) return { status: "invalid" };
   try {
     const { data, error } = await supabase.functions.invoke("member-card", { body: { token } });
     if (error) return { status: "unavailable" };

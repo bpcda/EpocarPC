@@ -15,6 +15,7 @@ import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
 import RoleAuditTab from "@/components/admin/RoleAuditTab";
 import AssociationTab from "@/components/admin/AssociationTab";
+import { MEMBER_CARDS_OWNER_ID } from "../../setup/functions/member-card-management/owner";
 import { articleDate, articleState, type ArticleTiming } from "@/lib/article-publication";
 import { formatEventDate } from "@/lib/event-time";
 import type { Tables } from "@/integrations/supabase/types";
@@ -88,7 +89,7 @@ export default function AdminDashboard() {
     <header className="bg-foreground text-primary-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-3">
         <div><p className="font-headline text-2xl tracking-wide">Epocar <span className="font-body text-xs uppercase tracking-widest ml-2">Gestione sito</span></p><p className="text-xs text-primary-foreground/80 mt-1 break-all">{user?.email}</p></div>
-        <div className="flex items-center gap-2"><Button variant="ghost" className="min-h-11 text-inherit hover:bg-white/10 hover:text-inherit" asChild><Link to="/">Vedi il sito <ArrowUpRight className="h-4 w-4 ml-2" /></Link></Button><Button variant="ghost" className="min-h-11 text-inherit hover:bg-white/10 hover:text-inherit" onClick={async () => { await signOut(); navigate("/admin/login"); }}><LogOut className="h-4 w-4 mr-2" /> Esci</Button></div>
+        <div className="flex flex-wrap items-center gap-2">{user?.id === MEMBER_CARDS_OWNER_ID && <Button variant="ghost" className="min-h-11 text-inherit hover:bg-white/10 hover:text-inherit" asChild><Link to="/gestione-tessere">Tessere socio</Link></Button>}<Button variant="ghost" className="min-h-11 text-inherit hover:bg-white/10 hover:text-inherit" asChild><Link to="/">Vedi il sito <ArrowUpRight className="h-4 w-4 ml-2" /></Link></Button><Button variant="ghost" className="min-h-11 text-inherit hover:bg-white/10 hover:text-inherit" onClick={async () => { await signOut(); navigate("/admin/login"); }}><LogOut className="h-4 w-4 mr-2" /> Esci</Button></div>
       </div>
     </header>
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
