@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import MemberWallet from "@/components/MemberWallet";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +69,7 @@ function MemberDashboard({ userId, name, category, status, card, admission, admi
         </div>
         {confirmed && admissionProof && <p className="mt-4 text-xs uppercase tracking-widest opacity-70">{admissionProof}</p>}
         {board.length > 0 && <p className="mt-6 text-xs uppercase tracking-widest">Consiglio Direttivo · {board.join(", ")}</p>}
+        {confirmed && member?.membership_status === "active" && <MemberWallet key={userId} userId={userId} />}
       </section>
       {applicationStatus && <dl className="max-w-xl"><Row label="Domanda" value={applicationStatus} /></dl>}
       {member?.membership_status === "ceased" && (member.cessation_date || member.cessation_reason) && (

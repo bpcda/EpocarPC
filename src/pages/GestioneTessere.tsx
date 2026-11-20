@@ -9,6 +9,7 @@ import PageMeta from "@/components/PageMeta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import WalletCardEditor from "@/components/WalletCardEditor";
 import { MEMBER_CARDS_OWNER_ID, loadMemberCards, downloadMemberCard, downloadAllMemberCards, type ManagedMemberCard } from "@/lib/member-card-management";
 
 const statuses = { valid: "Tessera valida", invalid: "Tessera non valida", unavailable: "Validità da verificare" };
@@ -57,6 +58,7 @@ export default function GestioneTessere() {
                   <Button variant="outline" className="min-h-11" onClick={() => download(card, "svg")} disabled={!!busy}>SVG</Button>
                   <a href={card.url} target="_blank" rel="noreferrer" className="inline-flex items-center min-h-11 underline underline-offset-4">Verifica</a>
                 </div>
+                <WalletCardEditor card={card} onSaved={() => query.refetch()} />
               </article>)}
             </div>}
           </>}

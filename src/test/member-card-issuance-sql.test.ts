@@ -79,6 +79,29 @@ describe("automatic member card issuance on isolated PostgreSQL", () => {
       const outcomes = await Promise.all([concurrent(`SET ROLE service_role; BEGIN; SELECT issue_member_card('${member(4)}');SELECT pg_sleep(0.15);COMMIT;`), concurrent(`SET ROLE service_role; SELECT issue_member_card('${member(4)}');`)]);
       expect(outcomes).toEqual([0, 0]); expect(token(4)).toMatch(/^v2\.[0-9a-f]{64}$/);
       expect(sql(`SELECT count(*) FROM member_card_credentials WHERE treasury_member_id='${member(4)}'`)).toBe("1");
+
+      sql(`CREATE SCHEMA storage; GRANT USAGE ON SCHEMA storage TO anon,authenticated,service_role;
+        CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+        CREATE TABLE storage.objects(id int,bucket_id text,name text); ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+        GRANT SELECT,INSERT,UPDATE,DELETE ON storage.objects TO anon,authenticated,service_role;
+        CREATE POLICY unrelated_permissive_policy ON storage.objects FOR ALL TO anon,authenticated USING(true) WITH CHECK(true);
+        INSERT INTO storage.objects VALUES (1,'member-wallet-passes','private.pkpass'),(2,'unrelated','public.txt');`);
+      const wallet = () => sql(readFileSync("setup/member-wallet-v31.sql", "utf8")); wallet(); wallet();
+      expect(sql("SELECT public,file_size_limit,allowed_mime_types FROM storage.buckets WHERE id='member-wallet-passes'")).toBe("f|5242880|{application/vnd.apple.pkpass}");
+      for (const role of ["anon", "authenticated"]) {
+        expect(sql(`SET ROLE ${role}; SELECT name FROM storage.objects`)).toBe("public.txt");
+        expect(() => sql(`SET ROLE ${role}; INSERT INTO storage.objects VALUES (3,'member-wallet-passes','bad.pkpass')`)).toThrow();
+        expect(sql(`SET ROLE ${role}; UPDATE storage.objects SET name='bad' WHERE bucket_id='member-wallet-passes' RETURNING name`)).toBe("");
+        expect(sql(`SET ROLE ${role}; DELETE FROM storage.objects WHERE bucket_id='member-wallet-passes' RETURNING name`)).toBe("");
+        expect(() => sql(`SET ROLE ${role}; SELECT apple_wallet_path FROM member_card_credentials`)).toThrow();
+      }
+      const apple = `${member(4)}/30000000-0000-4000-8000-000000000001.pkpass`;
+      sql(`SET ROLE service_role; UPDATE member_card_credentials SET apple_wallet_path='${apple}',google_wallet_url='https://pay.google.com/gp/v/save/abc.def.ghi',wallet_updated_at=now() WHERE treasury_member_id='${member(4)}'`);
+      expect(sql(`SELECT apple_wallet_path FROM member_card_credentials WHERE treasury_member_id='${member(4)}'`)).toBe(apple);
+      expect(() => sql(`SET ROLE service_role; UPDATE member_card_credentials SET qr_token='v2.${"b".repeat(64)}'`)).toThrow();
+      expect(() => sql(`SET ROLE service_role; UPDATE member_card_credentials SET apple_wallet_path='${member(1)}/30000000-0000-4000-8000-000000000001.pkpass' WHERE treasury_member_id='${member(4)}'`)).toThrow();
+      expect(() => sql("SET ROLE service_role; UPDATE member_card_credentials SET google_wallet_url='https://foreign.invalid/pass'")).toThrow();
+      expect(token(1)).toBe(first);
     } finally { run(["rm", "-f", container]); }
   }, 60000);
 });

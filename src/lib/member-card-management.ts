@@ -6,6 +6,7 @@ const cardSchema = z.object({
   id: z.string().uuid(), full_name: z.string().min(1).max(200), category: z.string(), card_number: z.number().int().positive(),
   issued_at: z.string().datetime({ offset: true }), status: z.enum(["valid", "invalid", "unavailable"]),
   valid_until: z.string().optional(), renewal_due: z.boolean().optional(), svg: z.string().min(1).max(200000),
+  apple_wallet_available: z.boolean().optional(), google_wallet_url: z.string().nullable().optional(),
   url: z.string().regex(/^https:\/\/epocarpc\.com\/verifica-tessera#(?:v1\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{86}|v2\.[0-9a-f]{64})$/),
 });
 const pageSchema = z.object({ cards: cardSchema.array().max(50), next_cursor: z.string().uuid().nullable() });

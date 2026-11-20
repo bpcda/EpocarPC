@@ -10,6 +10,7 @@ vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ user: { id: state.id }, i
 vi.mock("@/components/Navbar", () => ({ default: () => null }));
 vi.mock("@/components/Footer", () => ({ default: () => null }));
 vi.mock("@/components/PageMeta", () => ({ default: () => null }));
+vi.mock("@/lib/member-wallet", () => ({ appleWalletDownload: vi.fn(), removeAppleWallet: vi.fn(), saveGoogleWallet: vi.fn(), uploadAppleWallet: vi.fn() }));
 vi.mock("@/lib/member-card-management", async () => ({
   MEMBER_CARDS_OWNER_ID: (await import("../../setup/functions/member-card-management/owner")).MEMBER_CARDS_OWNER_ID,
   loadMemberCards: state.load, downloadMemberCard: state.one, downloadAllMemberCards: state.all,

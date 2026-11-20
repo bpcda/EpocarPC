@@ -8,6 +8,7 @@ const credentialSchema = z.object({
   treasury_member_id: z.string().uuid(), full_name: z.string().min(1).max(200), category: z.string(),
   card_number: z.number().int().positive(), issued_at: z.string().datetime({ offset: true }),
   qr_token: z.string().regex(/^(?:v1\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{86}|v2\.[0-9a-f]{64})$/),
+  apple_wallet_path: z.string().nullable().optional(), google_wallet_url: z.string().nullable().optional(),
 });
 const origins = new Set(["https://epocarpc.com", "https://www.epocarpc.com"]);
 
@@ -39,7 +40,7 @@ export async function manageMemberCards(req: Request, db: SupabaseClient, makeSv
     after = inputSchema.parse(await new Response(body).json()).after;
   } catch { return reply(400, { message: "Richiesta non valida." }); }
   try {
-    let query = db.from("member_card_credentials").select("treasury_member_id,full_name,category,card_number,qr_token,issued_at").order("treasury_member_id").limit(51);
+    let query = db.from("member_card_credentials").select("treasury_member_id,full_name,category,card_number,qr_token,issued_at,apple_wallet_path,google_wallet_url").order("treasury_member_id").limit(51);
     if (after) query = query.gt("treasury_member_id", after);
     const result = await query;
     const parsed = credentialSchema.array().safeParse(result.data);
@@ -58,7 +59,7 @@ export async function manageMemberCards(req: Request, db: SupabaseClient, makeSv
         ? cardStatus(member.data, annual.data, now) : { status: "unavailable" as const };
       const url = `https://epocarpc.com/verifica-tessera#${card.qr_token}`;
       return { id: card.treasury_member_id, full_name: card.full_name, category: card.category, card_number: card.card_number,
-        issued_at: card.issued_at, ...status, url, svg: await makeSvg(url) };
+        issued_at: card.issued_at, ...status, url, svg: await makeSvg(url), apple_wallet_available: Boolean(card.apple_wallet_path), google_wallet_url: card.google_wallet_url ?? null };
     }));
     return reply(200, { cards, next_cursor: parsed.data.length > 50 ? credentials[49].treasury_member_id : null });
   } catch { return reply(503, { message: "Tessere non disponibili. Riprova tra poco." }); }

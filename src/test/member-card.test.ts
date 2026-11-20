@@ -17,7 +17,7 @@ const member = {
   card_number: 12, treasury_updated_at: "2026-01-01T08:00:00Z", last_revision: 4,
 };
 const fee = (year: number, status: "paid" | "partial" | "due" | "exempt", date: string | null = null) => ({ membership_year: year, fee_status: status, last_payment_date: date });
-const check = (date: string, fees = [fee(2025, "paid", "2025-10-02")], data = member) => cardStatus(data, fees, new Date(date));
+const check = (date: string, fees = [fee(2025, "paid", "2025-10-02")], data: Parameters<typeof cardStatus>[0] = member) => cardStatus(data, fees, new Date(date));
 
 describe("membership card validity", () => {
   it("ends renewal grace precisely at midnight in Rome on 1 March", () => {
@@ -54,9 +54,9 @@ describe("membership card validity", () => {
     expect(check("2027-03-01T12:00:00Z", [fee(2025, "paid", "2025-10-02"), fee(2026, "paid", "2026-03-10"), fee(2027, "exempt")]).status).toBe("invalid");
   });
   it("never derives admission or exemption from a role, category or card number", () => {
-    expect(check("2026-07-01T00:00:00Z", [fee(2026, "exempt")], { ...member, admission_status: "unverified" } as typeof member).status).toBe("unavailable");
-    for (const membership_status of ["suspended", "ceased"]) {
-      expect(check("2026-07-01T00:00:00Z", [fee(2026, "paid", "2026-01-01")], { ...member, membership_status } as typeof member).status).toBe("invalid");
+    expect(check("2026-07-01T00:00:00Z", [fee(2026, "exempt")], { ...member, admission_status: "unverified" }).status).toBe("unavailable");
+    for (const membership_status of ["suspended", "ceased"] as const) {
+      expect(check("2026-07-01T00:00:00Z", [fee(2026, "paid", "2026-01-01")], { ...member, membership_status }).status).toBe("invalid");
     }
     expect(cardMemberSchema.safeParse({ ...member, last_revision: 0 }).success).toBe(false);
   });
