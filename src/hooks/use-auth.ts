@@ -37,11 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // and role re-checks across every consumer.
   useEffect(() => {
     let mounted = true;
+    let liveSessionEvent = false;
 
     const applySession = (sessionUser: User | null) => {
       if (!mounted) return;
       const nextId = sessionUser?.id ?? null;
       if (nextId === currentUserId.current) {
+        if (!nextId) setLoading(false);
         // same identity → no state change, avoid re-render churn
         return;
       }
@@ -51,16 +53,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => applySession(session?.user ?? null),
+      (event, session) => {
+        // A delayed bootstrap snapshot must not undo a newer sign-in or sign-out.
+        if (event === "INITIAL_SESSION" && liveSessionEvent) return;
+        if (event !== "INITIAL_SESSION") liveSessionEvent = true;
+        applySession(session?.user ?? null);
+      },
     );
 
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
+        if (liveSessionEvent) return;
         applySession(session?.user ?? null);
         if (mounted) setLoading((l) => (currentUserId.current ? l : false));
       })
       .catch(() => {
+        if (liveSessionEvent) return;
         applySession(null);
         if (mounted) setLoading(false);
       });

@@ -44,4 +44,41 @@ describe("cold loading protected dashboard links", () => {
     expect(await screen.findByText("Accesso richiesto")).toBeInTheDocument();
     expect(screen.queryByText("Editor evento")).not.toBeInTheDocument();
   });
+  it.each(["empty", "rejected"])("keeps a live sign-in when the older initial session lookup is %s", async outcome => {
+    let sessionReady!: (value: unknown) => void;
+    let sessionFailed!: (error: Error) => void;
+    service.session.mockReturnValue(new Promise((resolve, reject) => { sessionReady = resolve; sessionFailed = reject; }));
+    service.roles.mockResolvedValue({ data: [{ role: "admin" }] });
+    show();
+    const changed = service.subscribe.mock.calls[0][0];
+    await act(async () => { changed("SIGNED_IN", { user: { id: "editor" } }); });
+    expect(await screen.findByText("Editor evento")).toBeInTheDocument();
+    await act(async () => {
+      if (outcome === "empty") sessionReady({ data: { session: null } });
+      else sessionFailed(new Error("older bootstrap lookup failed"));
+    });
+    expect(screen.getByText("Editor evento")).toBeInTheDocument();
+    expect(screen.queryByText("Accesso richiesto")).not.toBeInTheDocument();
+  });
+  it("does not resurrect an old stored user after a newer sign-out event", async () => {
+    let sessionReady!: (value: unknown) => void;
+    service.session.mockReturnValue(new Promise(resolve => { sessionReady = resolve; }));
+    service.roles.mockResolvedValue({ data: [{ role: "admin" }] });
+    show();
+    const changed = service.subscribe.mock.calls[0][0];
+    await act(async () => { changed("SIGNED_OUT", null); });
+    await act(async () => { sessionReady({ data: { session: { user: { id: "editor" } } } }); });
+    expect(await screen.findByText("Accesso richiesto")).toBeInTheDocument();
+    expect(screen.queryByText("Editor evento")).not.toBeInTheDocument();
+  });
+  it("ignores an initial-session notification delivered after a newer sign-in", async () => {
+    service.session.mockReturnValue(new Promise(() => {}));
+    service.roles.mockResolvedValue({ data: [{ role: "admin" }] });
+    show();
+    const changed = service.subscribe.mock.calls[0][0];
+    await act(async () => { changed("SIGNED_IN", { user: { id: "editor" } }); });
+    expect(await screen.findByText("Editor evento")).toBeInTheDocument();
+    await act(async () => { changed("INITIAL_SESSION", null); });
+    expect(screen.getByText("Editor evento")).toBeInTheDocument();
+  });
 });
