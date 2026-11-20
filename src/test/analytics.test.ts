@@ -6,7 +6,7 @@ describe("Vercel public page analytics", () => {
     expect(publicAnalyticsEvent({ type: "pageview", url: `https://epocarpc.com${path}?email=private@example.invalid&token=secret#access_token=secret` }))
       .toEqual({ type: "pageview", url: `https://epocarpc.com${path}` });
   });
-  it.each(["/auth", "/admin", "/admin/eventi/nuovo", "/account", "/consiglio-direttivo", "/tesoreria/movimenti", "/associazione/iscrizione", "/eventi/event-id/iscrizione", "/ADMIN", "/%61ccount", "/nuova-area-riservata"])("does not track %s", path => {
+  it.each(["/auth", "/admin", "/admin/eventi/nuovo", "/account", "/consiglio-direttivo", "/tesoreria/movimenti", "/associazione/iscrizione", "/eventi/event-id/iscrizione", "/ADMIN", "/%61ccount", "/nuova-area-riservata", "/verifica-tessera"])("does not track %s", path => {
     expect(publicAnalyticsEvent({ type: "pageview", url: `https://epocarpc.com${path}` })).toBeNull();
   });
   it("fails closed for malformed URLs and invalid URL encoding", () => {
