@@ -24,7 +24,12 @@ describe("automatic member card issuance on isolated PostgreSQL", () => {
     try {
       let ready = false;
       for (let i = 0; i < 100; i++) {
-        try { run(["exec", container, "pg_isready", "-U", "postgres"]); ready = true; break; } catch { await new Promise(resolve => setTimeout(resolve, 150)); }
+        try {
+          // The image briefly starts a temporary server before exec'ing the final postmaster as PID 1.
+          ready = sql("SELECT split_part(pg_read_file('postmaster.pid'),chr(10),1)='1'") === "t";
+          if (ready) break;
+        } catch { /* Startup is still in progress. */ }
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
       expect(ready).toBe(true);
       sql(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
