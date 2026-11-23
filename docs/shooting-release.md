@@ -12,3 +12,7 @@ Il progetto esterno EPOCAR ha riferimento `cgbaunizlqqhctiiogok`. Il riferimento
 ## Operatività email
 
 Ogni modifica crea il lavoro email nella transazione della richiesta. Il frontend avvia l'invio dopo il salvataggio. Un'interruzione del browser o l'assenza della chiave lascia l'invio recuperabile dall'admin tramite “Elabora email in coda per questa serata”. Il pulsante tenta gli stati pendente/fallito. Gli stati incerti o rimasti in invio dopo un'interruzione richiedono riconciliazione con i log transazionali Brevo prima di autorizzare un nuovo tentativo. L'accettazione API del provider e la consegna nella casella sono esiti distinti.
+
+## Collaudo mobile prima dell’apertura
+
+Dal checkout eseguire `rtk proxy npx playwright test --config tests/shooting.config.ts`. Per il Chromium di sistema impostare `CHROMIUM_PATH=/usr/bin/chromium`. Si provano accesso, registrazione con sessione immediata, ritorno al form, targa mancante nel garage, scelta immagini negativa e conferma su una serata diversa. Il test usa un sito locale e risposte Supabase simulate. Per il via libera operativo resta da verificare la ricezione in una casella di prova tramite Brevo.

@@ -30,3 +30,7 @@
 - Board minutes (setup/board-v19.sql after v18): versioned text written only by president/minute-taker (manual, AI via board-draft-minutes, or rectified); members propose rectifications without editing; approval reuses board_ballots (exactly one of deliberation_id/minutes_id set); an approved minutes is locked and later corrections are identifiable rectified versions needing a new vote; digital approval never equals signature — the signed scan is registered separately in the private board-documents bucket.
 - Board post-meeting review (v27–v28): unsigned drafts remain reviewable after closure without reopening attendance/votes or inventing approval; signed/approved acts retain their correction safeguards. Heartbeats never invalidate document context. The personal Codex worker uses hashed, revocable credentials scoped to assigned jobs, local transcription and plan quota; older recording notices require the originally authorised/manual path. See docs/board-codex-routine.md for setup and recovery.
 - Kapso is globally shared: EpocarPC operations always specify project bc79a4e0-d0dd-4f58-8a69-6c5576b1919c and phone_number_id 1429452350257851; preserve global settings. Board notifications contain only an authenticated site link and go only to an explicitly configured recipient.
+
+## Development workflow
+
+Use RTK for shell commands (use `rtk proxy` for commands without a dedicated wrapper). Apply the Ponytail skill to coding tasks.

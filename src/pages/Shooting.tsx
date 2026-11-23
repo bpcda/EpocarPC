@@ -95,7 +95,12 @@ function ShootingForm({ owner }: { owner: string }) {
   return <section className="space-y-5">
     <h2 className="font-headline text-3xl">Le tue richieste</h2>
     {query.data.requests.length ? <ul>{query.data.requests.map(row =>
-      <li key={row.id}>{dateLabel(row.day)} · {row.brand} {row.model} · {row.state === "pending" ? "In attesa" : row.state === "confirmed" ? "Confermata" : "Annullata"} {row.appointment && <strong>{row.appointment}</strong>}</li>)}</ul> : <p>Nessuna richiesta registrata.</p>}
+      <li key={row.id} className="py-2">
+        <p>{row.brand} {row.model} · Serata richiesta: {dateLabel(row.day)}</p>
+        {row.state === "confirmed" && row.appointment
+          ? <strong>Appuntamento confermato · {row.appointment}</strong>
+          : <span>{row.state === "pending" ? "In attesa" : row.state === "confirmed" ? "Confermata" : "Annullata"}</span>}
+      </li>)}</ul> : <p>Nessuna richiesta registrata.</p>}
     {receipt ? <div className="space-y-3"><p role="status">Richiesta ricevuta e in attesa di conferma. Riferimento: {receipt}</p>
       <Button onClick={() => { setReceipt(""); setDay(""); setGarageId(""); setRetryKey(crypto.randomUUID()); }}>Richiedi per un altro veicolo</Button></div>
       : !query.data.dates.length ? <p>Le richieste sono chiuse.</p> : <form onSubmit={submit}>
