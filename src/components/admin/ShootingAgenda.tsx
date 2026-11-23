@@ -3,6 +3,9 @@ import { useShootingAgenda } from "@/hooks/use-shooting-agenda";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import ShootingSlotGenerator, { slotLabel } from "./ShootingSlotGenerator";
+import { policyWithFile, PolicyDownload, splitPolicy } from "@/components/shooting/PolicyPdf";
+import ShootingGalleryPrep from "./ShootingGalleryPrep";
+import { calendarDraft } from "@/lib/shooting-calendar";
 import { Button } from "@/components/ui/button";
 
 const db:SupabaseClient = supabase;
@@ -11,6 +14,7 @@ const mailStates:Record<string,string> = {pending:"In coda",sending:"Invio in co
 const control = "block w-full border border-input bg-background p-2";
 export default function ShootingAgenda({owner}:{owner:string}) {
   const [day,setDay] = useState("2026-12-03");
+  const [panel,setPanel] = useState("Richieste");
   const [state,setState] = useState("");
   const [vehicle,setVehicle] = useState("");
   const [message,setMessage] = useState("");
@@ -23,6 +27,7 @@ export default function ShootingAgenda({owner}:{owner:string}) {
     setMessage("");
     try {
       const result = await db.rpc(name,args);
+      if (result.error?.message === "new_version_required") throw new Error("Assegna una nuova versione ai testi e ai PDF prima di salvare.");
       if (result.error?.message === "occupied_slot_change") {
         throw new Error("Il piano cambierebbe uno slot con appuntamenti confermati. Sposta gli appuntamenti prima di modificare quello slot.");
       }
@@ -47,24 +52,54 @@ export default function ShootingAgenda({owner}:{owner:string}) {
   const evening=data.evenings.find(e=>e.day===day);
   const daySlots=data.slots.filter(s=>s.day===day);
   const rows=data.requests.filter(r=>(r.assigned_day ?? r.day)===day);
-  function settings(event:FormEvent<HTMLFormElement>) {
+  const visible = rows.filter(r=>(!state||state===r.state)&&[r.kind,r.brand,r.model].join(" ").toLowerCase().includes(vehicle.toLowerCase()));
+  async function settings(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form=new FormData(event.currentTarget);
-    void action("shooting_configure",{p_day:day,p_open:form.has("open"),p_place:form.get("place"),p_version:form.get("version"),p_privacy:form.get("privacy"),p_images:form.get("images")});
+    if (!evening || busy) return;
+    const form = new FormData(event.currentTarget);
+    const version = String(form.get("version") ?? "").trim();
+    const privacyFile = form.get("privacyFile") as File;
+    const imageFile = form.get("imageFile") as File;
+    if ((privacyFile.size || imageFile.size) && (!version || version === evening.policy_version)) {
+      setMessage("Per cambiare un PDF inserisci una nuova versione dei documenti.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const privacy = await policyWithFile(day, "privacy", String(form.get("privacy")), evening.privacy_text, privacyFile);
+      const images = await policyWithFile(day, "images", String(form.get("images")), evening.image_text, imageFile);
+      await action("shooting_configure",{p_day:day,p_open:form.has("open"),p_place:form.get("place"),p_version:version,p_privacy:privacy,p_images:images});
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Documenti non salvati."); }
+    finally { setBusy(false); }
   }
-  return <fieldset disabled={busy} className="space-y-6">
-    <label className="block">Serata<select className={control} value={day} onChange={e=>{setDay(e.target.value);setPlate(null);}}>{data.evenings.map(e=><option key={e.day}>{e.day}</option>)}</select></label>
-    {evening && <details key={day}><summary>Luogo, informative e apertura richieste</summary><form className="space-y-3 py-4" onSubmit={settings}>
+  return <fieldset disabled={busy} className="min-w-0 space-y-5">
+    <div className="flex flex-wrap items-end justify-between gap-4 border-l-4 border-primary bg-card p-5">
+      <label className="font-semibold">Serata<select className={control} value={day} onChange={e=>{setDay(e.target.value);setPlate(null);setMessage("");}}>{data.evenings.map(e=><option key={e.day} value={e.day}>{e.day.split("-").reverse().join("/")}</option>)}</select></label>
+      <p className="text-sm">{evening?.cancelled ? "Serata annullata" : evening?.accepting ? "Raccolta aperta" : "Raccolta chiusa"} · {rows.filter(r=>r.state==="pending").length} in attesa</p>
+      {evening && !evening.cancelled && <Button variant="outline" asChild><a href={`/admin/shooting/${day}/foglio-fotografo`}>Foglio per il fotografo</a></Button>}
+    </div>
+    <div role="group" aria-label="Gestione shooting" className="grid grid-cols-2 gap-1 bg-secondary p-1 md:grid-cols-4">
+      {["Richieste","Agenda","Documenti e serata","Gallery"].map(name=><Button key={name} type="button" aria-label={"Shooting · "+name} variant={panel===name?"default":"ghost"} aria-pressed={panel===name} onClick={()=>{setPanel(name);setPlate(null);setMessage("");}}>{name}</Button>)}
+    </div>
+    {panel==="Gallery" && <ShootingGalleryPrep key={day} day={day} />}
+    {panel==="Documenti e serata" && evening && <section className="border bg-card p-5"><h3 className="font-headline text-2xl">Impostazioni della serata</h3><form key={day+evening.policy_version} className="space-y-4 py-3" onSubmit={settings}>
       <label className="block">Punto di ritrovo<input className={control} name="place" defaultValue={evening.meeting_place}/></label>
       <label className="block">Versione dei testi approvati<input className={control} name="version" defaultValue={evening.policy_version}/></label>
-      <label className="block">Informativa privacy<textarea className={control} name="privacy" defaultValue={evening.privacy_text}/></label>
-      <label className="block">Autorizzazione immagini<textarea className={control} name="images" defaultValue={evening.image_text}/></label>
+      <label className="block">Informativa privacy<textarea className={control} name="privacy" defaultValue={splitPolicy(evening.privacy_text).text}/></label>
+      <label className="block">PDF informativa privacy<input className={control} name="privacyFile" type="file" accept=".pdf,application/pdf"/></label><PolicyDownload value={evening.privacy_text} title="Informativa privacy" />
+      <label className="block">Autorizzazione immagini<textarea className={control} name="images" defaultValue={splitPolicy(evening.image_text).text}/></label>
+      <label className="block">PDF autorizzazione immagini<input className={control} name="imageFile" type="file" accept=".pdf,application/pdf"/></label><PolicyDownload value={evening.image_text} title="Autorizzazione immagini" />
+      <p className="text-sm text-muted-foreground">Carica i moduli vuoti approvati (PDF, massimo 10 MB). Per sostituire un documento aggiorna la versione.</p>
       <label className="block"><input name="open" type="checkbox" disabled={evening.cancelled} defaultChecked={evening.accepting}/> Apri la raccolta delle richieste</label><Button>Salva impostazioni</Button>
-    </form></details>}
-    {evening && !evening.cancelled && <Button variant="outline" asChild>
-      <a href={`/admin/shooting/${day}/foglio-fotografo`}>Foglio per il fotografo</a>
-    </Button>}
-    <h3 className="font-headline text-2xl">Disponibilità</h3>
+    </form></section>}
+    {panel==="Agenda" && <section className="space-y-4 border bg-card p-5">
+    <h3 className="font-headline text-2xl">Appuntamenti confermati</h3>
+    {daySlots.filter(s=>rows.some(r=>r.slot_id===s.id && r.state==="confirmed")).map(s=><div key={s.id} className="border-t py-2">
+      <strong>{slotLabel(s)}</strong> · {rows.filter(r=>r.slot_id===s.id && r.state==="confirmed").map(r=>r.brand+" "+r.model).join(", ")}
+      <a className="block text-sm underline" target="_blank" rel="noreferrer" href={calendarDraft(s,evening?.meeting_place??"")}>Prepara evento in Google Calendar ↗</a>
+    </div>)}
+    {!rows.some(r=>r.state==="confirmed") && <p className="text-sm">Qui compariranno gli orari confermati da aggiungere al calendario.</p>}
+    <details className="space-y-4 border-t pt-4"><summary className="cursor-pointer font-semibold">Configura slot e capienza</summary>
     {evening && !evening.cancelled && <ShootingSlotGenerator key={"slots-" + day} slots={daySlots} save={plan => {
       void action("shooting_generate_slots", {
         p_day: day, p_start: plan.start, p_end: plan.end, p_count: plan.count, p_minutes: plan.duration,
@@ -74,14 +109,19 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       e.preventDefault(); void action("shooting_capacity",{p_slot:s.id,p_capacity:Number(new FormData(e.currentTarget).get("capacity"))});
     }}><strong>{slotLabel(s)}</strong><span>{data.requests.filter(r=>r.slot_id===s.id).length} assegnati</span>
       <label>Posti <input className="w-16 border p-1" type="number" name="capacity" min="0" max="20" required defaultValue={s.capacity}/></label><Button variant="outline">Salva</Button></form>)}
-    <h3 className="font-headline text-2xl">Richieste</h3>
+    </details>
+    </section>}
+    {panel==="Richieste" && <section className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2">
     <label className="block">Stato<select className={control} value={state} onChange={e=>setState(e.target.value)}><option value="">Tutti</option>{Object.entries(states).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
     <label className="block">Tipo, marca o modello<input className={control} value={vehicle} onChange={e=>setVehicle(e.target.value)}/></label>
-    {rows.filter(r=>(!state||state===r.state)&&[r.kind,r.brand,r.model].join(" ").toLowerCase().includes(vehicle.toLowerCase())).map(r=><article className="space-y-3 border p-4" key={r.id}>
+    </div>
+    {!visible.length && <p className="border border-dashed p-6 text-center">Nessuna richiesta con questi filtri.</p>}
+    {visible.map(r=><article className="space-y-3 border-l-4 border-primary bg-card p-5 shadow-sm" key={r.id}>
       <h4 className="font-semibold">{r.brand} {r.model} · {states[r.state]}</h4>
       <p>{r.first_name} {r.last_name} · {r.email}</p><p>Preferenza: {r.preferred?.slice(0,5) ?? "Indifferente"} · {r.day}</p>
       {r.notes && <p>{r.notes}</p>}<p>Uso immagini personale: {r.image_permission?"autorizzato nei limiti indicati":"non autorizzato"}</p>
-      <Button variant="outline" onClick={async()=>{if(plate?.id===r.id){setPlate(null);return;} const result=await db.rpc("shooting_plate",{p_id:r.id});if(result.error)setMessage("Targa non disponibile.");else setPlate({id:r.id,value:result.data});}}>{plate?.id===r.id ? plate.value+" · Nascondi" : "Mostra targa per accesso"}</Button>
+      <details className="border-y py-2"><summary className="cursor-pointer text-sm">Dati per l’accesso</summary><Button variant="outline" onClick={async()=>{if(plate?.id===r.id){setPlate(null);return;} const result=await db.rpc("shooting_plate",{p_id:r.id});if(result.error)setMessage("Targa non disponibile.");else setPlate({id:r.id,value:result.data});}}>{plate?.id===r.id ? plate.value+" · Nascondi" : "Mostra targa per accesso"}</Button></details>
       {r.appointment && <p>{r.appointment}</p>}
       {r.state!=="cancelled" && <form key={r.revision} className="space-y-2" onSubmit={e=>{e.preventDefault();void action("shooting_schedule",{p_id:r.id,p_revision:r.revision,p_slot:new FormData(e.currentTarget).get("slot")},[r.id]);}}>
         <label>Assegna appuntamento<select className={control} name="slot" required defaultValue={r.slot_id??""}><option value="">Scegli lo slot concordato</option>{data.slots.filter(s=>s.capacity>0&&!data.evenings.find(e=>e.day===s.day)?.cancelled).map(s=><option key={s.id} value={s.id}>{s.day} · {slotLabel(s)}</option>)}</select></label>
@@ -90,8 +130,8 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       </form>}
       <p>Email: {mailStates[r.delivery_state]??"Da verificare"}</p>
     </article>)}
-    <Button variant="outline" onClick={async()=>{setBusy(true);try { const failed=await sendMessages(rows.filter(r=>["pending","failed"].includes(r.delivery_state)).map(r=>r.id));setMessage(failed?"Controlla configurazione e invii falliti.":"Coda elaborata."); } finally {await query.refetch();setBusy(false);} }}>Elabora email in coda per questa serata</Button>{" "}
-    <Button disabled={evening?.cancelled} variant="destructive" onClick={()=>{const ids=rows.filter(r=>r.state!=="cancelled").map(r=>r.id);if(window.confirm("Annullare la serata "+day+" e avvisare "+ids.length+" partecipanti?"))void action("shooting_rain",{p_day:day},ids);}}>Annulla serata per maltempo</Button>
+    <Button variant="outline" onClick={async()=>{setBusy(true);try { const failed=await sendMessages(rows.filter(r=>["pending","failed"].includes(r.delivery_state)).map(r=>r.id));setMessage(failed?"Controlla configurazione e invii falliti.":"Coda elaborata."); } finally {await query.refetch();setBusy(false);} }}>Elabora email in coda per questa serata</Button></section>}
+    {panel==="Documenti e serata" && <Button disabled={evening?.cancelled} variant="destructive" onClick={()=>{const ids=rows.filter(r=>r.state!=="cancelled").map(r=>r.id);if(window.confirm("Annullare la serata "+day+" e avvisare "+ids.length+" partecipanti?"))void action("shooting_rain",{p_day:day},ids);}}>Annulla serata per maltempo</Button>}
     {message && <p role="status">{message}</p>}
   </fieldset>;
 }

@@ -35,6 +35,8 @@ it("genera gli intervalli della serata selezionata solo se rientrano nella fasci
     ? { data: { evenings: [{ day }], slots: [], requests: [] } }
     : { error: null });
   render(<QueryClientProvider client={new QueryClient()}><ShootingAgenda owner="admin" /></QueryClientProvider>);
+  fireEvent.click(await screen.findByRole("button", { name: "Shooting · Agenda" }));
+  fireEvent.click(screen.getByText("Configura slot e capienza"));
   const save = await screen.findByRole("button", { name: "Genera e salva slot" });
   fireEvent.change(screen.getByLabelText("Minuti per slot"), { target: { value: "20" } });
   expect(save).toBeDisabled();

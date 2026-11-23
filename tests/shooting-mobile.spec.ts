@@ -16,12 +16,19 @@ test(`shooting mobile · ${mode}, richiesta e cambio serata`, async ({ page, bas
   const session = syntheticSession();
   const { user } = session;
   const receipt = "30000000-0000-4000-8000-000000000003";
+  const pdfPath = "event-documents/shooting/2026-12-03/privacy/00000000-0000-4000-8000-000000000001.pdf";
   let submitted = false;
   let confirmed = false;
   let emailCalls = 0;
   await page.route("https://shooting.invalid/**", async route => {
     const path = new URL(route.request().url()).pathname;
     let json: unknown = [];
+    if (path === "/storage/v1/object/sign/" + pdfPath) {
+      if (route.request().method() === "POST") {
+        return route.fulfill({ json: { signedURL: "/object/sign/" + pdfPath + "?token=test" } });
+      }
+      return route.fulfill({ contentType: "application/pdf", headers: { "content-disposition": 'attachment; filename="Informativa privacy.pdf"' }, body: "%PDF-1.7" });
+    }
     switch (path) {
       case "/auth/v1/signup":
       case "/auth/v1/token":
@@ -30,7 +37,7 @@ test(`shooting mobile · ${mode}, richiesta e cambio serata`, async ({ page, bas
       case "/auth/v1/user": json = user; break;
       case "/rest/v1/vehicles": json = [{ id: garage, brand: "Fiat", model: "500", plate: null }]; break;
       case "/rest/v1/shooting_evenings":
-        json = [{ day: "2026-12-03", policy_version: "test1", privacy_text: "Informativa di prova", image_text: "Autorizzazione di prova" }];
+        json = [{ day: "2026-12-03", policy_version: "test1", privacy_text: "Informativa di prova\n\n[PDF: " + pdfPath.replace("event-documents/", "") + "]", image_text: "Autorizzazione di prova" }];
         break;
       case "/rest/v1/rpc/submit_shooting_request":
         expect(route.request().postDataJSON()).toMatchObject({ p_garage: garage, p_plate: "AB123", p_save: false, p_read: true, p_images: false, p_version: "test1" });
@@ -64,6 +71,11 @@ test(`shooting mobile · ${mode}, richiesta e cambio serata`, async ({ page, bas
   await page.getByLabel("Serata").selectOption("2026-12-03");
   await page.getByRole("combobox", { name: "Veicolo", exact: true }).selectOption(garage);
   await page.getByLabel("Targa per l’accesso").fill("AB123");
+  await page.getByRole("button", { name: "Continua ai documenti" }).click();
+  await expect(page.getByRole("heading", { name: "Verifica e invia" })).toBeVisible();
+  const pdf = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Scarica informativa privacy (PDF)" }).click();
+  expect((await pdf).suggestedFilename()).toBe("Informativa privacy.pdf");
   await page.getByLabel("Ho letto l’informativa").check();
   await page.getByLabel("Non autorizzo", { exact: true }).check();
   await page.getByRole("button", { name: "Invia richiesta" }).click();
@@ -82,23 +94,55 @@ test("il foglio stampa solo veicoli confermati della serata e la scelta immagini
   await page.addInitScript(value => localStorage.setItem("sb-shooting-auth-token", JSON.stringify(value)), session);
   const day = "2026-12-03";
   const otherDay = "2026-12-17";
-  const row = { id: "r1", slot_id: "s1", state: "confirmed", brand: "Fiat", model: "500",
+  let settingsSaved = false;
+  const uploads: string[] = [];
+  const row = { day, id: "r1", slot_id: "s1", state: "confirmed", brand: "Fiat", model: "500",
     image_permission: false, email: "private@example.invalid", notes: "nota privata", plate: "AB123" };
   await page.route("https://shooting.invalid/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/shooting_plate")) throw new Error("La stampa ha richiesto la targa");
     let json: unknown = [];
+    if (path.startsWith("/storage/v1/object/event-documents/shooting/")) {
+      uploads.push(path.slice("/storage/v1/object/event-documents/".length));
+      return route.fulfill({ json: { Key: path, Id: "test" } });
+    }
+    if (path.endsWith("/shooting_configure")) {
+      const args = route.request().postDataJSON();
+      expect(uploads).toHaveLength(2);
+      expect(args).toMatchObject({ p_day: day, p_version: "v2", p_privacy: "[PDF: " + uploads[0] + "]", p_images: "[PDF: " + uploads[1] + "]" });
+      settingsSaved = true;
+    }
     if (path.endsWith("/user_roles")) json = [{ role: "admin" }];
     if (path.endsWith("/shooting_agenda")) json = {
       evenings: [{ day, meeting_place: "Piazza Test" }, { day: otherDay, cancelled: true }],
       slots: [{ id: "s1", day, starts: "18:30:00", duration_minutes: 20 }, { id: "s2", day: otherDay, starts: "19:00:00" }],
       requests: [row, { ...row, id: "r2", state: "pending", model: "In attesa" },
-        { ...row, id: "r3", slot_id: "s2", model: "Altra serata" },
+        { ...row, assigned_day: otherDay, id: "r3", slot_id: "s2", model: "Altra serata" },
         { ...row, id: "r4", model: "Panda", image_permission: true }],
     };
     await route.fulfill({ json });
   });
   await page.goto("/admin?tab=shooting");
+  await page.getByRole("button", { name: "Shooting · Documenti e serata" }).click();
+  await expect(page.getByLabel("PDF informativa privacy")).toBeVisible();
+  await expect(page.getByLabel("PDF autorizzazione immagini")).toBeVisible();
+  await page.getByLabel("Versione dei testi approvati").fill("v2");
+  const policy = { name: "modulo.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 test") };
+  await page.getByLabel("PDF informativa privacy").setInputFiles(policy);
+  await page.getByLabel("PDF autorizzazione immagini").setInputFiles(policy);
+  await page.getByRole("button", { name: "Salva impostazioni" }).click();
+  await expect.poll(() => settingsSaved).toBe(true);
+  await page.getByRole("button", { name: "Shooting · Agenda" }).click();
+  await expect(page.getByRole("link", { name: /Prepara evento in Google Calendar/ })).toHaveAttribute("href", /dates=20261203T183000%2F20261203T185000/);
+  await page.getByRole("button", { name: "Shooting · Gallery" }).click();
+  await expect(page.getByRole("heading", { name: "Prepara uno scatto" })).toBeVisible();
+  await page.getByLabel("Foto della serata").setInputFiles("src/assets/hero-car.jpg");
+  const exportPhoto = page.getByRole("button", { name: /Scarica JPEG/ });
+  await expect(exportPhoto).toBeDisabled();
+  await page.getByLabel(/Ho verificato le autorizzazioni/).check();
+  const jpeg = page.waitForEvent("download");
+  await exportPhoto.click();
+  expect((await jpeg).suggestedFilename()).toMatch(/^epocar-shooting-2026-12-03-.+\.jpg$/);
   await page.getByRole("link", { name: "Foglio per il fotografo" }).click();
   await expect(page.getByRole("heading", { name: "18:30–18:50" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Fiat Panda" })).toBeVisible();
