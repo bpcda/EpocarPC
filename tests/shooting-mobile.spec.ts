@@ -100,6 +100,9 @@ test("il foglio stampa solo veicoli confermati della serata e la scelta immagini
     image_permission: false, email: "private@example.invalid", notes: "nota privata", plate: "AB123" };
   await page.route("https://shooting.invalid/**", async route => {
     const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/shooting_calendar_status")) {
+      return route.fulfill({ status: 404, json: { code: "PGRST202", message: "Function not installed" } });
+    }
     if (path.endsWith("/shooting_plate")) throw new Error("La stampa ha richiesto la targa");
     let json: unknown = [];
     if (path.startsWith("/storage/v1/object/event-documents/shooting/")) {

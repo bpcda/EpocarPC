@@ -66,6 +66,15 @@ it("stores one private pending request and one receipt per accepted submission",
     const move = sql("select id from shooting_slots where day='2026-12-03' order by starts offset 1 limit 1");
     const schedule = (revision:number,target:string) => admin(`select shooting_schedule('${receipt}',${revision},'${target}')`);
     schedule(0,slot);
+    const calendar = readFileSync("setup/shooting-calendar.sql", "utf8");
+    sql(calendar); sql(calendar);
+    const event = sql("select id from shooting_calendar_events");
+    expect(admin("select shooting_calendar_status()")).toBe("1");
+    expect(() => asUser(actor,"select shooting_calendar_status()")).toThrow();
+    expect(() => admin("select * from shooting_calendar_claim('test')")).toThrow();
+    expect(sql("select count(*) from shooting_calendar_claim('test')")).toBe("1");
+    expect(sql("select count(*) from shooting_calendar_claim('test')")).toBe("0");
+    expect(sql("select starts_at at time zone 'UTC' from shooting_calendar_events")).toBe("2026-12-03 17:00:00");
     expect(() => admin(generate.replace("18:00", "18:10"))).toThrow();
     expect(() => admin(generate.replace(",20)", ",15)"))).toThrow();
     admin(generate.replace(",4,20)", ",5,20)"));
@@ -73,11 +82,27 @@ it("stores one private pending request and one receipt per accepted submission",
     expect(() => schedule(0,move)).toThrow();
     expect(() => admin(`select shooting_capacity('${slot}',0)`)).toThrow();
     schedule(1,move);
+    expect(sql(`select slot_id from shooting_calendar_events where id='${event}'`)).toBe(move);
+    // A completion for the earlier revision cannot acknowledge the move.
+    sql("update shooting_calendar_events set applied_revision=1,lease=null,lease_until=null");
+    expect(admin("select shooting_calendar_status()")).toBe("1");
+    expect(sql(`begin;
+      insert into shooting_requests(actor,retry_key,fingerprint,day,kind,brand,model,plate,notes,email,
+        policy_version,privacy_text,image_text,image_permission,state,slot_id)
+      select actor,gen_random_uuid(),'test',day,kind,brand,model,'OTHER',notes,email,
+        policy_version,privacy_text,image_text,image_permission,'confirmed',slot_id from shooting_requests;
+      select count(*) from shooting_calendar_events;
+      update shooting_requests set slot_id='${slot}' where plate='OTHER';
+      select count(*) from shooting_calendar_events where slot_id is not null;
+      update shooting_requests set slot_id='${move}' where plate='OTHER';
+      select count(*) from shooting_calendar_events where slot_id is not null;
+      rollback;`)).toBe("1\n2\n1");
     expect(admin(`select shooting_plate('${receipt}')`)).toBe("AB123");
     expect(sql("select count(*) from shooting_plate_access")).toBe("1");
     admin("select shooting_rain('2026-12-03')");
     admin("select shooting_rain('2026-12-03')");
     expect(sql("select state from shooting_requests")).toBe("cancelled");
+    expect(sql(`select slot_id is null from shooting_calendar_events where id='${event}'`)).toBe("t");
     expect(sql("select string_agg(kind,',' order by revision) from shooting_messages")).toBe("receipt,confirmed,moved,rain");
     expect(sql("select count(*) from shooting_messages where delivery_state='pending'")).toBe("1");
   } finally {

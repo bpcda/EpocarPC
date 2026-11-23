@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShootingAgenda } from "@/hooks/use-shooting-agenda";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,36 @@ export default function ShootingAgenda({owner}:{owner:string}) {
   const [busy,setBusy] = useState(false);
   const query = useShootingAgenda(owner);
   const data = query.data;
+  const cache = useQueryClient();
+  const calendarKey = ["shooting-calendar-status", owner];
+  const calendar = useQuery({
+    queryKey: calendarKey, enabled: !!data, retry: false,
+    queryFn: async () => {
+      const result = await db.rpc("shooting_calendar_status");
+      if (result.error?.code === "PGRST202") return null;
+      if (result.error || typeof result.data !== "number") throw new Error("Calendar non disponibile");
+      return result.data;
+    },
+  });
+  const sync = useMutation({
+    mutationFn: async () => {
+      for (let i = 0; i < 40; i++) {
+        const result = await db.functions.invoke("shooting-calendar", { body: {} });
+        if (result.error) throw new Error("Sincronizzazione non disponibile. Riprova da Agenda.");
+        switch (result.data?.state) {
+          case "more": continue;
+          case "synced": return "Google Calendar aggiornato.";
+          case "setup": return "Collega il calendario EPOCAR nelle impostazioni della funzione Supabase.";
+          case "access": return "Verifica le credenziali Google e il permesso di modifica del calendario.";
+          case "busy": return "Sincronizzazione già in corso. Ricontrolla fra due minuti.";
+          default: return "Modifiche da sincronizzare. Riprova da Agenda.";
+        }
+      }
+      return "Restano modifiche da sincronizzare. Premi di nuovo Sincronizza.";
+    },
+    onSettled: () => cache.invalidateQueries({ queryKey: calendarKey }),
+  });
+  const syncMessage = sync.isError ? sync.error.message : sync.data;
   async function action(name:string,args:Record<string,unknown>,notifyIds:string[] = []) {
     setBusy(true);
     setMessage("");
@@ -35,6 +66,7 @@ export default function ShootingAgenda({owner}:{owner:string}) {
         throw new Error("Per generare gli slot serve l’aggiornamento del database Supabase.");
       }
       if (result.error) throw new Error("Verifica disponibilità, versione e dati della serata.");
+      if (calendar.data !== null && (name === "shooting_schedule" || name === "shooting_rain")) sync.mutate();
       const deliveries = await sendMessages(notifyIds);
       setMessage(deliveries ? "Salvato. Controlla le email rimaste in coda." : "Modifica salvata.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Operazione non riuscita."); }
@@ -93,10 +125,20 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       <label className="block"><input name="open" type="checkbox" disabled={evening.cancelled} defaultChecked={evening.accepting}/> Apri la raccolta delle richieste</label><Button>Salva impostazioni</Button>
     </form></section>}
     {panel==="Agenda" && <section className="space-y-4 border bg-card p-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><h3 className="font-headline text-2xl">Google Calendar</h3>
+        <p className="text-sm" role="status">{calendar.isError ? "Collegamento alla coda Calendar non disponibile." :
+          calendar.data === null ? "In attesa dell’attivazione su Supabase." : calendar.data === undefined ? "Lettura agenda…" : calendar.data === 0 ? "Nessuna modifica in coda." :
+          `Modifiche da sincronizzare: ${calendar.data}.`}</p>
+      </div>
+      {calendar.data !== null && <Button type="button" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate()}>
+        {sync.isPending ? "Sincronizzazione…" : "Sincronizza con Google"}
+      </Button>}
+    </div>
     <h3 className="font-headline text-2xl">Appuntamenti confermati</h3>
     {daySlots.filter(s=>rows.some(r=>r.slot_id===s.id && r.state==="confirmed")).map(s=><div key={s.id} className="border-t py-2">
       <strong>{slotLabel(s)}</strong> · {rows.filter(r=>r.slot_id===s.id && r.state==="confirmed").map(r=>r.brand+" "+r.model).join(", ")}
-      <a className="block text-sm underline" target="_blank" rel="noreferrer" href={calendarDraft(s,evening?.meeting_place??"")}>Prepara evento in Google Calendar ↗</a>
+      {calendar.data === null && <a className="block text-sm underline" target="_blank" rel="noreferrer" href={calendarDraft(s,evening?.meeting_place??"")}>Prepara evento in Google Calendar ↗</a>}
     </div>)}
     {!rows.some(r=>r.state==="confirmed") && <p className="text-sm">Qui compariranno gli orari confermati da aggiungere al calendario.</p>}
     <details className="space-y-4 border-t pt-4"><summary className="cursor-pointer font-semibold">Configura slot e capienza</summary>
@@ -133,5 +175,6 @@ export default function ShootingAgenda({owner}:{owner:string}) {
     <Button variant="outline" onClick={async()=>{setBusy(true);try { const failed=await sendMessages(rows.filter(r=>["pending","failed"].includes(r.delivery_state)).map(r=>r.id));setMessage(failed?"Controlla configurazione e invii falliti.":"Coda elaborata."); } finally {await query.refetch();setBusy(false);} }}>Elabora email in coda per questa serata</Button></section>}
     {panel==="Documenti e serata" && <Button disabled={evening?.cancelled} variant="destructive" onClick={()=>{const ids=rows.filter(r=>r.state!=="cancelled").map(r=>r.id);if(window.confirm("Annullare la serata "+day+" e avvisare "+ids.length+" partecipanti?"))void action("shooting_rain",{p_day:day},ids);}}>Annulla serata per maltempo</Button>}
     {message && <p role="status">{message}</p>}
+    {syncMessage && <p role="status">{syncMessage}</p>}
   </fieldset>;
 }

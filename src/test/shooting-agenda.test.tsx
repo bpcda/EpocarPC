@@ -10,6 +10,7 @@ it("assegna solo lo slot scelto e conserva la conferma se la mail fallisce",asyn
   const day="2026-12-03", slot="s1";
   let confirmed=false;
   api.rpc.mockImplementation(async(name,args)=>{
+    if(name==="shooting_calendar_status") return {data: confirmed ? 1 : 0};
     if(name==="shooting_schedule") {
       expect(args).toEqual({p_id:"r1",p_revision:0,p_slot:slot});
       confirmed=true;
@@ -27,6 +28,12 @@ it("assegna solo lo slot scelto e conserva la conferma se la mail fallisce",asyn
   fireEvent.click(screen.getByRole("button",{name:"Conferma appuntamento"}));
   await waitFor(()=>expect(screen.getByText("Piacenza · 18:30")).toBeInTheDocument());
   expect(screen.getByText(/Controlla le email rimaste in coda/)).toBeInTheDocument();
+  expect(api.functions.invoke).toHaveBeenCalledWith("shooting-calendar", { body: {} });
+  fireEvent.click(screen.getByRole("button", { name: "Shooting · Agenda" }));
+  expect(await screen.findByText("Modifiche da sincronizzare: 1.")).toBeVisible();
+  api.functions.invoke.mockResolvedValueOnce({ data: { state: "more" } }).mockResolvedValueOnce({ data: { state: "synced" } });
+  fireEvent.click(await screen.findByRole("button", { name: "Sincronizza con Google" }));
+  await screen.findByText("Google Calendar aggiornato.");
 });
 
 it("genera gli intervalli della serata selezionata solo se rientrano nella fascia", async () => {
