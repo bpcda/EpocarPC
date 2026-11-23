@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
+import Shooting from "./pages/Shooting";
 import Eventi from "./pages/Eventi.tsx";
 import EventoIscrizione from "./pages/EventoIscrizione.tsx";
 import Community from "./pages/Community.tsx";
@@ -56,6 +57,8 @@ const App = () => (
            <Route path="/associazione" element={<Associazione />} />
            <Route path="/associazione/iscrizione" element={<Adesione />} />
           <Route path="/gallery" element={<Gallery />} />
+          <Route path="/natale-su-ruote/shooting" element={<Shooting />} />
+          <Route path="/natale-su-ruote/shooting/richiesta" element={<UserProtectedRoute><Shooting booking /></UserProtectedRoute>} />
           <Route path="/eventi" element={<Eventi />} />
           <Route path="/eventi/:id/iscrizione" element={<EventoIscrizione />} />
           <Route path="/community" element={<Community />} />

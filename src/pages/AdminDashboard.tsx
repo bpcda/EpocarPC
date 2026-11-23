@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CalendarDays, Newspaper, Images, ClipboardList, Users, ShieldCheck, Landmark, Plus, Pencil, Trash2, LogOut, ArrowUpRight, Search, RefreshCw } from "lucide-react";
+import ShootingAgenda from "@/components/admin/ShootingAgenda";
 import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
@@ -28,6 +29,7 @@ const sections = [
   { value: "gallery", label: "Gallery", description: "Le immagini che raccontano la community.", icon: Images },
   { value: "registrations", label: "Iscrizioni eventi", description: "Partecipanti e prenotazioni, raccolti per evento.", icon: ClipboardList },
   { value: "association", label: "Associazione", description: "Documenti, presentazione e richieste di adesione.", icon: Landmark },
+  { value: "shooting", label: "Shooting", description: "Appuntamenti e richieste di Natale su Ruote.", icon: CalendarDays, adminOnly: true },
   { value: "users", label: "Utenti", description: "Account del sito e permessi di accesso.", icon: Users, adminOnly: true },
   { value: "role-audit", label: "Storico ruoli", description: "Le modifiche ai ruoli degli utenti.", icon: ShieldCheck, adminOnly: true },
 ];
@@ -142,6 +144,7 @@ export default function AdminDashboard() {
           <TabsContent value="gallery" className="m-0"><GalleryTab userId={user?.id} /></TabsContent>
           <TabsContent value="registrations" className="m-0"><RegistrationsTab /></TabsContent>
           <TabsContent value="association" className="m-0"><AssociationTab /></TabsContent>
+          {isAdmin && user && <TabsContent value="shooting"><ShootingAgenda owner={user.id} /></TabsContent>}
           {isAdmin && <TabsContent value="users" className="m-0"><UsersTab /></TabsContent>}
           {isAdmin && <TabsContent value="role-audit" className="m-0"><RoleAuditTab /></TabsContent>}
         </div>

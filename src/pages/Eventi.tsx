@@ -48,6 +48,7 @@ export default function EventiPage() {
             <p className="text-xs uppercase tracking-[0.2em] mb-6">Incontriamoci a Piacenza</p>
             <h1 id="events-title" className="font-headline text-6xl md:text-8xl lg:text-9xl leading-none tracking-wide mb-6">EVENTI</h1>
             <p className="max-w-xl text-primary-foreground/85 leading-relaxed mb-12">I prossimi appuntamenti e i ricordi dei giri già fatti insieme.</p>
+            <Link className="inline-block underline underline-offset-4 mb-8" to="/natale-su-ruote/shooting">Natale su Ruote · Shooting fotografico</Link>
             {isLoading ? <p role="status">Caricamento del calendario…</p>
               : isError ? <div role="alert"><p className="mb-4">Il calendario non è disponibile in questo momento.</p><Button variant="hero-secondary" onClick={() => refetch()}>Riprova</Button></div>
               : <>
