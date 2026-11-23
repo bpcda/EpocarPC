@@ -1,22 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useShootingAgenda } from "@/hooks/use-shooting-agenda";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import ShootingSlotGenerator, { slotLabel, type ShootingSlot } from "./ShootingSlotGenerator";
+import ShootingSlotGenerator, { slotLabel } from "./ShootingSlotGenerator";
 import { Button } from "@/components/ui/button";
 
-interface Evening {day:string;meeting_place:string;policy_version:string;privacy_text:string;image_text:string;accepting:boolean;cancelled:boolean}
-interface RequestRow {id:string;assigned_day:string|null;first_name:string;last_name:string;email:string;day:string;kind:string;brand:string;model:string;notes:string;preferred:string;state:string;revision:number;slot_id:string;appointment:string;image_permission:boolean;delivery_state:string}
-interface Agenda {evenings:Evening[];slots:ShootingSlot[];requests:RequestRow[]}
 const db:SupabaseClient = supabase;
 const states:Record<string,string> = {pending:"In attesa",confirmed:"Confermata",cancelled:"Annullata"};
 const mailStates:Record<string,string> = {pending:"In coda",sending:"Invio in corso",sent:"Accettata da Brevo",failed:"Invio fallito",uncertain:"Da verificare",superseded:"Superata"};
 const control = "block w-full border border-input bg-background p-2";
-async function agenda():Promise<Agenda> {
-  const result = await db.rpc("shooting_agenda");
-  if (result.error) throw new Error("Agenda non disponibile");
-  return result.data;
-}
 export default function ShootingAgenda({owner}:{owner:string}) {
   const [day,setDay] = useState("2026-12-03");
   const [state,setState] = useState("");
@@ -24,7 +16,7 @@ export default function ShootingAgenda({owner}:{owner:string}) {
   const [message,setMessage] = useState("");
   const [plate,setPlate] = useState<{id:string;value:string}|null>(null);
   const [busy,setBusy] = useState(false);
-  const query = useQuery({queryKey:["shooting-agenda",owner],queryFn:agenda,gcTime:0});
+  const query = useShootingAgenda(owner);
   const data = query.data;
   async function action(name:string,args:Record<string,unknown>,notifyIds:string[] = []) {
     setBusy(true);
@@ -69,6 +61,9 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       <label className="block">Autorizzazione immagini<textarea className={control} name="images" defaultValue={evening.image_text}/></label>
       <label className="block"><input name="open" type="checkbox" disabled={evening.cancelled} defaultChecked={evening.accepting}/> Apri la raccolta delle richieste</label><Button>Salva impostazioni</Button>
     </form></details>}
+    {evening && !evening.cancelled && <Button variant="outline" asChild>
+      <a href={`/admin/shooting/${day}/foglio-fotografo`}>Foglio per il fotografo</a>
+    </Button>}
     <h3 className="font-headline text-2xl">Disponibilità</h3>
     {evening && !evening.cancelled && <ShootingSlotGenerator key={"slots-" + day} slots={daySlots} save={plan => {
       void action("shooting_generate_slots", {

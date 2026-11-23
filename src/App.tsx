@@ -18,6 +18,7 @@ import Adesione from "./pages/Adesione.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
 import AdminEventEditor from "./pages/AdminEventEditor.tsx";
 import AdminArticleEditor from "./pages/AdminArticleEditor.tsx";
+import ShootingFieldSheet from "./pages/ShootingFieldSheet";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import UserProtectedRoute from "./components/UserProtectedRoute.tsx";
 import Auth from "./pages/Auth.tsx";
@@ -84,6 +85,7 @@ const App = () => (
               </UserProtectedRoute>
             }
           />
+          <Route path="/admin/shooting/:day/foglio-fotografo" element={<ProtectedRoute adminOnly><ShootingFieldSheet /></ProtectedRoute>} />
           <Route path="/admin/login" element={<Navigate to="/auth?next=/admin" replace />} />
           <Route
             path="/admin"
