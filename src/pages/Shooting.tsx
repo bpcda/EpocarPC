@@ -22,7 +22,7 @@ export default function Shooting({ booking = false }: { booking?: boolean }) {
     <Navbar />
     <main className="mx-auto max-w-3xl px-6 pb-24 pt-32 space-y-7">
       <h1 className="font-headline text-5xl md:text-7xl">Natale su Ruote</h1>
-      <p>Shooting fotografico gratuito a Piacenza il 3 e il 17 dicembre 2026, tra le 18:30 e le 19:45. Ogni sessione dura circa 15 minuti.</p>
+      <p>Shooting fotografico gratuito a Piacenza il 3 e il 17 dicembre 2026. Orario e durata delle sessioni dipendono dalla programmazione della serata.</p>
       <p>La targa serve per organizzare gli accessi e gli eventuali permessi. EPOCAR confermerà data e orario via email dopo aver esaminato la richiesta. In caso di pioggia la serata potrà essere annullata.</p>
       <p>Le foto potranno promuovere Natale su Ruote e le attività EPOCAR nei limiti delle autorizzazioni raccolte. Per i gruppi occorre verificare il permesso di ciascuna persona riconoscibile e, per i minori, dei responsabili genitoriali.</p>
       {booking && user ? <ShootingForm key={user.id} owner={user.id} /> :
@@ -112,7 +112,7 @@ function ShootingForm({ owner }: { owner: string }) {
               <label className="block"><input type="checkbox" name="save" /> Salva nel mio garage</label>
             </>}
             <label className="block">Targa per l’accesso<Input key={garageId} required name="plate" maxLength={20} defaultValue={vehicle?.plate ?? ""} /></label>
-            <label className="block">Orario preferito (facoltativo)<Input type="time" min="18:30" max="19:30" name="preferred" /></label>
+            <label className="block">Orario preferito (facoltativo)<Input type="time" name="preferred" /></label>
             <label className="block">Note o richiesta di foto di gruppo<textarea className={selectClass} name="notes" maxLength={1500} /></label>
             <fieldset key={day + evening.policy_version} className="space-y-3">
               <legend className="font-semibold">Informativa e uso delle fotografie</legend>

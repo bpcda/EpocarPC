@@ -2,12 +2,12 @@ import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import ShootingSlotGenerator, { slotLabel, type ShootingSlot } from "./ShootingSlotGenerator";
 import { Button } from "@/components/ui/button";
 
 interface Evening {day:string;meeting_place:string;policy_version:string;privacy_text:string;image_text:string;accepting:boolean;cancelled:boolean}
-interface Slot {id:string;day:string;starts:string;capacity:number}
 interface RequestRow {id:string;assigned_day:string|null;first_name:string;last_name:string;email:string;day:string;kind:string;brand:string;model:string;notes:string;preferred:string;state:string;revision:number;slot_id:string;appointment:string;image_permission:boolean;delivery_state:string}
-interface Agenda {evenings:Evening[];slots:Slot[];requests:RequestRow[]}
+interface Agenda {evenings:Evening[];slots:ShootingSlot[];requests:RequestRow[]}
 const db:SupabaseClient = supabase;
 const states:Record<string,string> = {pending:"In attesa",confirmed:"Confermata",cancelled:"Annullata"};
 const mailStates:Record<string,string> = {pending:"In coda",sending:"Invio in corso",sent:"Accettata da Brevo",failed:"Invio fallito",uncertain:"Da verificare",superseded:"Superata"};
@@ -31,6 +31,12 @@ export default function ShootingAgenda({owner}:{owner:string}) {
     setMessage("");
     try {
       const result = await db.rpc(name,args);
+      if (result.error?.message === "occupied_slot_change") {
+        throw new Error("Il piano cambierebbe uno slot con appuntamenti confermati. Sposta gli appuntamenti prima di modificare quello slot.");
+      }
+      if (result.error?.code === "PGRST202" && name === "shooting_generate_slots") {
+        throw new Error("Per generare gli slot serve l’aggiornamento del database Supabase.");
+      }
       if (result.error) throw new Error("Verifica disponibilità, versione e dati della serata.");
       const deliveries = await sendMessages(notifyIds);
       setMessage(deliveries ? "Salvato. Controlla le email rimaste in coda." : "Modifica salvata.");
@@ -64,9 +70,14 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       <label className="block"><input name="open" type="checkbox" disabled={evening.cancelled} defaultChecked={evening.accepting}/> Apri la raccolta delle richieste</label><Button>Salva impostazioni</Button>
     </form></details>}
     <h3 className="font-headline text-2xl">Disponibilità</h3>
+    {evening && !evening.cancelled && <ShootingSlotGenerator key={"slots-" + day} slots={daySlots} save={plan => {
+      void action("shooting_generate_slots", {
+        p_day: day, p_start: plan.start, p_end: plan.end, p_count: plan.count, p_minutes: plan.duration,
+      });
+    }} />}
     {daySlots.map(s=><form key={s.id+":"+s.capacity} className="flex flex-wrap items-center gap-3" onSubmit={e=>{
       e.preventDefault(); void action("shooting_capacity",{p_slot:s.id,p_capacity:Number(new FormData(e.currentTarget).get("capacity"))});
-    }}><strong>{s.starts.slice(0,5)}</strong><span>{data.requests.filter(r=>r.slot_id===s.id).length} assegnati</span>
+    }}><strong>{slotLabel(s)}</strong><span>{data.requests.filter(r=>r.slot_id===s.id).length} assegnati</span>
       <label>Posti <input className="w-16 border p-1" type="number" name="capacity" min="0" max="20" required defaultValue={s.capacity}/></label><Button variant="outline">Salva</Button></form>)}
     <h3 className="font-headline text-2xl">Richieste</h3>
     <label className="block">Stato<select className={control} value={state} onChange={e=>setState(e.target.value)}><option value="">Tutti</option>{Object.entries(states).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
@@ -78,7 +89,7 @@ export default function ShootingAgenda({owner}:{owner:string}) {
       <Button variant="outline" onClick={async()=>{if(plate?.id===r.id){setPlate(null);return;} const result=await db.rpc("shooting_plate",{p_id:r.id});if(result.error)setMessage("Targa non disponibile.");else setPlate({id:r.id,value:result.data});}}>{plate?.id===r.id ? plate.value+" · Nascondi" : "Mostra targa per accesso"}</Button>
       {r.appointment && <p>{r.appointment}</p>}
       {r.state!=="cancelled" && <form key={r.revision} className="space-y-2" onSubmit={e=>{e.preventDefault();void action("shooting_schedule",{p_id:r.id,p_revision:r.revision,p_slot:new FormData(e.currentTarget).get("slot")},[r.id]);}}>
-        <label>Assegna appuntamento<select className={control} name="slot" required defaultValue={r.slot_id??""}><option value="">Scegli lo slot concordato</option>{data.slots.filter(s=>s.capacity>0&&!data.evenings.find(e=>e.day===s.day)?.cancelled).map(s=><option key={s.id} value={s.id}>{s.day} · {s.starts.slice(0,5)}</option>)}</select></label>
+        <label>Assegna appuntamento<select className={control} name="slot" required defaultValue={r.slot_id??""}><option value="">Scegli lo slot concordato</option>{data.slots.filter(s=>s.capacity>0&&!data.evenings.find(e=>e.day===s.day)?.cancelled).map(s=><option key={s.id} value={s.id}>{s.day} · {slotLabel(s)}</option>)}</select></label>
         <Button>{r.slot_id?"Modifica appuntamento":"Conferma appuntamento"}</Button>{" "}
         <Button variant="outline" type="button" onClick={()=>{if(window.confirm("Annullare questa richiesta e avvisare il partecipante?"))void action("shooting_schedule",{p_id:r.id,p_revision:r.revision,p_slot:null},[r.id]);}}>Annulla richiesta</Button>
       </form>}

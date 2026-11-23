@@ -53,10 +53,23 @@ it("stores one private pending request and one receipt per accepted submission",
     expect(() => asUser(actor,"select shooting_agenda()")).toThrow();
     const admin = (query:string) => asUser(other,query);
     admin("select shooting_configure('2026-12-03',false,'Piazza Test','v1','Privacy','Immagini')");
+    const migrationSlots = readFileSync("setup/shooting-slots.sql", "utf8");
+    sql(migrationSlots); sql(migrationSlots);
+    const generate = "select shooting_generate_slots('2026-12-03','18:00','20:00',4,20)";
+    expect(() => asUser(actor, generate)).toThrow();
+    expect(() => admin(generate.replace("20:00", "19:00"))).toThrow();
+    admin(generate);
+    expect(sql("select string_agg(starts::text || '/' || duration_minutes, ',' order by starts) from shooting_slots where day='2026-12-03'"))
+      .toBe("18:00:00/20,18:20:00/20,18:40:00/20,19:00:00/20");
+    expect(sql("select count(*) from shooting_slots where day='2026-12-17'")).toBe("5");
     const slot = sql("select id from shooting_slots where day='2026-12-03' order by starts limit 1");
     const move = sql("select id from shooting_slots where day='2026-12-03' order by starts offset 1 limit 1");
     const schedule = (revision:number,target:string) => admin(`select shooting_schedule('${receipt}',${revision},'${target}')`);
     schedule(0,slot);
+    expect(() => admin(generate.replace("18:00", "18:10"))).toThrow();
+    expect(() => admin(generate.replace(",20)", ",15)"))).toThrow();
+    admin(generate.replace(",4,20)", ",5,20)"));
+    expect(sql(`select slot_id from shooting_requests where id='${receipt}'`)).toBe(slot);
     expect(() => schedule(0,move)).toThrow();
     expect(() => admin(`select shooting_capacity('${slot}',0)`)).toThrow();
     schedule(1,move);

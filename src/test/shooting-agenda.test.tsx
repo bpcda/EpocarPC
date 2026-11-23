@@ -28,3 +28,21 @@ it("assegna solo lo slot scelto e conserva la conferma se la mail fallisce",asyn
   await waitFor(()=>expect(screen.getByText("Piacenza · 18:30")).toBeInTheDocument());
   expect(screen.getByText(/Controlla le email rimaste in coda/)).toBeInTheDocument();
 });
+
+it("genera gli intervalli della serata selezionata solo se rientrano nella fascia", async () => {
+  const day = "2026-12-03";
+  api.rpc.mockImplementation(async (name) => name === "shooting_agenda"
+    ? { data: { evenings: [{ day }], slots: [], requests: [] } }
+    : { error: null });
+  render(<QueryClientProvider client={new QueryClient()}><ShootingAgenda owner="admin" /></QueryClientProvider>);
+  const save = await screen.findByRole("button", { name: "Genera e salva slot" });
+  fireEvent.change(screen.getByLabelText("Minuti per slot"), { target: { value: "20" } });
+  expect(save).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Numero di slot"), { target: { value: "3" } });
+  expect(screen.getByText(/18:30–18:50 · 18:50–19:10 · 19:10–19:30/)).toBeInTheDocument();
+  fireEvent.click(save);
+  await waitFor(() => expect(api.rpc).toHaveBeenCalledWith("shooting_generate_slots", {
+    p_day: day, p_start: "18:30", p_end: "19:45", p_count: 3, p_minutes: 20,
+  }));
+  await screen.findByText("Modifica salvata.");
+});
