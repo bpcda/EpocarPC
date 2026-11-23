@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
@@ -8,9 +7,9 @@ import { SmartLink } from "@/components/cms/CmsContent";
 import { useSiteSettings } from "@/hooks/use-cms";
 
 const TOPICS = [
-  { title: "Eventi e raduni", description: "Informazioni sui prossimi appuntamenti.", subject: "Informazioni eventi" },
-  { title: "Entrare in Epocar", description: "Domande sull’associazione e sull’adesione.", subject: "Informazioni adesione" },
-  { title: "Collaborazioni", description: "Progetti, partnership e idee da condividere.", subject: "Proposta di collaborazione" },
+  { title: "Eventi e raduni", description: "Informazioni sui prossimi appuntamenti.", subject: "Informazioni eventi", body: "Ciao Epocar,\r\n\r\nvorrei partecipare a [nome del raduno o data]. Come posso iscrivermi?\r\n\r\nGrazie,\r\n[nome]" },
+  { title: "Entrare in Epocar", description: "Domande sull’associazione e sull’adesione.", subject: "Informazioni adesione", body: "Ciao Epocar,\r\n\r\nvorrei entrare in Epocar. Potreste indicarmi come fare domanda e qual è la quota associativa?\r\n\r\nGrazie,\r\n[nome]" },
+  { title: "Collaborazioni", description: "Progetti, partnership e idee da condividere.", subject: "Proposta di collaborazione", body: "Ciao Epocar,\r\n\r\nsono [nome] e vorrei proporvi una collaborazione: [descrivi brevemente la tua idea]. Possiamo sentirci per parlarne?\r\n\r\nGrazie,\r\n[nome]" },
 ];
 
 const FALLBACK_SOCIAL = [
@@ -19,11 +18,9 @@ const FALLBACK_SOCIAL = [
 ];
 
 export default function ContattiPage() {
-  const [selectedTopic, setSelectedTopic] = useState(0);
   const { data: settings } = useSiteSettings();
   const email = settings?.email ?? "epocarpc@gmail.com";
   const social = settings?.social.length ? settings.social : FALLBACK_SOCIAL;
-  const subject = TOPICS[selectedTopic].subject;
 
   return (
     <>
@@ -45,7 +42,7 @@ export default function ContattiPage() {
                 Un raduno, una collaborazione o una curiosità su Epocar. Il primo passo è scriverci.
               </p>
               <Button size="lg" asChild>
-                <a href={`mailto:${email}?subject=${encodeURIComponent(subject)}`}>
+                <a href={`mailto:${email}`}>
                   Scrivici un’email <ArrowUpRight aria-hidden="true" />
                 </a>
               </Button>
@@ -56,23 +53,19 @@ export default function ContattiPage() {
 
             <div role="group" aria-labelledby="contact-topics">
               <h2 id="contact-topics" className="text-xs font-medium uppercase tracking-[0.2em] mb-3">Di cosa vuoi parlare?</h2>
-              {TOPICS.map((topic, index) => (
-                <Button
+              {TOPICS.map((topic) => (
+                <a
                   key={topic.subject}
-                  type="button"
-                  variant="ghost"
-                  aria-pressed={selectedTopic === index}
-                  onClick={() => setSelectedTopic(index)}
-                  className={`w-full h-auto justify-between gap-6 whitespace-normal border-b py-6 px-0 text-left font-body tracking-normal hover:bg-transparent hover:text-foreground ${selectedTopic === index ? "border-foreground" : "border-border"}`}
+                  href={`mailto:epocarpc@gmail.com?subject=${encodeURIComponent(topic.subject)}&body=${encodeURIComponent(topic.body)}`}
+                  className="flex w-full items-center justify-between gap-6 border-b border-border py-6 text-left hover:border-foreground focus-visible:outline-offset-4"
                 >
                   <span>
                     <span className="block text-lg font-medium">{topic.title}</span>
                     <span className="block text-sm text-muted-foreground font-normal mt-2 leading-relaxed">{topic.description}</span>
                   </span>
-                  {selectedTopic === index ? <Check aria-hidden="true" /> : <ArrowUpRight aria-hidden="true" />}
-                </Button>
+                  <ArrowUpRight aria-hidden="true" />
+                </a>
               ))}
-              <p className="text-sm text-muted-foreground mt-5" aria-live="polite">Oggetto email: {subject}</p>
             </div>
           </div>
 
