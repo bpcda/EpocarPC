@@ -60,13 +60,14 @@ function ShootingForm({ owner }: { owner: string }) {
     queryKey: ["shooting-form", owner],
     gcTime: 0,
     queryFn: async () => {
-      const [dates, vehicles, requests] = await Promise.all([
+      const [dates, vehicles, requests, album] = await Promise.all([
         external.from("shooting_evenings").select("day,policy_version,privacy_text,image_text").eq("accepting", true).order("day"),
         supabase.from("vehicles").select("id,brand,model,plate").eq("user_id", owner).order("brand"),
         external.from("shooting_requests").select("id,day,brand,model,state,appointment").eq("actor", owner).order("created_at", { ascending: false }),
+        external.rpc("my_shooting_photos", { p_id: "00000000-0000-0000-0000-000000000000" }),
       ]);
       if (dates.error || vehicles.error || requests.error) throw new Error("Servizio non disponibile");
-      return { dates: dates.data, vehicles: vehicles.data, requests: requests.data };
+      return { dates: dates.data, vehicles: vehicles.data, requests: requests.data, photosReady: !album.error };
     },
   });
   const evening = query.data?.dates.find(item => item.day === day);
@@ -86,13 +87,17 @@ function ShootingForm({ owner }: { owner: string }) {
     setBusy(true);
     setError("");
     try {
-      const result = await external.rpc("submit_shooting_request", {
+      const args = {
         p_key: retryKey, p_day: evening.day, p_garage: garageId || null,
         p_kind: values.get("kind"), p_brand: values.get("brand"), p_model: values.get("model"),
         p_plate: values.get("plate"), p_save: values.has("save"), p_preferred: values.get("preferred") || null,
         p_notes: values.get("notes"), p_version: evening.policy_version, p_read: values.has("read"),
         p_images: values.get("images") === "yes",
-      });
+      };
+      const gallery = values.has("gallery");
+      const result = query.data?.photosReady || gallery
+        ? await external.rpc("submit_shooting_photo_request", { ...args, p_gallery: gallery })
+        : await external.rpc("submit_shooting_request", args);
       if (result.error) {
         if (result.error.message === "too_many_requests") throw new Error("Hai raggiunto il limite orario di richieste. Riprova più tardi.");
         if (result.error.code === "23505") throw new Error("Esiste già una richiesta attiva per questo veicolo e questa data.");
@@ -120,6 +125,7 @@ function ShootingForm({ owner }: { owner: string }) {
   return <section className="mx-auto max-w-2xl space-y-5">
     {query.data.requests.length > 0 && <>
     <h2 className="font-headline text-3xl">Le tue richieste</h2>
+    {query.data.photosReady && <Link className="inline-block underline" to="/account?tab=foto">Vai a Le mie foto</Link>}
     <ul className="grid gap-3">{query.data.requests.map(row =>
       <li key={row.id} className="border-l-4 border-primary bg-card p-4 shadow-sm">
         <p>{row.brand} {row.model} · Serata richiesta: {dateLabel(row.day)}</p>
@@ -164,6 +170,8 @@ function ShootingForm({ owner }: { owner: string }) {
               <p className="whitespace-pre-wrap">{splitPolicy(evening.image_text).text}</p><PolicyDownload value={evening.image_text} title="Autorizzazione immagini" /><p className="text-sm">La tua scelta riguarda il tuo ritratto. Per le foto di gruppo EPOCAR verifica le autorizzazioni individuali e, per i minori, quelle dei responsabili genitoriali.</p>
               <label className="block"><input type="radio" required name="images" value="yes" /> Autorizzo per me gli usi indicati</label>
               <label className="block"><input type="radio" required name="images" value="no" /> Non autorizzo</label>
+              {query.data.photosReady && <><p>Riceverai gli scatti in «Le mie foto» nel tuo profilo. Avrai 30 giorni dalla consegna per scaricarli.</p>
+              <label className="block"><input type="checkbox" name="gallery" /> Autorizzo EPOCAR a pubblicare le mie foto anche nella Gallery del sito, nel rispetto della mia scelta sul ritratto.</label></>}
             </fieldset>
             <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => setReview(null)}>Modifica dati</Button>
             <Button type="submit">{busy ? "Invio…" : "Invia richiesta"}</Button></div>

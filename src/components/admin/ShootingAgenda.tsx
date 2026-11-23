@@ -113,7 +113,7 @@ export default function ShootingAgenda({owner}:{owner:string}) {
     <div role="group" aria-label="Gestione shooting" className="grid grid-cols-2 gap-1 bg-secondary p-1 md:grid-cols-4">
       {["Richieste","Agenda","Documenti e serata","Gallery"].map(name=><Button key={name} type="button" aria-label={"Shooting · "+name} variant={panel===name?"default":"ghost"} aria-pressed={panel===name} onClick={()=>{setPanel(name);setPlate(null);setMessage("");}}>{name}</Button>)}
     </div>
-    {panel==="Gallery" && <ShootingGalleryPrep key={day} day={day} />}
+    {panel==="Gallery" && <ShootingGalleryPrep key={day} day={day} rows={rows} slots={daySlots} owner={owner} />}
     {panel==="Documenti e serata" && evening && <section className="border bg-card p-5"><h3 className="font-headline text-2xl">Impostazioni della serata</h3><form key={day+evening.policy_version} className="space-y-4 py-3" onSubmit={settings}>
       <label className="block">Punto di ritrovo<input className={control} name="place" defaultValue={evening.meeting_place}/></label>
       <label className="block">Versione dei testi approvati<input className={control} name="version" defaultValue={evening.policy_version}/></label>

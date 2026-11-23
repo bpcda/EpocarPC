@@ -66,6 +66,69 @@ it("stores one private pending request and one receipt per accepted submission",
     const move = sql("select id from shooting_slots where day='2026-12-03' order by starts offset 1 limit 1");
     const schedule = (revision:number,target:string) => admin(`select shooting_schedule('${receipt}',${revision},'${target}')`);
     schedule(0,slot);
+    sql(`create schema storage;
+      create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+      create table storage.objects(name text,bucket_id text,created_at timestamptz default now());
+      alter table storage.objects enable row level security;
+      grant usage on schema storage to anon,authenticated;
+      grant select on storage.objects to anon,authenticated;
+      create policy unrelated_permissive_read on storage.objects for select using(true);
+      create table gallery_images(id uuid primary key,image_url text not null,alt_text text,uploaded_by uuid);`);
+    const photos = readFileSync("setup/shooting-photos.sql","utf8");
+    sql(photos); sql(photos);
+    const optIn = submit(randomUUID()).replace("submit_shooting_request","submit_shooting_photo_request")
+      .replace("AB-123","PHOTO123").replace("true,false)", "true,false,true)");
+    const consent = sql(`begin; update shooting_evenings set meeting_place='Piazza',accepting=true
+      where day=(select day from shooting_requests where id='${receipt}');
+      set local role authenticated; set local test.uid='${actor}';
+      ${optIn}; ${optIn}; reset role;
+      select count(*) from shooting_requests where plate='PHOTO123' and gallery_permission; rollback;`).split("\n");
+    expect(consent[0]).toBe(consent[1]);
+    expect(consent[2]).toBe("1");
+    const privatePhoto = randomUUID(), sharedPhoto = randomUUID();
+    sql(`insert into storage.objects(name,bucket_id) values ('${privatePhoto}.jpg','shooting-photos'),('${sharedPhoto}.jpg','shooting-photos')`);
+    const deliver = (id:string) => `select shooting_deliver_photo('${id}','${slot}',array['${receipt}'::uuid])`;
+    const publish = (id:string,verified:boolean) => `select shooting_publish_photo('${id}',true,${verified})`;
+    expect(() => asUser(actor,deliver(privatePhoto))).toThrow();
+    admin(deliver(privatePhoto)); admin(deliver(privatePhoto));
+    expect(asUser(actor,"select count(*) from storage.objects")).toBe("0");
+    expect(asUser(actor,"select id from my_shooting_photos()")).toBe(privatePhoto);
+    expect(admin("select count(*) from my_shooting_photos()")).toBe("0");
+    expect(() => admin(publish(privatePhoto,true))).toThrow();
+    expect(() => asUser(actor,submit().replace("submit_shooting_request","submit_shooting_photo_request").replace("true,false)", "true,false,true)"))).toThrow();
+    sql(`update shooting_requests set gallery_permission=true where id='${receipt}'`);
+    admin(deliver(sharedPhoto));
+    const groupMember = randomUUID(), groupPhoto = randomUUID();
+    expect(sql(`begin;
+      insert into storage.objects(name,bucket_id) values ('${groupPhoto}.jpg','shooting-photos');
+      insert into shooting_requests(id,actor,retry_key,fingerprint,day,kind,brand,model,plate,notes,email,
+        policy_version,privacy_text,image_text,image_permission,state,slot_id)
+      select '${groupMember}','${other}',gen_random_uuid(),'group',day,kind,brand,model,'GROUP',notes,email,
+        policy_version,privacy_text,image_text,true,'confirmed',slot_id from shooting_requests where id='${receipt}';
+      set local role authenticated; set local test.uid='${other}';
+      select shooting_deliver_photo('${groupPhoto}','${slot}',array['${receipt}'::uuid,'${groupMember}'::uuid]);
+      select count(*) from my_shooting_photos('${groupPhoto}');
+      set local test.uid='${actor}'; select count(*) from my_shooting_photos('${groupPhoto}');
+      reset role; select eligible from shooting_photos where id='${groupPhoto}';
+      rollback;`)).toBe("1\n1\nf");
+    expect(() => admin(publish(sharedPhoto,false))).toThrow();
+    admin(publish(sharedPhoto,true)); admin(publish(sharedPhoto,true));
+    sql("update shooting_photos set expires_at=now()-interval '1 second'");
+    expect(asUser(actor,"select count(*) from my_shooting_photos()")).toBe("0");
+    expect(sql("select count(*) from gallery_images")).toBe("1");
+    admin(`select shooting_publish_photo('${sharedPhoto}',false,false)`);
+    expect(sql("select count(*) from gallery_images")).toBe("0");
+    sql(`create schema cron; create schema net;
+      create table cron.jobs(name text primary key,command text);
+      create function cron.schedule(text,text,text) returns void language sql as 'insert into cron.jobs values($1,$3) on conflict(name) do update set command=excluded.command';
+      create function net.http_post(url text,headers jsonb,body jsonb,timeout_milliseconds integer) returns bigint language sql as 'select 1::bigint';`);
+    const cleanup = readFileSync("setup/shooting-photos-cleanup.sql","utf8").replace(/^create extension .*;$/gm,"");
+    sql(cleanup); sql(cleanup);
+    expect(sql(sql("select command from cron.jobs"))).toBe("1");
+    sql("update storage.objects set created_at=now()-interval '31 days'");
+    expect(()=>asUser(actor,`select * from shooting_photo_cleanup_batch('${randomUUID()}')`)).toThrow();
+    expect(()=>sql(`select * from shooting_photo_cleanup_batch('${randomUUID()}')`)).toThrow();
+    expect(sql("select count(*) from shooting_photo_cleanup_batch((select secret from shooting_photo_cleanup_key))")).toBe("2");
     const calendar = readFileSync("setup/shooting-calendar.sql", "utf8");
     sql(calendar); sql(calendar);
     const event = sql("select id from shooting_calendar_events");
@@ -108,4 +171,4 @@ it("stores one private pending request and one receipt per accepted submission",
   } finally {
     docker(["rm", "-f", name]);
   }
-}, 60000);
+}, 120000);

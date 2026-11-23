@@ -143,7 +143,9 @@ export default function GalleryTab({ userId }: GalleryTabProps) {
     // Extract filename from URL
     const parts = img.image_url.split("/");
     const fileName = parts[parts.length - 1];
-    await supabase.storage.from("gallery").remove([fileName]);
+    if (img.image_url.includes("/storage/v1/object/public/gallery/")) {
+      await supabase.storage.from("gallery").remove([fileName]);
+    }
     await supabase.from("gallery_images").delete().eq("id", img.id);
     setImages((prev) => prev.filter((x) => x.id !== img.id));
     fetchCount();

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import MyPhotos from "@/components/shooting/MyPhotos";
 import MemberArea from "@/components/MemberArea";
 import { MEMBER_CARDS_OWNER_ID } from "../../setup/functions/member-card-management/owner";
 import { AVATAR_TYPES, initials, isStorageAvatar, validateAvatar } from "@/lib/avatar";
@@ -226,13 +227,15 @@ export default function Account() {
           )}
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
-          <Tabs defaultValue={tabParam === "socio" ? "socio" : "profile"} className="w-full">
-            <TabsList className="bg-primary-foreground/10 border border-primary-foreground/20">
+          <Tabs defaultValue={tabParam === "foto" || tabParam === "socio" ? tabParam : "profile"} className="w-full">
+            <TabsList className="h-auto flex-wrap bg-primary-foreground/10 border border-primary-foreground/20">
               <TabsTrigger value="profile" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Profilo</TabsTrigger>
               <TabsTrigger value="vehicles" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">I Miei Veicoli</TabsTrigger>
               <TabsTrigger value="socio" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Area Socio</TabsTrigger>
+              <TabsTrigger value="foto" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Le mie foto</TabsTrigger>
             </TabsList>
 
+            <TabsContent value="foto" className="mt-8">{user && <MyPhotos key={user.id} owner={user.id} />}</TabsContent>
             <TabsContent value="socio" className="mt-8">{user && <MemberArea userId={user.id} />}</TabsContent>
 
             <TabsContent value="profile" className="mt-8">
