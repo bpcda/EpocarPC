@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Pencil, Trash2, Plus, LogOut, Upload } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import hero from "@/assets/hero-car.jpg";
+import { accountSections } from "@/lib/account-sections";
 import MyPhotos from "@/components/shooting/MyPhotos";
 import MemberArea from "@/components/MemberArea";
 import { MEMBER_CARDS_OWNER_ID } from "../../setup/functions/member-card-management/owner";
@@ -45,7 +47,7 @@ const emptyVehicle: Omit<Vehicle, "id"> = {
 export default function Account() {
   const { user, signOut, isBoardMember } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
 
   const [profile, setProfile] = useState<Profile>({
@@ -207,32 +209,35 @@ export default function Account() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-foreground pt-32 pb-24">
+      <main className="min-h-screen bg-foreground pt-20 pb-24">
         <div className="max-w-4xl mx-auto px-6">
+          <header className="relative isolate mb-4 overflow-hidden border border-primary-foreground/20 px-5 py-8 sm:px-8 sm:py-12">
+            <img src={hero} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/95 via-black/75 to-black/60" />
           <div className="flex items-start justify-between mb-2 gap-4">
             <h1 className="font-headline text-5xl md:text-7xl text-primary-foreground tracking-wider">
-              IL MIO ACCOUNT
+              Area personale
             </h1>
             <Button variant="outline" onClick={handleSignOut}
               className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10">
               <LogOut className="w-4 h-4 mr-2" /> Esci
             </Button>
           </div>
-          <p className="text-primary-foreground/60 text-sm mb-8">{user?.email}</p>
-          {user?.id === MEMBER_CARDS_OWNER_ID && <Button variant="hero-secondary" className="mb-8 mr-4" asChild><Link to="/gestione-tessere">Tessere socio</Link></Button>}
+          <p className="text-primary-foreground/90 text-sm break-all">{user?.email}</p>
+          {user?.id === MEMBER_CARDS_OWNER_ID && <Button variant="hero-secondary" className="mt-4 mr-4" asChild><Link to="/gestione-tessere">Tessere socio</Link></Button>}
           {isBoardMember && (
-            <Link to="/consiglio-direttivo" className="inline-block mb-8 border border-primary-foreground/40 px-4 py-2 text-primary-foreground uppercase tracking-widest text-sm hover:bg-primary-foreground/10">
+            <Link to="/consiglio-direttivo" className="inline-block mt-4 border border-primary-foreground/40 px-4 py-2 text-primary-foreground uppercase tracking-widest text-sm hover:bg-primary-foreground/10">
               Area Consiglio Direttivo →
             </Link>
           )}
-          <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
-
-          <Tabs defaultValue={tabParam === "foto" || tabParam === "socio" ? tabParam : "profile"} className="w-full">
-            <TabsList className="h-auto flex-wrap bg-primary-foreground/10 border border-primary-foreground/20">
-              <TabsTrigger value="profile" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Profilo</TabsTrigger>
-              <TabsTrigger value="vehicles" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">I Miei Veicoli</TabsTrigger>
-              <TabsTrigger value="socio" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Area Socio</TabsTrigger>
-              <TabsTrigger value="foto" className="font-headline tracking-widest data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">Le mie foto</TabsTrigger>
+          </header>
+          <Tabs value={accountSections.find(section=>section.value===tabParam)?.value ?? "profile"}
+            onValueChange={tab=>setSearchParams(params=>{params.set("tab", tab); return params;})} className="w-full">
+            <TabsList aria-label="Sezioni personali" className="grid h-auto grid-cols-2 gap-1 bg-primary-foreground/10 p-1 sm:grid-cols-4">
+              {accountSections.map(({value,label,icon:Icon})=><TabsTrigger key={value} value={value}
+                className="min-h-12 gap-2 font-headline tracking-wide text-primary-foreground data-[state=active]:bg-primary-foreground data-[state=active]:text-foreground">
+                <Icon size={18} aria-hidden="true" />{label}
+              </TabsTrigger>)}
             </TabsList>
 
             <TabsContent value="foto" className="mt-8">{user && <MyPhotos key={user.id} owner={user.id} />}</TabsContent>

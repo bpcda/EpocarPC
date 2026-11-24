@@ -197,7 +197,13 @@ test("il foglio stampa solo veicoli confermati della serata e la scelta immagini
   await expect(page.getByText("Serata annullata.")).toBeVisible();
   await expect(page.getByText("Fiat 500")).toHaveCount(0);
   await page.emulateMedia({media:"screen"});
-  await page.goto("/account?tab=foto");
+  await page.goto("/account");
+  await page.getByRole("button", {name:"Area personale"}).click();
+  await page.getByRole("menuitem", {name:"I miei veicoli"}).click();
+  await expect(page.getByRole("tab", {name:"I miei veicoli"})).toHaveAttribute("aria-selected","true");
+  await page.getByRole("button", {name:"Area personale"}).click();
+  await page.getByRole("menuitem", {name:"Le mie foto"}).click();
+  await expect(page).toHaveURL(/tab=foto/);
   await page.getByRole("button",{name:"Apri foto"}).click();
   const download = page.waitForEvent("download");
   await page.getByRole("link",{name:"Scarica foto"}).click();
