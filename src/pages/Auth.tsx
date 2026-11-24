@@ -98,6 +98,7 @@ export default function Auth() {
           </h1>
           <div className="w-24 h-0.5 bg-primary-foreground/30 mb-10" />
 
+          <p className="mb-4 text-sm"><Link to="/privacy-account" target="_blank" rel="noopener" className="underline">Come trattiamo i dati del tuo account</Link></p>
           <Button
             type="button"
             variant="outline"

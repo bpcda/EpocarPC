@@ -294,7 +294,7 @@ export default function Account() {
                   <p className="text-sm text-primary-foreground/70 mt-2 max-w-2xl">
                     L'eliminazione dell'account rimuove l'accesso al portale EPOCAR e i dati strettamente collegati al profilo online. Se sei già socio dell'Associazione, la cancellazione dell'account non equivale al recesso dall'Associazione.
                   </p>
-                  <p className="text-xs text-primary-foreground/50 mt-2 max-w-2xl">{PRIVACY_NOTE}</p>
+                  <p className="text-xs text-primary-foreground/50 mt-2 max-w-2xl">{PRIVACY_NOTE} <Link className="underline" to="/privacy-account">Informativa privacy degli account</Link></p>
                   <Button variant="destructive" className="mt-4" onClick={() => setDeleteOpen(true)}>
                     Elimina definitivamente il mio account
                   </Button>

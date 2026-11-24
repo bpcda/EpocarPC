@@ -56,6 +56,8 @@ export default function Footer() {
         </div>
         <div className="border-t border-primary-foreground/20 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-primary-foreground/80">© {new Date().getFullYear()} Epocar. Tutti i diritti riservati.</p>
+          <p className="text-xs text-primary-foreground/80">Sito realizzato da Bruno Pio Cosentini di Aieta, fondatore di CDA Synapse.</p>
+          <Link className={linkCls + " underline"} to="/privacy-account">Privacy degli account</Link>
           <p className="text-xs text-primary-foreground/80">Piacenza, Italia — La community dei motori storici</p>
         </div>
       </div>

@@ -8,6 +8,7 @@ import Shooting from "./pages/Shooting";
 import Eventi from "./pages/Eventi.tsx";
 import EventoIscrizione from "./pages/EventoIscrizione.tsx";
 import Community from "./pages/Community.tsx";
+import PrivacyAccount from "./pages/PrivacyAccount";
 import Contatti from "./pages/Contatti.tsx";
 import Articoli from "./pages/Articoli.tsx";
 import QuandoAutoEpoca from "./pages/QuandoAutoEpoca.tsx";
@@ -67,6 +68,7 @@ const App = () => (
           <Route path="/verifica-tessera" element={<VerificaTessera />} />
           <Route path="/gestione-tessere" element={<UserProtectedRoute><GestioneTessere /></UserProtectedRoute>} />
           {futureFeatures.map(feature => <Route key={feature.path} path={feature.path} element={<InCostruzione feature={feature} />} />)}
+          <Route path="/privacy-account" element={<PrivacyAccount />} />
           <Route path="/contatti" element={<Contatti />} />
           <Route path="/articoli" element={<Navigate to="/news" replace />} />
           <Route path="/articoli/quando-auto-diventa-epoca" element={<QuandoAutoEpoca />} />
