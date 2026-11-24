@@ -1,8 +1,21 @@
 {
   "rewrites": [
     {
+      "source": "/articoli/quando-auto-diventa-epoca",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/articoli/:segment",
+      "destination": "/api/article?segment=:segment"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/article.js": {
+      "includeFiles": "dist/index.html"
+    }
+  }
 }
