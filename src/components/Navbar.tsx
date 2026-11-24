@@ -7,6 +7,7 @@ import { User as UserIcon, LayoutDashboard } from "lucide-react";
 const navLinks = [
   { label: "Chi Siamo", href: "/chi-siamo" },
    { label: "Associazione", href: "/associazione" },
+  { label: "Convenzioni", href: "/convenzioni" },
   { label: "Eventi", href: "/eventi" },
   { label: "News", href: "/news" },
   { label: "Gallery", href: "/gallery" },

@@ -7,6 +7,7 @@ import Index from "./pages/Index.tsx";
 import Shooting from "./pages/Shooting";
 import Eventi from "./pages/Eventi.tsx";
 import EventoIscrizione from "./pages/EventoIscrizione.tsx";
+import Convenzioni from "./pages/Convenzioni";
 import Community from "./pages/Community.tsx";
 import PrivacyAccount from "./pages/PrivacyAccount";
 import Contatti from "./pages/Contatti.tsx";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/natale-su-ruote/shooting/richiesta" element={<UserProtectedRoute><Shooting booking /></UserProtectedRoute>} />
           <Route path="/eventi" element={<Eventi />} />
           <Route path="/eventi/:id/iscrizione" element={<EventoIscrizione />} />
+          <Route path="/convenzioni" element={<Convenzioni />} />
           <Route path="/community" element={<Community />} />
           <Route path="/novita" element={<Novita />} />
           <Route path="/verifica-tessera" element={<VerificaTessera />} />

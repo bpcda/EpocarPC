@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Handshake, Map, MessageCircle, Wallet } from "lucide-react";
+import { Map, MessageCircle, Wallet } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
@@ -27,18 +27,11 @@ export const futureFeatures = [
     description: "Idee per giri in auto, moto e Vespa d’epoca: percorsi, tappe e luoghi da scoprire insieme.",
     detail: "Vorremmo raccogliere itinerari curati dalla community e dalla redazione, con informazioni utili per organizzare un’uscita. Per gli appuntamenti già disponibili puoi consultare la pagina Eventi.",
   },
-  {
-    path: "/convenzioni",
-    title: "Convenzioni per i soci",
-    icon: Handshake,
-    description: "Una futura raccolta di vantaggi e collaborazioni dedicati ai soci Epocar.",
-    detail: "Questa pagina presenterà soltanto accordi confermati, con condizioni e destinatari chiari. Al momento non annuncia sconti, partner o vantaggi già disponibili.",
-  },
 ];
 
 export default function Novita() {
   return <>
-    <PageMeta title="Le prossime novità — Epocar" description="Scopri le idee per il futuro del sito Epocar: social interno, tessera Wallet, itinerari e convenzioni. Funzioni in costruzione." path="/novita" />
+    <PageMeta title="Le prossime novità — Epocar" description="Scopri le idee per il futuro del sito Epocar: social interno, tessera Wallet, itinerari. Funzioni in costruzione." path="/novita" />
     <Navbar />
     <main className="min-h-screen bg-foreground text-primary-foreground pt-32 pb-24 lg:pt-40">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">

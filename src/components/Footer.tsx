@@ -36,6 +36,7 @@ export default function Footer() {
               <Link to="/chi-siamo" className={linkCls}>Chi Siamo</Link>
               <Link to="/associazione" className={linkCls}>Associazione</Link>
               <Link to="/associazione/iscrizione" className={linkCls}>Diventa socio</Link>
+              <Link to="/convenzioni" className={linkCls}>Convenzioni per i soci</Link>
               <Link to="/eventi" className={linkCls}>Eventi</Link>
               <Link to="/news" className={linkCls}>News</Link>
               <Link to="/gallery" className={linkCls}>Gallery</Link>
