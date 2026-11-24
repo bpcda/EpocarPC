@@ -53,7 +53,7 @@ describe("public news navigation", () => {
     show("/news");
     await screen.findByRole("heading", { name: article.title });
     const links = screen.getAllByRole("link");
-    expect(links.map(link => link.getAttribute("href"))).toEqual([`/articoli/${article.id}`, "/news/dal-cms"]);
+    expect(links.map(link => link.getAttribute("href"))).toEqual([`/articoli/un-giro-insieme--${article.id}`, "/news/dal-cms"]);
     expect(state.eq).toHaveBeenCalledWith("published", true);
     expect(state.or).toHaveBeenCalledWith(expect.stringMatching(/^published_at.is.null,published_at.lte./));
   });
@@ -68,11 +68,20 @@ describe("public news navigation", () => {
     show(`/articoli/${article.id}`);
     expect(await screen.findByRole("heading", { level: 1, name: article.title })).toBeInTheDocument();
   });
+  it("opens a descriptive URL and follows links with an older title", async () => {
+    const rendered = show(`/articoli/vecchio-titolo--${article.id}`);
+    expect(await screen.findByRole("heading", { level: 1, name: article.title })).toBeInTheDocument();
+    expect(state.eq).toHaveBeenCalledWith("id", article.id);
+    rendered.unmount();
+    show(`/articoli/un-giro-insieme--${article.id}`);
+    expect(await screen.findByText("Una giornata speciale.")).toBeInTheDocument();
+  });
+
   it("sorts and displays a backdated publication by its selected date rather than draft creation", async () => {
     state.rows = [{ ...article, published_at: "2026-11-10T23:00:00Z" }];
     const list = show("/news");
     await screen.findByRole("heading", { name: article.title });
-    expect(screen.getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/news/dal-cms", `/articoli/${article.id}`]);
+    expect(screen.getAllByRole("link").map(link => link.getAttribute("href"))).toEqual(["/news/dal-cms", `/articoli/un-giro-insieme--${article.id}`]);
     list.unmount();
     show(`/articoli/${article.id}`);
     await screen.findByRole("heading", { name: article.title });

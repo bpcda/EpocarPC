@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { useArticles } from "@/hooks/use-articles";
 import NotFound from "./NotFound";
 import RichText from "@/components/RichText";
+import { articleId, articlePath } from "@/lib/article-url";
 import { articleDate } from "@/lib/article-publication";
 
 export default function Articoli() {
   const { id } = useParams();
-  const { data = [], isLoading, isError, refetch } = useArticles(id);
+  const resolvedId = articleId(id);
+  const { data = [], isLoading, isError, refetch } = useArticles(resolvedId ?? "invalid");
   const article = data[0];
   if (!isLoading && !isError && !article) return <NotFound />;
+  if (article && id !== articlePath(article).split("/").pop()) return <Navigate to={articlePath(article)} replace />;
 
   return (
     <>
-      {article && <PageMeta title={`${article.title} — Epocar`} description={article.summary ?? "Notizie dalla community Epocar di Piacenza."} path={`/articoli/${article.id}`} image={article.image_url ?? undefined} />}
+      {article && <PageMeta title={`${article.title} — Epocar`} description={article.summary ?? "Notizie dalla community Epocar di Piacenza."} path={articlePath(article)} image={article.image_url ?? undefined} />}
       <Navbar />
       <main className="bg-background text-foreground pt-32 pb-16 lg:pt-40 lg:pb-24 min-h-screen">
         <article className="max-w-3xl mx-auto px-6 lg:px-8">

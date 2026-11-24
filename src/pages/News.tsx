@@ -6,6 +6,7 @@ import NotFound from "./NotFound";
 import { useNews, useNewsList } from "@/hooks/use-cms";
 import { BlockRenderer, CmsImg } from "@/components/cms/CmsContent";
 import { useArticles } from "@/hooks/use-articles";
+import { articlePath } from "@/lib/article-url";
 import { articleDate } from "@/lib/article-publication";
 
 const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Rome" }) : "");
@@ -15,7 +16,7 @@ export function NewsList() {
   const archive = useArticles();
   const items = [
     ...(cms.data ?? []).map(n => ({ href: `/news/${n.slug}`, title: n.title, excerpt: n.excerpt, date: n.date, image: n.cover })),
-    ...(archive.data ?? []).map(n => ({ href: `/articoli/${n.id}`, title: n.title, excerpt: n.summary, date: articleDate(n), image: n.image_url ? { url: n.image_url, alt: n.title } : undefined })),
+    ...(archive.data ?? []).map(n => ({ href: articlePath(n), title: n.title, excerpt: n.summary, date: articleDate(n), image: n.image_url ? { url: n.image_url, alt: n.title } : undefined })),
   ].sort((a, b) => (Date.parse(b.date ?? "") || 0) - (Date.parse(a.date ?? "") || 0));
   const isLoading = (cms.isLoading || archive.isLoading) && items.length === 0;
   return (
