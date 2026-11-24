@@ -1,3 +1,6 @@
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource/bebas-neue/400.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

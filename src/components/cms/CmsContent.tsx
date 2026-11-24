@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { safeHref, type Block, type CmsImage, type InlineNode, type RichText } from "@/lib/cms";
@@ -101,15 +102,20 @@ export function BlockRenderer({ blocks }: { blocks: Block[] }) {
           case "two-columns": return (
             <div key={i} className="grid md:grid-cols-2 gap-8"><RichTextView value={b.left} /><RichTextView value={b.right} /></div>
           );
-          case "video": return (
-            <div key={i} className="relative w-full aspect-video">
-              <iframe src={b.embedUrl} title={b.title ?? "Video"} className="absolute inset-0 w-full h-full" loading="lazy"
-                allow="accelerometer; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
-            </div>
-          );
+          case "video": return <VideoEmbed key={i} url={b.embedUrl} title={b.title ?? "Video"} />;
           case "divider": return <hr key={i} className="border-t-2 border-foreground/20" />;
         }
       })}
     </div>
   );
+}
+
+function VideoEmbed({ url, title }: { url: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  return <div className="relative aspect-video w-full bg-foreground text-primary-foreground">
+    {open ? <iframe src={url} title={title} className="absolute inset-0 h-full w-full" allow="accelerometer; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+      : <button type="button" onClick={() => setOpen(true)} className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center underline underline-offset-4">
+          <span className="font-headline text-3xl">{title}</span><span>Carica video</span>
+        </button>}
+  </div>;
 }
