@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { benefitsTable, useBenefits, type MemberBenefit } from "@/lib/member-benefits";
+import { benefitLogo, socialLinks } from "@/lib/benefit-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,19 +14,38 @@ export default function BenefitsTab({ owner }: { owner: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
+  async function uploadLogo(file?: File) {
+    if (!file) return;
+    setBusy(true); setMessage("");
+    try {
+      const logo = await benefitLogo(file);
+      setEditing(row => row && { ...row, logo });
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Impossibile leggere il logo."); }
+    finally { setBusy(false); }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing || busy) return;
     const data = new FormData(event.currentTarget);
     const field = (key: string) => String(data.get(key) ?? "").trim();
+    let links: string[];
+    try { links = socialLinks(field("social")); }
+    catch (error) { setMessage((error as Error).message); return; }
     const values = { business: field("business"), benefit: field("benefit"), conditions: field("conditions"),
-      redemption: field("redemption"), published: data.has("published") };
+      redemption: field("redemption"), published: data.has("published"),
+      ...(editing.logo !== undefined ? { logo: editing.logo } : {}),
+      ...(editing.social_links !== undefined || links.length ? { social_links: links } : {}) };
     setBusy(true);
     setMessage("");
     try {
       const query = editing.revision ? benefitsTable().update(values).eq("id", editing.id).eq("revision", editing.revision)
         : benefitsTable().insert({ id: editing.id, ...values });
       const result = await query.select("id").single();
+      if (result.error?.code === "PGRST204") {
+        setMessage("Per salvare logo e social occorre aggiornare il database delle convenzioni.");
+        return;
+      }
       if (result.error) throw result.error;
       setEditing(null);
       setMessage(values.published ? "Convenzione pubblicata." : "Bozza salvata.");
@@ -57,6 +77,17 @@ export default function BenefitsTab({ owner }: { owner: string }) {
         <label className="block">Vantaggio per i soci<Textarea required maxLength={1200} name="benefit" defaultValue={editing.benefit}/></label>
         <label className="block">Condizioni e validità (facoltativo)<Textarea maxLength={2000} name="conditions" defaultValue={editing.conditions}/></label>
         <label className="block">Come usufruirne<Textarea required maxLength={1200} name="redemption" defaultValue={editing.redemption}/></label>
+        <label className="block">Logo dell’attività (facoltativo)
+          <Input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{
+            const file = e.target.files?.[0]; e.target.value = ""; void uploadLogo(file);
+          }} />
+          <span className="text-sm text-muted-foreground">PNG, JPEG o WebP, fino a 5 MB.</span>
+        </label>
+        {editing.logo && <div className="flex items-center gap-3"><img className="h-16 w-28 object-contain" src={editing.logo} alt="Anteprima del logo" />
+          <Button type="button" variant="outline" onClick={()=>setEditing({...editing,logo:null})}>Rimuovi logo</Button></div>}
+        <label className="block">Link social (facoltativi, uno per riga)
+          <Textarea name="social" rows={3} defaultValue={editing.social_links?.join("\n") ?? ""} placeholder="https://www.instagram.com/attivita" />
+        </label>
         <label className="block"><input type="checkbox" name="published" defaultChecked={editing.published}/> Visibile nella pagina pubblica</label>
         <div className="flex gap-2"><Button type="submit">Salva convenzione</Button><Button type="button" variant="outline" onClick={()=>setEditing(null)}>Annulla</Button></div>
       </fieldset>

@@ -8,10 +8,13 @@ create table if not exists public.member_benefits (
   published boolean not null default false,
   revision integer not null default 1
 );
+alter table public.member_benefits
+  add column if not exists logo text check (length(logo) <= 131072 and logo ~ '^data:image/webp;base64,[A-Za-z0-9+/]+={0,2}$'),
+  add column if not exists social_links text[] not null default '{}';
 alter table public.member_benefits enable row level security;
 revoke all on public.member_benefits from public, anon, authenticated;
 grant select on public.member_benefits to anon, authenticated;
-grant insert(id,business,benefit,conditions,redemption,published),update(business,benefit,conditions,redemption,published),delete
+grant insert(id,business,benefit,conditions,redemption,published,logo,social_links),update(business,benefit,conditions,redemption,published,logo,social_links),delete
   on public.member_benefits to authenticated;
 
 drop policy if exists benefits_online on public.member_benefits;

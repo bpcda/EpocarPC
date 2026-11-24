@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
+import { socialUrl } from "@/lib/benefit-media";
 import { useBenefits } from "@/lib/member-benefits";
 import raduno from "@/assets/community-gathering.jpeg";
 
@@ -26,12 +27,21 @@ export default function Convenzioni() {
           : offers.isError ? <p role="alert">Elenco temporaneamente non disponibile. <button className="underline" onClick={()=>offers.refetch()}>Riprova</button></p>
           : offers.data.length ? <div className="grid gap-5 md:grid-cols-2">{offers.data.map(offer =>
             <article key={offer.id} className="space-y-4 break-words border bg-card p-6">
+              {offer.logo && <img className="h-16 max-w-40 object-contain object-left" alt="" src={offer.logo} loading="lazy" />}
               <h3 className="font-headline text-3xl">{offer.business}</h3>
               <p className="whitespace-pre-line">{offer.benefit}</p>
               <dl className="space-y-3">
                 {offer.conditions && <div><dt className="font-semibold">Condizioni e validità</dt><dd className="whitespace-pre-line">{offer.conditions}</dd></div>}
                 <div><dt className="font-semibold">Come usufruirne</dt><dd className="whitespace-pre-line">{offer.redemption}</dd></div>
               </dl>
+              {offer.social_links?.length ? <ul aria-label={`Profili social di ${offer.business}`} className="flex flex-wrap gap-x-4 gap-y-2">
+                {offer.social_links.map(link=>{
+                  const url = socialUrl(link);
+                  return url && <li key={link}><a href={url.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+                    {url.hostname.replace(/^www\./,"")}{url.pathname.replace(/\/$/,"")}
+                  </a></li>;
+                })}
+              </ul> : null}
             </article>
           )}</div> : <p className="text-muted-foreground">Al momento non ci sono convenzioni pubblicate.</p>}
         <aside className="mt-12 border-l-2 border-primary pl-5">

@@ -10,6 +10,8 @@ export interface MemberBenefit {
   redemption: string;
   published: boolean;
   revision: number;
+  logo?: string | null;
+  social_links?: string[];
 }
 export const benefitsTable = () => (supabase as SupabaseClient).from("member_benefits");
 export function useBenefits(owner?: string) {
@@ -17,7 +19,7 @@ export function useBenefits(owner?: string) {
     queryKey: ["member-benefits", owner ?? "public"],
     gcTime: owner ? 0 : undefined,
     queryFn: async () => {
-      let query = benefitsTable().select("id,business,benefit,conditions,redemption,published,revision").order("business").order("id");
+      let query = benefitsTable().select("*").order("business").order("id");
       if (!owner) query = query.eq("published", true);
       const { data, error } = await query;
       if (!owner && error?.code === "PGRST205") return [] as MemberBenefit[];
