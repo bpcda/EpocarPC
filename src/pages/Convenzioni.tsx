@@ -2,12 +2,11 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
-import { BlockRenderer } from "@/components/cms/CmsContent";
-import { useCmsPage } from "@/hooks/use-cms";
+import { useBenefits } from "@/lib/member-benefits";
 import raduno from "@/assets/community-gathering.jpeg";
 
 export default function Convenzioni() {
-  const { data: pagina, isLoading } = useCmsPage("convenzioni");
+  const offers = useBenefits();
   return <>
     <PageMeta title="Convenzioni per i soci — EPOCAR" description="Sconti e agevolazioni riservati ai soci dalle attività convenzionate con EPOCAR." path="/convenzioni" />
     <Navbar />
@@ -23,9 +22,18 @@ export default function Convenzioni() {
       </header>
       <section className="mx-auto max-w-5xl px-6 py-14 lg:py-20">
         <h2 className="mb-6 font-headline text-4xl tracking-wide">Attività convenzionate</h2>
-        {isLoading ? <p role="status">Caricamento delle convenzioni…</p> : pagina?.blocks.length
-          ? <BlockRenderer blocks={pagina.blocks} />
-          : <p className="text-muted-foreground">Al momento non ci sono convenzioni pubblicate.</p>}
+        {offers.isPending ? <p role="status">Caricamento delle convenzioni…</p>
+          : offers.isError ? <p role="alert">Elenco temporaneamente non disponibile. <button className="underline" onClick={()=>offers.refetch()}>Riprova</button></p>
+          : offers.data.length ? <div className="grid gap-5 md:grid-cols-2">{offers.data.map(offer =>
+            <article key={offer.id} className="space-y-4 break-words border bg-card p-6">
+              <h3 className="font-headline text-3xl">{offer.business}</h3>
+              <p className="whitespace-pre-line">{offer.benefit}</p>
+              <dl className="space-y-3">
+                {offer.conditions && <div><dt className="font-semibold">Condizioni e validità</dt><dd className="whitespace-pre-line">{offer.conditions}</dd></div>}
+                <div><dt className="font-semibold">Come usufruirne</dt><dd className="whitespace-pre-line">{offer.redemption}</dd></div>
+              </dl>
+            </article>
+          )}</div> : <p className="text-muted-foreground">Al momento non ci sono convenzioni pubblicate.</p>}
         <aside className="mt-12 border-l-2 border-primary pl-5">
           <h2 className="font-headline text-2xl">Il ruolo di EPOCAR</h2>
           <p className="mt-2 max-w-2xl leading-relaxed">Il vantaggio è riservato ai soci. EPOCAR non riceve compensi, commissioni o altri benefici dalle convenzioni. I post dedicati servono a informare i soci sulle opportunità disponibili.</p>

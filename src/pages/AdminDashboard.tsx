@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CalendarDays, Newspaper, Images, ClipboardList, Users, ShieldCheck, Landmark, Plus, Pencil, Trash2, LogOut, ArrowUpRight, Search, RefreshCw } from "lucide-react";
+import { CalendarDays, Newspaper, Images, ClipboardList, Handshake, Users, ShieldCheck, Landmark, Plus, Pencil, Trash2, LogOut, ArrowUpRight, Search, RefreshCw } from "lucide-react";
 import ShootingAgenda from "@/components/admin/ShootingAgenda";
+import BenefitsTab from "@/components/admin/BenefitsTab";
 import GalleryTab from "@/components/admin/GalleryTab";
 import RegistrationsTab from "@/components/admin/RegistrationsTab";
 import UsersTab from "@/components/admin/UsersTab";
@@ -26,6 +27,7 @@ type Article = Pick<Tables<"articles">, "id" | "title" | "published" | "created_
 const sections = [
   { value: "events", label: "Eventi", description: "Prepara gli incontri e ritrova gli appuntamenti pubblicati.", icon: CalendarDays },
   { value: "articles", label: "News", description: "Le notizie online, le bozze e le prossime uscite.", icon: Newspaper },
+  { value: "convenzioni", label: "Convenzioni", description: "Gestisci i vantaggi riservati ai soci e le condizioni per usufruirne.", icon: Handshake, adminOnly: true },
   { value: "gallery", label: "Gallery", description: "Le immagini che raccontano la community.", icon: Images },
   { value: "registrations", label: "Iscrizioni eventi", description: "Partecipanti e prenotazioni, raccolti per evento.", icon: ClipboardList },
   { value: "association", label: "Associazione", description: "Documenti, presentazione e richieste di adesione.", icon: Landmark },
@@ -141,6 +143,7 @@ export default function AdminDashboard() {
               })}</ul>}
             {!query.isPending && !query.isError && <p role="status" className="text-xs text-muted-foreground mt-4">{matching.length} {matching.length === 1 ? "contenuto" : "contenuti"}{search || filter !== "all" ? ` su ${rows.length}` : ""}</p>}
           </TabsContent>}
+          {isAdmin && user && <TabsContent value="convenzioni" className="m-0"><BenefitsTab owner={user.id} /></TabsContent>}
           <TabsContent value="gallery" className="m-0"><GalleryTab userId={user?.id} /></TabsContent>
           <TabsContent value="registrations" className="m-0"><RegistrationsTab /></TabsContent>
           <TabsContent value="association" className="m-0"><AssociationTab /></TabsContent>
